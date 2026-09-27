@@ -80,6 +80,11 @@ public class ParkingEngine {
     private final State S;
     private Changes ch = new Changes();
     private final Messages msg;
+    /** Off until a mobile-money provider is connected (payments.mode). The demo runs with simulated wallets. */
+    private boolean paymentsEnabled = true;
+
+    /** The message drivers get while no mobile-money provider is connected. */
+    public static final String PAYMENTS_OFF = "Paying by mobile money opens soon. We will send you an SMS when it does.";
 
     public ParkingEngine(State state) {
         this.S = state;
@@ -94,6 +99,35 @@ public class ParkingEngine {
     }
 
     public State state() { return S; }
+
+    public void setPaymentsEnabled(boolean on) { this.paymentsEnabled = on; }
+    public boolean paymentsEnabled() { return paymentsEnabled; }
+
+    /** A new engine for a real service: today's date and time, the default tariff, and nothing else. */
+    public static ParkingEngine empty(LocalDate today, int minute) {
+        ParkingEngine e = new ParkingEngine(new State());
+        State s = e.S;
+        s.clock = new Clock();
+        s.clock.date = today;
+        s.clock.min = minute;
+        s.clock.run = true;
+        s.seq = 1;
+        Tariff t = new Tariff();
+        t.daily = 200; t.monthly = monthlyFor(200); t.grace = 5; t.walletLimit = 10000;
+        t.log.add(new Tariff.Change(fmtD(today) + " " + today.getYear() + " " + hm(minute),
+                "Starting tariff: 200 GMD a day, " + gmd(t.monthly) + " GMD a month. Paid hours 7am–7pm, Mon–Sat.", "ParkNa set-up", "System"));
+        s.tariff = t;
+        s.ver = 1;
+        e.ch = new Changes();
+        e.ch.fullReset = true;
+        return e;
+    }
+
+    /** Who did it: the signed-in staff member's name, added by the service (never taken from the screen). */
+    private static String actor(Map<String, Object> a, String fallback) {
+        Object v = a.get("_actor");
+        return v instanceof String s && !s.isBlank() ? s : fallback;
+    }
 
     /** The changes since the last call, for saving. */
     public Changes takeChanges() { Changes c = ch; ch = new Changes(); return c; }
@@ -161,8 +195,35 @@ public class ParkingEngine {
         return o.re != null && o.re.day.equals(dkey(S.clock.date)) && S.clock.min >= o.re.from ? o.re.road : o.road;
     }
 
+    /** Whether a plate is covered right now, for the "pay for a plate" screen. Changes nothing. */
+    public Map<String, Object> plateStatus(Object raw) {
+        String p = normPlate(raw);
+        if (p == null) return err("Enter a plate like BJL1234");
+        String st = plateState(p);
+        Map<String, Object> r = ok();
+        r.put("plate", p);
+        r.put("st", st);
+        PlateRecord rec = S.plates.get(p);
+        if (st.equals("DAILY")) r.put("until", "19:00");
+        if (st.equals("MONTHLY")) r.put("to", rec.monthly.to);
+        if (st.equals("ORG")) r.put("org", orgOf(p).name);
+        r.put("paidHours", paidHours());
+        return r;
+    }
+
+    /** The road an attendant is on right now (their own, or where they were moved today). */
+    public String currentRoad(Officer o) { return roadOf(o); }
+
     private static String roadLine(String k) { return ROADS.get(k).name() + " " + ROADS.get(k).bays(); }
-    private boolean isOfficer(String num) { Officer o = S.off.get(num); return o != null && o.active; }
+    /** A registered, active attendant's number? */
+    public boolean isOfficer(String num) { Officer o = S.off.get(num); return o != null && o.active; }
+
+    /** The organisation whose billing contact has this number, or null. */
+    public String orgForContact(String num) {
+        String id = null;
+        for (Organisation o : S.orga.values()) if (o.contact.num.equals(num)) id = o.id;
+        return id;
+    }
 
     private List<Organisation.FleetPlate> activePlates(Organisation o, LocalDate at) {
         LocalDate t = at != null ? at : today();
@@ -259,6 +320,7 @@ public class ParkingEngine {
     private Map<String, Object> pay(String num, Object plate, String kind, String prov) {
         Quote q = quote(plate, kind);
         if (q.err != null) return err(q.err);
+        if (!paymentsEnabled) return err(PAYMENTS_OFF);
         if (!PROVIDERS.contains(prov)) return err("Choose a payment provider");
         Subscriber u = N(num);
         if (u.wallet.get(prov) < q.amount) {
@@ -339,6 +401,7 @@ public class ParkingEngine {
             Quote qm = quote(mp, "monthly");
             if (qm.err != null) return mt(num, qm.err, null);
             link(num, qm.plate);
+            if (!paymentsEnabled) return mt(num, "Monthly pass " + qm.plate + ": " + S.tariff.monthly + " GMD. " + PAYMENTS_OFF, null);
             u.pending = new Pending(qm.plate, "monthly");
             return mt(num, msg.moffer(qm.plate, qm.to), null);
         }
@@ -353,6 +416,7 @@ public class ParkingEngine {
         u.welcomed = true;
         if (st.equals("MONTHLY")) return mt(num, msg.mcov(p, S.plates.get(p).monthly.to), null);
         if (st.equals("DAILY")) return mt(num, msg.dcov(p, S.plates.get(p).daily.ticket), null);
+        if (!paymentsEnabled) return mt(num, p + " is not paid today (" + S.tariff.daily + " GMD till 7pm). " + PAYMENTS_OFF, null);
         u.pending = new Pending(p, "daily");
         return mt(num, msg.offer(p), null);
     }
@@ -458,7 +522,7 @@ public class ParkingEngine {
         String id = pad(max + 1);
         Officer o = new Officer();
         o.id = id; o.name = trim(str(f.get("name"))); o.num = ph; o.road = road; o.shift = shift; o.staff = strOr(f.get("staff"), "—");
-        o.active = true; o.supervisor = "Supervisor Jobe"; o.isNew = true;
+        o.active = true; o.supervisor = actor(f, "Supervisor Jobe"); o.isNew = true;
         S.off.put(ph, o);
         ch.officers.add(ph);
         N(ph, o.name).name = o.name;
@@ -608,7 +672,7 @@ public class ParkingEngine {
         Announcement x = new Announcement();
         x.id = "AN-" + Js.padStart(Integer.toString(max + 1), 3);
         x.kind = kind; x.title = title; x.text = text; x.when = when; x.link = link; x.theme = theme;
-        x.from = from; x.to = to; x.status = "live"; x.created = today(); x.by = "Aisha K.";
+        x.from = from; x.to = to; x.status = "live"; x.created = today(); x.by = actor(f, "Aisha K.");
         S.ann.add(0, x);
         ch.announcements = true;
         Map<String, Object> r = ok(); r.put("id", x.id); r.put("live", annLive(x)); return r;
@@ -892,6 +956,7 @@ public class ParkingEngine {
                 if (oe == null) return new LinkedHashMap<>(NO_ORG);
                 Organisation.Invoice iw = invoice(oe, a.get("inv"));
                 if (iw == null) return err("Unknown invoice");
+                if (!paymentsEnabled) return err("Paying by mobile money opens soon. Pay by bank transfer quoting " + iw.no + ".");
                 if (iw.amount > S.tariff.walletLimit) return err("Above the wallet limit. Pay by bank transfer.");
                 return payInvoice(oe, iw, "Wave Business");
             }
@@ -919,7 +984,7 @@ public class ParkingEngine {
                 S.tariff.daily = (int) v2;
                 S.tariff.monthly = monthlyFor(v2);
                 Tariff.Change c = new Tariff.Change(fmtD(S.clock.date) + " " + S.clock.date.getYear() + " " + hm(S.clock.min),
-                        "Daily " + old + " → " + v2 + " GMD; monthly " + gmd(monthlyFor(old)) + " → " + gmd(S.tariff.monthly) + " GMD", trim(str(a.get("auth"))), "Aisha K.");
+                        "Daily " + old + " → " + v2 + " GMD; monthly " + gmd(monthlyFor(old)) + " → " + gmd(S.tariff.monthly) + " GMD", trim(str(a.get("auth"))), actor(a, "Aisha K."));
                 S.tariff.log.add(c);
                 ch.tariff = true;
                 ch.tariffLog.add(c);

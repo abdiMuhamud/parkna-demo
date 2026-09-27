@@ -1,0 +1,39 @@
+package com.innovii.parkna.auth;
+
+/** Who someone is to ParkNa. Phone roles sign in with an SMS code; staff roles with a username and password. */
+public enum Role {
+    /** Pays for parking, manages their plates. */
+    DRIVER(false),
+    /** Parking attendant: starts and ends shifts, checks plates. */
+    OFFICER(false),
+    /** Billing contact of an organisation with a fleet agreement. */
+    ORG(false),
+    /** Everything in the back office, including staff accounts, tariffs and announcements. */
+    ADMIN(true),
+    /** Attendants: registers and moves them, records exceptions. */
+    SUPERVISOR(true),
+    /** Payments: matches bank transfers, handles exceptions. */
+    FINANCE(true),
+    /** Banjul City Council: sees everything, changes nothing. */
+    COUNCIL(true);
+
+    public final boolean staff;
+
+    Role(boolean staff) { this.staff = staff; }
+
+    /** The phone role for the "as" field of a sign-in request, or null. */
+    public static Role phoneRole(String as) {
+        if (as == null) return null;
+        return switch (as.trim().toLowerCase()) {
+            case "driver" -> DRIVER;
+            case "officer" -> OFFICER;
+            case "org" -> ORG;
+            default -> null;
+        };
+    }
+
+    public static Role staffRole(String s) {
+        try { Role r = Role.valueOf(String.valueOf(s).trim().toUpperCase()); return r.staff ? r : null; }
+        catch (IllegalArgumentException e) { return null; }
+    }
+}

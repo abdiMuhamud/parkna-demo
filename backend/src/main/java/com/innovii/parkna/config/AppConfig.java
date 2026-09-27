@@ -25,10 +25,14 @@ import java.util.Properties;
 public final class AppConfig {
     private static final Logger log = LoggerFactory.getLogger(AppConfig.class);
 
+    /** production: a real service (empty start, real time, no demo controls). demo: the demo story with simulated money. */
+    public enum Mode { PRODUCTION, DEMO }
     public enum ClockMode { DEMO, REAL }
     public enum SmsMode { SIMULATED, KANNEL }
+    public enum PaymentsMode { OFF, SIMULATED }
 
     public final Path dir;
+    public final Mode mode;
     public final Database db;
     public final String publicUrl;
     public final List<String> allowedOrigins;
@@ -36,6 +40,14 @@ public final class AppConfig {
     public final ZoneId timezone;
     public final boolean demoControls;
     public final Sms sms;
+    public final PaymentsMode payments;
+    public final Auth auth;
+
+    /**
+     * Sign-in settings. otpInApp shows the one-time code in the app instead of sending it, for a test server without
+     * working SMS; it is only honoured while sms.gateway=simulated.
+     */
+    public record Auth(boolean otpInApp, int phoneSessionDays, int staffSessionHours, int otpMinutes) {}
 
     public record Database(String url, String username, String password, int maxPoolSize, int minIdle, long connectionTimeoutMs, boolean migrate) {}
 
@@ -44,6 +56,8 @@ public final class AppConfig {
 
     private AppConfig(Path dir, Properties dbp, Properties cfg) {
         this.dir = dir;
+        this.mode = Mode.valueOf(cfg.getProperty("app.mode", "production").trim().toUpperCase());
+        boolean demo = mode == Mode.DEMO;
         this.db = new Database(
                 req(dbp, "db.url", "database.properties"),
                 req(dbp, "db.username", "database.properties"),
@@ -54,9 +68,12 @@ public final class AppConfig {
                 bool(dbp, "db.migrate", true));
         this.publicUrl = cfg.getProperty("server.publicUrl", "").trim().replaceAll("/+$", "");
         this.allowedOrigins = list(cfg.getProperty("api.allowedOrigins", "*"));
-        this.clockMode = ClockMode.valueOf(cfg.getProperty("clock.mode", "demo").trim().toUpperCase());
+        this.clockMode = ClockMode.valueOf(cfg.getProperty("clock.mode", demo ? "demo" : "real").trim().toUpperCase());
         this.timezone = ZoneId.of(cfg.getProperty("clock.timezone", "Africa/Banjul").trim());
-        this.demoControls = bool(cfg, "demo.controls.enabled", clockMode == ClockMode.DEMO);
+        boolean controls = bool(cfg, "demo.controls.enabled", demo);
+        if (!demo && controls) log.warn("demo.controls.enabled is ignored in production mode: the demo clock and Reset demo are never available on a real service");
+        this.demoControls = demo && controls;
+        if (!demo && clockMode == ClockMode.DEMO) log.warn("clock.mode=demo on a production server: the service clock does not follow real time");
         this.sms = new Sms(
                 SmsMode.valueOf(cfg.getProperty("sms.gateway", "simulated").trim().toUpperCase()),
                 cfg.getProperty("sms.shortcode", "7275").trim(),
@@ -70,6 +87,16 @@ public final class AppConfig {
                 list(cfg.getProperty("sms.mo.allowedIps", "127.0.0.1,::1,0:0:0:0:0:0:0:1")));
         if (sms.mode() == SmsMode.KANNEL && sms.username().isEmpty())
             throw new IllegalStateException("config.properties: sms.gateway=kannel needs sms.kannel.username and sms.kannel.password");
+        this.payments = PaymentsMode.valueOf(cfg.getProperty("payments.mode", demo ? "simulated" : "off").trim().toUpperCase());
+        if (!demo && payments == PaymentsMode.SIMULATED)
+            log.warn("payments.mode=simulated on a production server: passes are issued WITHOUT taking money. Use this on a test server only.");
+        boolean inApp = bool(cfg, "auth.otp.showCodeInApp", demo);
+        if (inApp && sms.mode() != SmsMode.SIMULATED) {
+            log.warn("auth.otp.showCodeInApp is ignored because SMS go through Kannel: codes are sent by SMS");
+            inApp = false;
+        }
+        if (inApp && !demo) log.warn("auth.otp.showCodeInApp=true: sign-in codes are shown in the app, not sent by SMS. Test servers only.");
+        this.auth = new Auth(inApp, integer(cfg, "auth.phoneSessionDays", 180), integer(cfg, "auth.staffSessionHours", 12), integer(cfg, "auth.otpMinutes", 5));
     }
 
     public static AppConfig load() {
@@ -130,8 +157,9 @@ public final class AppConfig {
 
     /** One line for the startup log (never includes passwords). */
     public String summary() {
-        return "db=" + db.url() + " user=" + db.username() + ", clock=" + clockMode.name().toLowerCase() + " (" + timezone + ")"
+        return "mode=" + mode.name().toLowerCase() + ", db=" + db.url() + " user=" + db.username() + ", clock=" + clockMode.name().toLowerCase() + " (" + timezone + ")"
                 + ", demoControls=" + demoControls + ", sms=" + sms.mode().name().toLowerCase()
-                + (sms.mode() == SmsMode.KANNEL ? " via " + sms.sendSmsUrl() : "") + ", publicUrl=" + (publicUrl.isEmpty() ? "(not set)" : publicUrl);
+                + (sms.mode() == SmsMode.KANNEL ? " via " + sms.sendSmsUrl() : "") + ", payments=" + payments.name().toLowerCase()
+                + (auth.otpInApp() ? ", sign-in codes shown in app" : "") + ", publicUrl=" + (publicUrl.isEmpty() ? "(not set)" : publicUrl);
     }
 }
