@@ -1,6 +1,6 @@
 /* ParkNa Officer: the parking attendant's app. Start and end the shift, check plates, see today's work.
    Signs in with a one-time SMS code on the number registered in the back office. Every action is the same
-   as the SMS line (START, a plate, END to 7275), so the SMS line keeps working on phones without data. */
+   as the SMS line (START, a plate, END to the short code), so the SMS line keeps working on phones without data. */
 (function(){
 var APP = document.getElementById("app");
 var VERSION = "1.0";
@@ -22,6 +22,7 @@ function me(){ return PN.me && OFF[PN.me.num]; }
 function thread(){ var u = PN.me && NUMS[PN.me.num]; return u ? u.sms : []; }
 function onShift(o){ return o.on && o.day === dkey(B.date); }
 function plateTxt(p){ return p.replace(/^([A-Z]+)(\d)/, "$1 $2"); }
+function shortcode(){ return (PN.mode && PN.mode.shortcode) || (PN.info && PN.info.shortcode) || SC; }
 function fromKey(k){ var p = k.split("-").map(Number); return new Date(p[0], p[1], p[2]); }
 function dayLabel(d){ var n = daysBetween(d, B.date); return n === 0 ? "Today" : n === 1 ? "Yesterday" : DOW[d.getDay()] + " " + fmtD(d); }
 function notices(){ return thread().filter(function(m){ return m.i && m.tag; }); }
@@ -49,7 +50,7 @@ function paint(h){
 function loadingView(){
   var off = PN.ready && PN.me && !me();
   return '<div class="auth"><div class="grow"></div>'+(off ? '<h2>Account<br><em>switched off</em></h2><p class="lead">This number is no longer an active ParkNa attendant. Ask your supervisor.</p><button class="btn ghost" data-a="signout">Sign out</button>'
-    : '<div class="spin" style="align-self:center"></div><p class="lead" style="text-align:center">'+(V.slow ? "Can’t reach ParkNa yet. Check your internet connection. The SMS line still works: text START to 7275." : "Loading your shift…")+'</p>'
+    : '<div class="spin" style="align-self:center"></div><p class="lead" style="text-align:center">'+(V.slow ? "Can’t reach ParkNa yet. Check your internet connection. The SMS line still works: text START to " + shortcode() + "." : "Loading your shift…")+'</p>'
       + (V.slow ? '<button class="btn ghost" data-a="signout">Sign out</button>' : ""))+'<div class="grow"></div></div>';
 }
 function setupView(){
@@ -187,7 +188,7 @@ function helpSheet(){
        ["x", "Not paid?", "If the driver is there, show the Park & Pay card. If not, leave a card on the windscreen. Never take money."],
        ["shield", "Organisation plates", "Company cars are covered by their organisation. Nothing to do."],
        ["stop", "End your shift", "Tap End shift when you leave. Your supervisor sees your checks live."],
-       ["sms", "No data?", "The SMS line does the same: text START, a plate, or END to 7275 from your registered number."]].map(function(r){
+       ["sms", "No data?", "The SMS line does the same: text START, a plate, or END to " + shortcode() + " from your registered number."]].map(function(r){
         return '<div class="row" style="align-items:flex-start"><span class="av ic-soft">'+ic(r[0], 20, 2)+'</span><span class="t"><b>'+r[1]+'</b><small style="line-height:1.5">'+esc(r[2])+'</small></span><span></span></div>'; }).join("")+'</div>';
 }
 
