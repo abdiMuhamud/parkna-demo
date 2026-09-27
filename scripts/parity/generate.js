@@ -19,7 +19,7 @@ function engine(){
   const ctx = { console, Math, Date, JSON, Object, Array, String, Number, isNaN };
   vm.createContext(ctx);
   vm.runInContext(src, ctx, { filename: "engine.js" });
-  vm.runInContext("function __bump(){ return ++VER; } function __state(){ return { B: B, OFF: OFF, ORGA: ORGA, NUMS: NUMS, PLATES: PLATES, EXC: EXC, T: T }; }", ctx);
+  vm.runInContext("function __bump(){ return ++VER; } function __state(){ return { B: B, OFF: OFF, ORGA: ORGA, NUMS: NUMS, PLATES: PLATES, EXC: EXC, ANN: ANN, T: T }; }", ctx);
   ctx.reset();
   return ctx;
 }
@@ -122,6 +122,26 @@ function story(){
   A({ type: "back.publish", daily: 200, auth: "x" });
   A({ type: "back.publish", daily: 250, auth: " " });
   A({ type: "back.publish", daily: "249.6", auth: "BCC resolution 12/2026" });
+  A({ type: "back.announce" });
+  A({ type: "back.announce", title: "x".repeat(61) });
+  A({ type: "back.announce", title: "Road works", text: "y".repeat(181) });
+  A({ type: "back.announce", title: "Road works", when: "z".repeat(41) });
+  A({ type: "back.announce", title: "Road works", link: "ftp://bcc.gm" });
+  A({ type: "back.announce", title: "Road works", link: "https://bcc.gm/" + "l".repeat(190) });
+  A({ type: "back.announce", title: "Road works", from: "7 Nov" });
+  A({ type: "back.announce", title: "Road works", from: "2026-13-01" });
+  A({ type: "back.announce", title: "Road works", from: "2026-11-09", to: "2026-11-08" });
+  A({ type: "back.announce", title: "  Road works on Leman Street  ", text: " Leman Street bays A1-A20 close for resurfacing. ", kind: "Notice", theme: "red", from: "2026-11-02", to: "2026-11-06" });
+  A({ type: "back.announce", title: "Tobaski market", kind: "Event", theme: "yellow", when: "Sat 14 Nov", link: "HTTPS://bcc.gm/events", from: "2026-11-10", to: "2026-02-31" });
+  A({ type: "back.announce", title: "Tobaski market", kind: "Festival", theme: "purple", from: "2026-11-10", to: "2026-11-14" });
+  A({ type: "back.announce", title: "New bays", from: "2026-02-31" });
+  A({ type: "back.announce", title: "Council meeting", to: "2026-11-20" });
+  A({ type: "back.announceStatus", id: "AN-003", status: "hidden" });
+  A({ type: "back.announceStatus", id: "AN-003", status: "live" });
+  A({ type: "back.announceStatus", id: "AN-004" });
+  A({ type: "back.announceStatus", id: "AN-999", status: "hidden" });
+  A({ type: "back.announceDelete", id: "AN-002" });
+  A({ type: "back.announceDelete", id: "AN-002" });
   A({ type: "back.exception", plate: "BJL4545", detail: "Wrong plate typed" });
   A({ type: "back.exception", kind: "Double payment" });
   A({ type: "back.refer", i: 0 });
@@ -194,6 +214,9 @@ function randomRun(n){
     [0.5, () => ({ type: "back.publish", daily: pick([int(40, 400), "300", 2100, "x"]), auth: chance(0.8) ? "Ref " + int(1, 99) : "" })],
     [0.5, () => ({ type: "back.exception", plate: chance(0.7) ? pick(PLATES) : undefined, detail: chance(0.5) ? "note" : undefined })],
     [0.5, () => ({ type: "back.refer", i: int(0, 3) })],
+    [0.7, () => ({ type: "back.announce", title: pick(["Clean-up day", "", "Road closed", "x".repeat(70)]), text: pick(["", "Details here."]), kind: pick(["Event", "Notice", "Other", undefined]), theme: pick(["green", "red", "pink"]), from: pick([undefined, "2026-11-0" + int(1, 9), "2026-12-" + int(10, 31), "bad"]), to: pick([undefined, "2026-11-2" + int(0, 9), "2027-01-15"]), link: pick(["", "https://bcc.gm", "bcc.gm"]) })],
+    [0.4, () => ({ type: "back.announceStatus", id: pick(S().ANN.map(x => x.id).concat(["AN-000"])), status: pick(["hidden", "live"]) })],
+    [0.2, () => ({ type: "back.announceDelete", id: pick(S().ANN.map(x => x.id).concat(["AN-000"])) })],
     [2, () => ({ type: "clock.set", min: int(300, 1300) })],
     [1, () => ({ type: "clock.add", min: pick([-60, 60, 30, -600, 900]) })],
     [2.5, () => ({ type: "clock.nextDay" })],

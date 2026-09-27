@@ -1,4 +1,4 @@
-/* ParkNa portals v0.1 : wiring the portal screens to the demo server */
+/* ParkNa portals: wiring the portal screens to the ParkNa server */
 const $ = id => document.getElementById(id);
 const IC = { checkD: '<svg width="14" height="14" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="#0E0F14" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' };
 const ROLE = document.body.dataset.role;            /* "org" or "back" */
@@ -96,6 +96,23 @@ async function backAct(a, v){
       if(r.err){ F.err = r.err; return renderBack(); }
       BS.tar = freshBS().tar; renderBack();
       return wtoast(STAGE, "Published to SMS, app, portal and cards");
+    }
+    case "announce": {
+      const F = BS.ann, r = await call({ type: "back.announce", kind: F.kind, theme: F.theme, title: F.title, text: F.text, when: F.when, link: F.link,
+        from: F.from || dayInput(B.date), to: F.to || dayInput(addDays(B.date, 14)) });
+      if(r.err){ F.err = r.err; return renderBack(); }
+      BS.ann = freshBS().ann; renderBack();
+      return wtoast(STAGE, r.live ? "Live on the driver app now" : "Saved · it goes live on its start date");
+    }
+    case "annstatus": {
+      const [id, status] = v.split("|"), r = await call({ type: "back.announceStatus", id, status });
+      if(r.err) return wtoast(STAGE, r.err);
+      return wtoast(STAGE, status === "hidden" ? "Hidden from the driver app" : "Back on the driver app");
+    }
+    case "anndel": {
+      if(!confirm("Delete this announcement? Drivers stop seeing it at once.")) return;
+      const r = await call({ type: "back.announceDelete", id: v });
+      return wtoast(STAGE, r.err || "Announcement deleted");
     }
     case "user": return;
     default: return backActUI(a, v);

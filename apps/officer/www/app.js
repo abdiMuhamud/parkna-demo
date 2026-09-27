@@ -3,7 +3,7 @@
    This app is that SMS line on the officer's phone, connected to the ParkNa demo server. */
 (function(){
 var APP = document.getElementById("app");
-var VERSION = "0.1";
+var VERSION = "0.2";
 var V = { setup: { url: PN.server || "", err: "", busy: false }, login: { num: "", err: "", busy: false }, draft: "", sending: false, cars: false, menu: false, slow: false };
 var ME = PN.ls("parkna.officer");
 var IP = {
@@ -29,8 +29,8 @@ function render(){
 function setupScreen(){
   var S = V.setup;
   return '<div class="auth"><span class="crest"><img src="assets/img/crest.png" alt="Banjul City Council crest"></span><span class="stripe"></span>'
-   + '<h1>Officer line<br><span>demo server</span></h1><p>Start the ParkNa demo server on the laptop. It shows an address like <b>http://192.168.1.20:4000</b>. Enter it here.</p>'
-   + '<label class="fld">Server address<input id="srv" value="'+esc(S.url)+'" placeholder="http://192.168.1.20:4000" autocomplete="off" autocapitalize="off" inputmode="url"></label>'
+   + '<h1>Officer line<br><span>ParkNa server</span></h1><p>Enter the ParkNa server address your supervisor gave you, like <b>https://parkna.example.gm</b>.</p>'
+   + '<label class="fld">Server address<input id="srv" value="'+esc(S.url)+'" placeholder="https://parkna.example.gm" autocomplete="off" autocapitalize="off" inputmode="url"></label>'
    + (S.err ? '<div class="err">'+esc(S.err)+'</div>' : "")
    + '<button class="btn" data-a="connect"'+(S.busy ? " disabled" : "")+'>'+(S.busy ? "Connecting…" : "Connect")+'</button>'
    + '<div class="pow"><img src="assets/img/innovii-white.png" alt="INNOVII">ParkNa officer app v'+VERSION+' · demo</div></div>';
@@ -38,7 +38,7 @@ function setupScreen(){
 function loadingScreen(){
   return '<div class="auth"><span class="crest"><img src="assets/img/crest.png" alt=""></span><span class="stripe"></span><h1>Connecting…</h1><p>'+esc(PN.server)+'</p>'
    + '<div class="spin" style="border-color:rgba(255,255,255,.15);border-top-color:#F9DD17"></div>'
-   + (V.slow ? '<p>Can’t reach the demo server yet. Check that the laptop and this phone are on the same Wi-Fi and the server is running.</p><button class="btn" data-a="chgsrv">Change server address</button>' : "")
+   + (V.slow ? '<p>Can’t reach the ParkNa server yet. Check this phone’s internet connection and the server address.</p><button class="btn" data-a="chgsrv">Change server address</button>' : "")
    + '<div class="pow"><img src="assets/img/innovii-white.png" alt="INNOVII">ParkNa officer app v'+VERSION+'</div></div>';
 }
 function loginScreen(){
@@ -98,7 +98,7 @@ APP.addEventListener("click", function(e){
   switch(a){
     case "connect": {
       var url = (document.getElementById("srv") || {}).value || V.setup.url; V.setup.url = url; V.setup.busy = true; V.setup.err = ""; render();
-      PN.ping(url).then(function(ok){ V.setup.busy = false; if(!ok){ V.setup.err = "Can’t reach a ParkNa demo server at that address. Check the address and that this phone is on the same Wi-Fi as the laptop."; return render(); } PN.setServer(ok); start(); });
+      PN.ping(url).then(function(ok){ V.setup.busy = false; if(!ok){ V.setup.err = "Can’t reach a ParkNa server at that address. Check the address (start it with https://) and this phone’s internet connection."; return render(); } PN.setServer(ok); start(); });
       return;
     }
     case "chgsrv": PN.setServer(""); PN.ready = false; if(PN.es) PN.es.close(); V.menu = false; V.setup = { url: "", err: "", busy: false }; return render();

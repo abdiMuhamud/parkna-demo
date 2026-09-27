@@ -52,7 +52,7 @@ var PARKSEED = [
 ];
 
 /* ---------------- state ---------------- */
-var B, PLATES, NUMS, LOG, OUT, CHECKS, OFF, ORGA, PARK, EXC, T, seq, VER = 0;
+var B, PLATES, NUMS, LOG, OUT, CHECKS, OFF, ORGA, PARK, EXC, ANN, T, seq, VER = 0;
 function P(p){ return PLATES[p] || (PLATES[p] = { plate: p, daily: null, monthly: null, payers: [] }); }
 function N(num, name){
   if(!NUMS[num]) NUMS[num] = { num: num, name: name || "+220 "+num, plates: [], last: null, pending: null, sms: [], lastD: null, wallet: { Wave: 5000, Afrimoney: 5000, APS: 5000, QMoney: 5000 }, receipts: [], welcomed: false, prov: "Wave" };
@@ -325,6 +325,28 @@ function addFleetPlate(o, p, dept, driver){
   if(o.status === "new") o.status = "active";
 }
 
+/* ---------------- Council announcements (banner on the driver app's home screen) ---------------- */
+var ANN_KINDS = ["Event", "Announcement", "Notice"], ANN_THEMES = ["blue", "yellow", "green", "red"];
+function parseDay(s){ var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || "").trim()); if(!m) return null; var y = +m[1], mo = +m[2], d = +m[3]; if(mo < 1 || mo > 12 || d < 1 || d > 31) return null; return new Date(y, mo - 1, d); }
+function annLive(x){ var t = today(); return x.status === "live" && x.from <= t && t <= x.to; }
+function liveAnnouncements(){ return ANN.filter(annLive); }
+function announce(f){
+  var title = String(f.title || "").trim(), text = String(f.text || "").trim(), link = String(f.link || "").trim(), when = String(f.when || "").trim();
+  var kind = ANN_KINDS.indexOf(f.kind) >= 0 ? f.kind : "Announcement", theme = ANN_THEMES.indexOf(f.theme) >= 0 ? f.theme : "blue";
+  if(!title) return { err: "Add a title." };
+  if(title.length > 60) return { err: "Keep the title to 60 characters." };
+  if(text.length > 180) return { err: "Keep the text to 180 characters." };
+  if(when.length > 40) return { err: "Keep the date line to 40 characters." };
+  if(link.length > 200) return { err: "The link is too long." };
+  if(link && !/^https?:\/\/\S+$/i.test(link)) return { err: "The link must start with https://" };
+  var from = f.from ? parseDay(f.from) : today(), to = f.to ? parseDay(f.to) : (from ? addDays(from, 14) : null);
+  if(!from || !to) return { err: "Enter the dates like 2026-11-07." };
+  if(to < from) return { err: "The end date is before the start date." };
+  var id = "AN-" + String(ANN.reduce(function(m, x){ return Math.max(m, +x.id.slice(3)); }, 0) + 1).padStart(3, "0");
+  ANN.unshift({ id: id, kind: kind, title: title, text: text, when: when, link: link, theme: theme, from: from, to: to, status: "live", created: today(), by: "Aisha K." });
+  return { ok: true, id: id, live: annLive(ANN[0]) };
+}
+
 /* ---------------- clock ---------------- */
 function nextDay(){
   for(var k in OFF){ var o = OFF[k]; if(o.on){ o.on = false; var s = o.stats || {}; o.summary = { end: SHIFTS[o.shift].e, day: o.day, checked: s.checked, paid: s.paid, unpaid: s.unpaid, road: roadOf(o), auto: true }; } o.re = null; }
@@ -365,6 +387,11 @@ function reset(){
   /* a car already paid on Leman Street this morning */
   var keep = B.min; B.min = 8*60+15; recordPay("7066000", "Wave", { plate: "BJL4545", kind: "daily" }); B.min = keep;
   N("7066000").name = "A driver";
+  ANN = [
+    { id: "AN-002", kind: "Event", title: "Banjul Day clean-up", text: "Join the Council and your neighbours to clean the city centre. Gloves and bags provided.", when: "Sat 7 Nov · 8am at Arch 22", link: "", theme: "green",
+      from: new Date(2026, 10, 1), to: new Date(2026, 10, 7), status: "live", created: new Date(2026, 9, 30), by: "Aisha K." },
+    { id: "AN-001", kind: "Announcement", title: "Pay for parking from your phone", text: "ParkNa is live on Wellington Road, Liberation Avenue, Independence Drive, Leman Street and Russell Street.", when: "", link: "", theme: "blue",
+      from: new Date(2026, 9, 28), to: new Date(2026, 11, 31), status: "live", created: new Date(2026, 9, 28), by: "Aisha K." }];
   VER++;
 }
 
@@ -435,6 +462,9 @@ function act(a){
       T.log.push({ when: fmtD(B.date)+" "+B.date.getFullYear()+" "+hm(B.min), what: "Daily "+old+" → "+v2+" GMD; monthly "+gmd(monthlyFor(old))+" → "+gmd(T.monthly)+" GMD", auth: String(a.auth).trim(), by: "Aisha K." });
       return { ok: true };
     }
+    case "back.announce": return announce(a);
+    case "back.announceStatus": { var ax = ANN.find(function(x){ return x.id === a.id; }); if(!ax) return { err: "Unknown announcement" }; ax.status = a.status === "hidden" ? "hidden" : "live"; return { ok: true }; }
+    case "back.announceDelete": { var ai = ANN.findIndex(function(x){ return x.id === a.id; }); if(ai < 0) return { err: "Unknown announcement" }; ANN.splice(ai, 1); return { ok: true }; }
     case "back.exception": { EXC.push({ type: a.kind || "Wrong-plate payment", plate: a.plate, detail: a.detail || "", status: "open" }); return { ok: true }; }
     case "clock.set": { var m = Math.max(0, Math.min(1439, Math.round(+a.min))); B.min = m; return { ok: true }; }
     case "clock.add": { B.min = Math.max(0, Math.min(1439, B.min + Math.round(+a.min))); return { ok: true }; }
@@ -448,12 +478,12 @@ function tickMinute(){ if(B.run && B.min < 23*60+59){ B.min++; return true; } re
 
 /* ---------------- snapshot / hydrate ---------------- */
 function snapshot(){
-  var s = { v: VER, B: B, PLATES: PLATES, NUMS: NUMS, LOG: LOG.slice(0, 150), OUT: OUT.slice(0, 80), CHECKS: CHECKS, OFF: OFF, ORGA: ORGA, PARK: PARK, EXC: EXC, T: T, seq: seq };
+  var s = { v: VER, B: B, PLATES: PLATES, NUMS: NUMS, LOG: LOG.slice(0, 150), OUT: OUT.slice(0, 80), CHECKS: CHECKS, OFF: OFF, ORGA: ORGA, PARK: PARK, EXC: EXC, ANN: ANN, T: T, seq: seq };
   return JSON.stringify(s, function(k, v){ var raw = this[k]; return raw instanceof Date ? { $d: raw.getFullYear()+"-"+(raw.getMonth()+1)+"-"+raw.getDate() } : v; });
 }
 function hydrate(json){
   var s = typeof json === "string" ? JSON.parse(json, function(k, v){ if(v && typeof v === "object" && typeof v.$d === "string"){ var a = v.$d.split("-").map(Number); return new Date(a[0], a[1]-1, a[2]); } return v; }) : json;
-  VER = s.v; B = s.B; PLATES = s.PLATES; NUMS = s.NUMS; LOG = s.LOG; OUT = s.OUT; CHECKS = s.CHECKS; OFF = s.OFF; ORGA = s.ORGA; PARK = s.PARK; EXC = s.EXC; T = s.T; seq = s.seq;
+  VER = s.v; B = s.B; PLATES = s.PLATES; NUMS = s.NUMS; LOG = s.LOG; OUT = s.OUT; CHECKS = s.CHECKS; OFF = s.OFF; ORGA = s.ORGA; PARK = s.PARK; EXC = s.EXC; ANN = s.ANN || []; T = s.T; seq = s.seq;
   return s;
 }
 if(typeof module !== "undefined") module.exports = { reset: reset, act: act, snapshot: snapshot, hydrate: hydrate, tickMinute: tickMinute, bump: function(){ return ++VER; } };

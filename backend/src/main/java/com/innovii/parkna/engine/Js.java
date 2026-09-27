@@ -74,6 +74,8 @@ public final class Js {
     private static final String WS = "[\\t\\n\\u000B\\f\\r \\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF]";
     private static final Pattern TRIM = Pattern.compile("^" + WS + "+|" + WS + "+$");
     public static final Pattern SPACES = Pattern.compile(WS + "+");
+    /** One or more characters that are not JavaScript whitespace, like \\S+ in a JS regex. */
+    public static final String NON_SPACES = "[^" + WS.substring(1) + "+";
 
     /** JavaScript String.prototype.trim() */
     public static String trim(String s) { return TRIM.matcher(s).replaceAll(""); }

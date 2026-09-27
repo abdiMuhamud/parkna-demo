@@ -226,3 +226,23 @@ input{font:inherit;color:inherit}
 .pow img{height:16px}
 .toast{position:absolute;left:16px;right:16px;top:calc(var(--top) + 8px);z-index:40;background:#0F1B2A;color:#fff;border-radius:18px;padding:12px 14px;font-size:13px;display:flex;gap:10px;align-items:center;box-shadow:0 14px 30px -12px rgba(0,0,0,.55);animation:up .3s}
 .toast i{width:26px;height:26px;border-radius:9px;background:var(--yellow);color:var(--navy);display:grid;place-items:center;flex:none}
+
+/* Council announcements banner (home screen); the same look is previewed in the back office */
+.ann{display:flex;flex-direction:column;gap:8px}
+.annrow{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin:0 -18px;padding:0 18px;scroll-padding:0 18px}
+.annrow::-webkit-scrollbar{display:none}
+.annc{flex:0 0 100%;box-sizing:border-box;scroll-snap-align:start;border-radius:24px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;color:#fff;min-height:118px;text-align:left}
+.annc.blue{background:radial-gradient(90% 90% at 100% 0,rgba(68,176,241,.55) 0,transparent 60%),linear-gradient(135deg,#0C2D4E,#123F6B)}
+.annc.green{background:radial-gradient(90% 90% at 100% 0,rgba(120,220,160,.35) 0,transparent 60%),linear-gradient(135deg,#0B4A31,#1C8C5E)}
+.annc.red{background:radial-gradient(90% 90% at 100% 0,rgba(255,150,130,.35) 0,transparent 60%),linear-gradient(135deg,#7A1D17,#C8352B)}
+.annc.yellow{background:radial-gradient(90% 90% at 100% 0,rgba(255,255,255,.55) 0,transparent 60%),linear-gradient(135deg,#F9DD17,#FFE866);color:#0C2D4E}
+.annk{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;opacity:.85}
+.annc b{font-size:17px;line-height:1.25;letter-spacing:-.01em}
+.annc p{margin:0;font-size:13px;line-height:1.45;opacity:.92;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.annf{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12.5px;font-weight:600;margin-top:auto;padding-top:2px}
+.annf span,.annf a{display:inline-flex;align-items:center;gap:6px}
+.annf a{color:inherit;text-decoration:none;background:rgba(255,255,255,.18);padding:6px 11px;border-radius:999px;white-space:nowrap}
+.annc.yellow .annf a{background:rgba(12,45,78,.1)}
+.annd{display:flex;justify-content:center;gap:5px}
+.annd i{width:6px;height:6px;border-radius:3px;background:#C9D3DE;transition:width .2s}
+.annd i.on{width:16px;background:#0C2D4E}

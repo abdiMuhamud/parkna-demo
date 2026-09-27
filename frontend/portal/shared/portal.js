@@ -10,7 +10,8 @@ const freshOS = () => ({ org: "ORG-014", view: "overview", seg: "plates", dept: 
   login: { phone: "", code: "", sent: false, err: "" }, add: { open: false, plate: "", dept: "", driver: "", err: "" }, upload: null, inv: null, pay: { method: "transfer" } });
 const freshBS = () => ({ view: "dash", seg: "roads", aseg: "all", road: "WEL", q: "", sheet: null, bell: false, why: false,
   reg: { name: "", staff: "", phone: "", road: "RUS", shift: "AM", err: "" }, re: { off: "7300007", road: "LEM", err: "" },
-  no: { name: "", plates: "", disc: "0.15", contact: "", phone: "", signed: false, err: "" }, tar: { daily: "", auth: "", err: "" } });
+  no: { name: "", plates: "", disc: "0.15", contact: "", phone: "", signed: false, err: "" }, tar: { daily: "", auth: "", err: "" },
+  ann: { kind: "Event", theme: "blue", title: "", text: "", when: "", link: "", from: "", to: "", err: "" } });
 const ROOT = n => n === "OS" ? OS : BS;
 function setF(path, v){ const k = path.split("."), r = ROOT(k[0]); let o = r; for(let i = 1; i < k.length-1; i++) o = o[k[i]]; o[k[k.length-1]] = v; }
 function paint(el, html){
@@ -33,6 +34,7 @@ const IP = {
   users: '<circle cx="9" cy="8.5" r="3.2"/><path d="M3.5 19c.9-3 3-4.6 5.5-4.6s4.6 1.6 5.5 4.6"/><path d="M15.5 5.6a3 3 0 0 1 0 5.8M17.5 14.6c1.5.6 2.5 2 3 4.4"/>',
   building: '<rect x="5" y="3.5" width="14" height="17" rx="2"/><path d="M9 8h2M13 8h2M9 12h2M13 12h2M10 20.5v-4h4v4"/>',
   card: '<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10.5h18M7 15h4"/>',
+  mega: '<path d="M4 10v4h3l8 4.5v-13L7 10Z"/><path d="M18 9.5a3.5 3.5 0 0 1 0 5"/>', info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.1"/>',
   sliders: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
   chart: '<path d="M5 20V11M11 20V5M17 20v-7M3 20h18"/>',
   car: '<path d="M5 16v-4l2-5h10l2 5v4M5 16h14M6 16v2.5M18 16v2.5"/><circle cx="8.5" cy="13" r=".9"/><circle cx="15.5" cy="13" r=".9"/>',
@@ -407,11 +409,11 @@ function renderBack(){
   const exc = EXC.filter(e => e.status === "open").length, C = checksByRoad();
   const onRoad = k => Object.values(OFF).filter(o => o.active && roadOf(o) === k && offStats(o).on).map(o => o.id);
   const side = sidebar([{ k: "dash", l: "Dashboard", i: "grid" }, { k: "attendants", l: "Attendants", i: "users", n: Object.values(OFF).filter(o => o.active).length }, { k: "orgs", l: "Organisations", i: "building", n: Object.keys(ORGA).length },
-    { k: "payments", l: "Payments", i: "card", n: (proofs.length + exc) || "", hot: 1 }, { k: "tariff", l: "Tariffs & rules", i: "sliders" }, { k: "council", l: "Revenue report", i: "chart" }],
+    { k: "payments", l: "Payments", i: "card", n: (proofs.length + exc) || "", hot: 1 }, { k: "tariff", l: "Tariffs & rules", i: "sliders" }, { k: "ann", l: "Announcements", i: "mega", n: (typeof ANN !== "undefined" && ANN ? ANN.filter(annLive).length : 0) || "" }, { k: "council", l: "Revenue report", i: "chart" }],
     V === "register" ? "attendants" : V === "neworg" ? "orgs" : V, "Pilot roads", Object.keys(ROADS).map(k => ({ k, code: k, t: ROADS[k].name, s: (onRoad(k).length ? "Att. " + onRoad(k).join(", ") : "No attendant") + " · " + C[k].c + " checks", a: "road" })), BS.road);
   const nd = needs();
   const top = topbar("Search plate, e.g. BJL1234", BS.q, nd.length > 0, council ? "BCC revenue office" : "Aisha K.", council ? "Council · read-only" : "ParkNa Admin", council ? "BC" : "AK", council ? "Council view" : "Back office");
-  const [main, right] = { dash: backDash, attendants: backAtt, register: backReg, orgs: backOrgs, neworg: backNewOrg, payments: () => backPay(proofs), tariff: backTariff, council: backCouncil }[V]();
+  const [main, right] = { dash: backDash, attendants: backAtt, register: backReg, orgs: backOrgs, neworg: backNewOrg, payments: () => backPay(proofs), tariff: backTariff, ann: backAnn, council: backCouncil }[V]();
   const ov = BS.sheet ? plateSheet(BS.sheet, "back") : BS.bell ? bellSheet(nd) : BS.help ? helpSheet("The ParkNa back office. <b>Admin</b> registers officers and assigns their fixed road, creates organisation accounts, applies the tariff adopted by the Council and reconciles payments. The <b>Revenue report</b> is the Council’s read-only view. Roads and attendants other than 07 and 12 run simulated background activity so the console looks like a live morning.") : "";
   paint(el, frame(top, side, main, right, ov));
 }
@@ -531,6 +533,28 @@ function backTariff(){
    <div class="ep"><div class="eh"><h2>Change log</h2></div><div class="erows">${T.log.slice().reverse().map((l, i) => row({ lead: l.when.split(" ").slice(0, 2).join(" "), title: esc(l.what), sub: esc(l.auth), mid: "", dur: esc(l.by), chip: i === 0 ? eChip("ok", "Live") : eChip("grey", "Earlier") })).join("")}</div></div>`;
   const right = insight({ tag: "Preview", title: "Drivers will see", body: `<div class="bub">Daily pass BJL1234: ${v || "?"} GMD, valid till 7pm today.\n1 Wave 2 Afrimoney</div><div class="wx">Also the driver app, the Park &amp; Pay card and the organisation portal.</div>` })
     + queue({ title: "Not in the pilot", pill: "off", items: [{ t: "Tariffs by vehicle type", s: "One price for every plate", v: "Off" }, { t: "Fines and violations", s: "Unpaid checks counted for the Council", v: "Off" }, { t: "Clamping", s: "No clamping journey", v: "Off" }] });
+  return [main, right];
+}
+/* Council events and announcements: shown as a banner on the driver app's home screen */
+const dayInput = d => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+const ANN_ICON = { Event: "cal", Announcement: "mega", Notice: "info" };
+const annCard = x => `<div class="annc ${esc(x.theme)}"><span class="annk">${ic(ANN_ICON[x.kind] || "mega", 13, 2.2)}${esc(x.kind)} · Banjul City Council</span><b>${esc(x.title || "Your title")}</b>${x.text ? `<p>${esc(x.text)}</p>` : ""}${x.when || x.link ? `<div class="annf">${x.when ? `<span>${ic("cal", 13, 2.2)}${esc(x.when)}</span>` : "<span></span>"}${x.link ? `<a>Learn more${ic("arrow", 13, 2.4)}</a>` : ""}</div>` : ""}</div>`;
+function backAnn(){
+  const F = BS.ann, list = typeof ANN !== "undefined" && ANN ? ANN : [], live = list.filter(annLive), t = today();
+  const status = x => annLive(x) ? eChip("ok", "Live", "check") : x.status === "hidden" ? eChip("grey", "Hidden") : x.to < t ? eChip("grey", "Ended") : eChip("vio", "Scheduled");
+  const main = `<div class="ep"><div class="eh"><div><h1>Announcements</h1><p>Council events and notices for the banner on the driver app’s home screen. Drivers see the ones live today.</p></div><div class="btns">${eChip(live.length ? "ok" : "grey", plural(live.length, "live today", "live today"), live.length ? "check" : undefined)}</div></div>
+    <div class="efg" style="margin-top:18px"><label class="ef">Type${sel("aKind", "BS.ann.kind", F.kind, [["Event", "Event"], ["Announcement", "Announcement"], ["Notice", "Notice"]])}</label><label class="ef">Colour${sel("aTheme", "BS.ann.theme", F.theme, [["blue", "Blue"], ["green", "Green"], ["yellow", "Yellow"], ["red", "Red (urgent)"]])}</label></div>
+    <label class="ef" style="margin-top:12px">Title${inp("aTitle", "BS.ann.title", F.title, "e.g. Banjul Day clean-up", "text", 'maxlength="60" data-rr="1"')}</label>
+    <label class="ef" style="margin-top:12px">Text${inp("aText", "BS.ann.text", F.text, "One or two short sentences (up to 180 characters)", "text", 'maxlength="180" data-rr="1"')}</label>
+    <div class="efg" style="margin-top:12px"><label class="ef">Date line (optional)${inp("aWhen", "BS.ann.when", F.when, "Sat 7 Nov · 8am at Arch 22", "text", 'maxlength="40" data-rr="1"')}</label><label class="ef">Link (optional)${inp("aLink", "BS.ann.link", F.link, "https://", "url", 'maxlength="200" data-rr="1"')}</label></div>
+    <div class="efg" style="margin-top:12px"><label class="ef">Show from${inp("aFrom", "BS.ann.from", F.from || dayInput(B.date), "", "date")}</label><label class="ef">Until${inp("aTo", "BS.ann.to", F.to || dayInput(addDays(B.date, 14)), "", "date")}</label></div>
+    ${F.err ? `<div class="eerr" style="margin-top:10px">${esc(F.err)}</div>` : ""}
+    <div style="margin-top:14px">${eBtn("Publish to the driver app", "announce", null, "pri", "up")}</div></div>
+   <div class="ep"><div class="eh"><h2>All announcements</h2></div><div class="erows">${list.map(x => row({ cls: "hb2", lead: fmtD(x.from), title: esc(x.title), sub: esc(x.kind) + " · " + fmtD(x.from) + " to " + fmtD(x.to), mid: esc(x.when || ""), dur: "", chip: status(x),
+      btn: `<span style="display:flex;gap:6px"><button class="eb gh sm" ${A("annstatus", x.id + "|" + (x.status === "hidden" ? "live" : "hidden"))}>${x.status === "hidden" ? "Show" : "Hide"}</button><button class="eb gh sm" ${A("anndel", x.id)}>Delete</button></span>` })).join("")
+      || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No announcements yet.</small></div>`}</div></div>`;
+  const right = insight({ tag: "Preview", title: "Drivers will see", body: annCard(F) + `<div class="wx">On the home screen of the driver app, under the payment buttons. Several live ones can be swiped.</div>` })
+    + callout("cal", "Scheduled", "Set the dates and it goes live and comes down by itself. Hide takes it down at once.");
   return [main, right];
 }
 function backCouncil(){

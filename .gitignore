@@ -8,6 +8,7 @@ apps/*/www/assets/
 apps/*/www/engine.js
 # Java backend build output
 backend/target/
+backend/logs/
 # real property files never go into git: only the *.example templates do
 config/*.properties
 !config/*.properties.example

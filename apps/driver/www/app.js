@@ -2,7 +2,7 @@
    Thin client: all state lives on the demo server; this app renders it and sends actions. */
 (function(){
 var APP = document.getElementById("app");
-var VERSION = "0.1";
+var VERSION = "0.2";
 var LOGO = { Wave: "wave", Afrimoney: "afrimoney", APS: "aps", QMoney: "qmoney" };
 var V = { view: "home", ov: null, pin: null, done: null, focus: null, prov: null, toast: null, dragging: false, pending: false,
   sheet: { plate: "", kind: "daily", prov: null }, add: { plate: "", err: "" },
@@ -18,6 +18,7 @@ var IP = {
   user: '<circle cx="12" cy="8" r="3.6"/><path d="M5 20c1.2-3.6 3.8-5.5 7-5.5s5.8 1.9 7 5.5"/>', arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>', chev: '<path d="m10 6 6 6-6 6"/>',
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>', x: '<path d="M6 6l12 12M18 6 6 18"/>', del: '<path d="M9 6h11v12H9l-6-6Z"/><path d="m12 10 4 4M16 10l-4 4"/>',
   shield: '<path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6Z"/><path d="m9 12 2 2 4-4"/>', sms: '<path d="M4 5h16v11H9l-5 4Z"/><path d="M8 10h8"/>',
+  mega: '<path d="M4 10v4h3l8 4.5v-13L7 10Z"/><path d="M18 9.5a3.5 3.5 0 0 1 0 5"/>', info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8v.1"/>',
   wifi: '<path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><path d="M12 19.5v.1"/>',
 };
 function ic(n, s, w){ return '<svg width="'+(s||20)+'" height="'+(s||20)+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'+(w||1.9)+'" stroke-linecap="round" stroke-linejoin="round">'+IP[n]+'</svg>'; }
@@ -45,6 +46,7 @@ function paint(h){
   var sc = APP.querySelector(".scroll"), top = sc ? sc.scrollTop : 0, ovs = APP.querySelector(".sheet"), otop = ovs ? ovs.scrollTop : 0;
   APP.innerHTML = h;
   var sc2 = APP.querySelector(".scroll"); if(sc2) sc2.scrollTop = top;
+  var an = APP.querySelector(".annrow"); if(an && V.annX) an.scrollLeft = V.annX;
   var ov2 = APP.querySelector(".sheet"); if(ov2) ov2.scrollTop = otop;
   if(id){ var n = document.getElementById(id); if(n){ n.focus(); try { if(s != null) n.setSelectionRange(s, e); } catch(x){} } }
   bindSlides();
@@ -53,8 +55,8 @@ function paint(h){
 function setupScreen(){
   var S = V.setup;
   return '<div class="auth"><span class="crest"><img src="assets/img/crest.png" alt="Banjul City Council crest"></span><span class="stripe"></span>'
-   + '<h1>Connect to the <span>demo server</span></h1><p>Start the ParkNa demo server on the laptop. It shows an address like <b>http://192.168.1.20:4000</b>. Enter it here.</p>'
-   + '<label class="fld">Server address<input id="srv" value="'+esc(S.url)+'" placeholder="http://192.168.1.20:4000" autocomplete="off" autocapitalize="off" inputmode="url"></label>'
+   + '<h1>Connect to the <span>ParkNa server</span></h1><p>Enter the ParkNa server address your supervisor gave you, like <b>https://parkna.example.gm</b>.</p>'
+   + '<label class="fld">Server address<input id="srv" value="'+esc(S.url)+'" placeholder="https://parkna.example.gm" autocomplete="off" autocapitalize="off" inputmode="url"></label>'
    + (S.err ? '<div class="err">'+esc(S.err)+'</div>' : "")
    + '<button class="btn" data-a="connect"'+(S.busy ? " disabled" : "")+'>'+(S.busy ? "Connecting…" : "Connect")+'</button>'
    + '<div class="pow"><img src="assets/img/innovii-white.png" alt="INNOVII">ParkNa driver app v'+VERSION+' · demo</div></div>';
@@ -62,7 +64,7 @@ function setupScreen(){
 function loadingScreen(){
   return '<div class="auth"><span class="crest"><img src="assets/img/crest.png" alt=""></span><span class="stripe"></span><h1>Connecting…</h1><p>'+esc(PN.server)+'</p>'
    + '<div class="spin" style="border-color:rgba(255,255,255,.15);border-top-color:#F9DD17"></div>'
-   + (V.slow ? '<p>Can’t reach the demo server yet. Check that the laptop and this phone are on the same Wi-Fi and the server is running.</p><button class="btn" data-a="chgsrv">Change server address</button>' : "")
+   + (V.slow ? '<p>Can’t reach the ParkNa server yet. Check this phone’s internet connection and the server address.</p><button class="btn" data-a="chgsrv">Change server address</button>' : "")
    + '<div class="pow"><img src="assets/img/innovii-white.png" alt="INNOVII">ParkNa driver app v'+VERSION+'</div></div>';
 }
 function loginScreen(){
@@ -103,8 +105,29 @@ function homeView(){
   var h = '<div class="scroll"><div class="hz">'+WAVES+'</div><div class="ct">'+header()
     + '<div class="greet"><h2>Good '+part()+', '+esc(u.name.split(" ")[0])+'</h2><p><span class="d'+(paidHours() ? "" : " free")+'"></span>'+sub+'</p></div>';
   if(u.plates.length > 1) h += '<div class="chips">'+u.plates.map(function(x){ return '<button class="'+(x === p ? "on" : "")+'" data-a="focus" data-v="'+x+'">'+x+'</button>'; }).join("")+'</div>';
-  h += passCard(u, p) + bento(u) + todayCard(u) + '</div></div>';
+  h += passCard(u, p) + bento(u) + annBanner() + todayCard(u) + '</div></div>';
   return h;
+}
+/* Council events and announcements from the back office: the ones live today, swipe for more */
+var ANN_ICON = { Event: "cal", Announcement: "mega", Notice: "info" };
+function annBanner(){
+  var list = typeof liveAnnouncements === "function" && typeof ANN !== "undefined" && ANN ? liveAnnouncements() : [];
+  if(!list.length) return "";
+  var on = Math.min(V.annI || 0, list.length - 1);
+  return '<div class="ann"><div class="annrow" onscroll="annScroll(this)">'+list.map(function(x){
+    return '<div class="annc '+esc(x.theme)+'"><span class="annk">'+ic(ANN_ICON[x.kind] || "mega", 13, 2.2)+esc(x.kind)+' · Banjul City Council</span><b>'+esc(x.title)+'</b>'
+      + (x.text ? '<p>'+esc(x.text)+'</p>' : "")
+      + (x.when || x.link ? '<div class="annf">'+(x.when ? '<span>'+ic("cal", 13, 2.2)+esc(x.when)+'</span>' : "<span></span>")+(x.link ? '<a href="'+esc(x.link)+'" target="_blank" rel="noopener">Learn more'+ic("arrow", 13, 2.4)+'</a>' : "")+'</div>' : "")
+      + '</div>';
+  }).join("")+'</div>'+(list.length > 1 ? '<div class="annd">'+list.map(function(_, k){ return '<i class="'+(k === on ? "on" : "")+'"></i>'; }).join("")+'</div>' : "")+'</div>';
+}
+function annScroll(el){
+  var i = Math.round(el.scrollLeft / el.clientWidth);
+  V.annX = el.scrollLeft;
+  if(i === V.annI) return;
+  V.annI = i;
+  var d = el.parentNode.querySelectorAll(".annd i");
+  for(var k = 0; k < d.length; k++) d[k].className = k === i ? "on" : "";
 }
 function passCard(u, p){
   if(!p){
@@ -311,7 +334,7 @@ APP.addEventListener("click", function(e){
   switch(a){
     case "connect": {
       var url = (document.getElementById("srv") || {}).value || V.setup.url; V.setup.url = url; V.setup.busy = true; V.setup.err = ""; render();
-      PN.ping(url).then(function(ok){ V.setup.busy = false; if(!ok){ V.setup.err = "Can’t reach a ParkNa demo server at that address. Check the address and that this phone is on the same Wi-Fi as the laptop."; return render(); } PN.setServer(ok); start(); });
+      PN.ping(url).then(function(ok){ V.setup.busy = false; if(!ok){ V.setup.err = "Can’t reach a ParkNa server at that address. Check the address (start it with https://) and this phone’s internet connection."; return render(); } PN.setServer(ok); start(); });
       return;
     }
     case "chgsrv": PN.setServer(""); PN.ready = false; if(PN.es) PN.es.close(); V.setup = { url: "", err: "", busy: false }; return render();

@@ -1,5 +1,6 @@
 package com.innovii.parkna.engine;
 
+import com.innovii.parkna.model.Announcement;
 import com.innovii.parkna.model.Check;
 import com.innovii.parkna.model.Clock;
 import com.innovii.parkna.model.DailyPass;
@@ -567,6 +568,57 @@ public class ParkingEngine {
         return null;
     }
 
+    // ------------------------------------------------------------------ Council announcements
+
+    static final List<String> ANN_KINDS = List.of("Event", "Announcement", "Notice");
+    static final List<String> ANN_THEMES = List.of("blue", "yellow", "green", "red");
+    private static final Pattern DAY = Pattern.compile("^(\\d{4})-(\\d{2})-(\\d{2})$");
+    private static final Pattern LINK = Pattern.compile("^https?://" + Js.NON_SPACES + "$", Pattern.CASE_INSENSITIVE);
+
+    /** "2026-11-07" to a day, or null. */
+    static LocalDate parseDay(Object s) {
+        java.util.regex.Matcher m = DAY.matcher(trim(strOr(s, "")));
+        if (!m.matches()) return null;
+        int y = Integer.parseInt(m.group(1)), mo = Integer.parseInt(m.group(2)), d = Integer.parseInt(m.group(3));
+        if (mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+        return Cal.date(y, mo - 1, d);
+    }
+
+    /** Shown to drivers today? */
+    public boolean annLive(Announcement x) {
+        LocalDate t = today();
+        return x.status.equals("live") && !x.from.isAfter(t) && !t.isAfter(x.to);
+    }
+
+    private Map<String, Object> announce(Map<String, Object> f) {
+        String title = trim(strOr(f.get("title"), "")), text = trim(strOr(f.get("text"), "")), link = trim(strOr(f.get("link"), "")), when = trim(strOr(f.get("when"), ""));
+        String kind = f.get("kind") instanceof String k && ANN_KINDS.contains(k) ? k : "Announcement";
+        String theme = f.get("theme") instanceof String th && ANN_THEMES.contains(th) ? th : "blue";
+        if (title.isEmpty()) return err("Add a title.");
+        if (title.length() > 60) return err("Keep the title to 60 characters.");
+        if (text.length() > 180) return err("Keep the text to 180 characters.");
+        if (when.length() > 40) return err("Keep the date line to 40 characters.");
+        if (link.length() > 200) return err("The link is too long.");
+        if (!link.isEmpty() && !LINK.matcher(link).matches()) return err("The link must start with https://");
+        LocalDate from = truthy(f.get("from")) ? parseDay(f.get("from")) : today();
+        LocalDate to = truthy(f.get("to")) ? parseDay(f.get("to")) : (from != null ? addDays(from, 14) : null);
+        if (from == null || to == null) return err("Enter the dates like 2026-11-07.");
+        if (to.isBefore(from)) return err("The end date is before the start date.");
+        int max = S.ann.stream().mapToInt(x -> Integer.parseInt(x.id.substring(3))).max().orElse(0);
+        Announcement x = new Announcement();
+        x.id = "AN-" + Js.padStart(Integer.toString(max + 1), 3);
+        x.kind = kind; x.title = title; x.text = text; x.when = when; x.link = link; x.theme = theme;
+        x.from = from; x.to = to; x.status = "live"; x.created = today(); x.by = "Aisha K.";
+        S.ann.add(0, x);
+        ch.announcements = true;
+        Map<String, Object> r = ok(); r.put("id", x.id); r.put("live", annLive(x)); return r;
+    }
+
+    private Announcement announcement(Object id) {
+        for (Announcement x : S.ann) if (x.id.equals(id)) return x;
+        return null;
+    }
+
     // ------------------------------------------------------------------ clock
 
     /** Ends the day: closes open shifts, moves to 7am next day, sends pass reminders and runs invoicing. */
@@ -635,6 +687,13 @@ public class ParkingEngine {
             {"WEL", "A14", "BJL9191", null}, {"WEL", "A17", "BJL5678", "3034567"}, {"WEL", "A20", "BJL3030", "7045678"},
             {"LEM", "A2", "BJL4545", null}, {"LEM", "A6", "BJL6006", null}, {"LEM", "A9", "BJL7002", null}};
 
+    private static Announcement seedAnnouncement(String id, String kind, String title, String text, String when, String theme, LocalDate from, LocalDate to, LocalDate created) {
+        Announcement x = new Announcement();
+        x.id = id; x.kind = kind; x.title = title; x.text = text; x.when = when; x.link = ""; x.theme = theme;
+        x.from = from; x.to = to; x.status = "live"; x.created = created; x.by = "Aisha K.";
+        return x;
+    }
+
     private void resetTariff() {
         Tariff t = new Tariff();
         t.daily = 200; t.monthly = 4420; t.grace = 5; t.walletLimit = 10000;
@@ -701,6 +760,12 @@ public class ParkingEngine {
         recordPay("7066000", "Wave", "BJL4545", "daily", null);
         S.clock.min = keep;
         N("7066000").name = "A driver";
+        S.ann.clear();
+        S.ann.add(seedAnnouncement("AN-002", "Event", "Banjul Day clean-up", "Join the Council and your neighbours to clean the city centre. Gloves and bags provided.",
+                "Sat 7 Nov · 8am at Arch 22", "green", Cal.date(2026, 10, 1), Cal.date(2026, 10, 7), Cal.date(2026, 9, 30)));
+        S.ann.add(seedAnnouncement("AN-001", "Announcement", "Pay for parking from your phone",
+                "ParkNa is live on Wellington Road, Liberation Avenue, Independence Drive, Leman Street and Russell Street.",
+                "", "blue", Cal.date(2026, 9, 28), Cal.date(2026, 11, 31), Cal.date(2026, 9, 28)));
         S.ver++;
         ch = new Changes();
         ch.fullReset = true;
@@ -858,6 +923,21 @@ public class ParkingEngine {
                 S.tariff.log.add(c);
                 ch.tariff = true;
                 ch.tariffLog.add(c);
+                return ok();
+            }
+            case "back.announce": return announce(a);
+            case "back.announceStatus": {
+                Announcement x = announcement(a.get("id"));
+                if (x == null) return err("Unknown announcement");
+                x.status = "hidden".equals(a.get("status")) ? "hidden" : "live";
+                ch.announcements = true;
+                return ok();
+            }
+            case "back.announceDelete": {
+                Announcement x = announcement(a.get("id"));
+                if (x == null) return err("Unknown announcement");
+                S.ann.remove(x);
+                ch.announcements = true;
                 return ok();
             }
             case "back.exception": {

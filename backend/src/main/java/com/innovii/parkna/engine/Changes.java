@@ -31,6 +31,7 @@ public class Changes {
     public final List<Tariff.Change> tariffLog = new ArrayList<>();
     public boolean tariff;
     public boolean exceptions;
+    public boolean announcements;
 
     /** A line added to a phone's SMS thread; {@code out} is set for messages ParkNa sends. */
     public record NewSms(String num, SmsEntry entry, OutMessage out) {}
@@ -45,6 +46,6 @@ public class Changes {
 
     public boolean isEmpty() {
         return !fullReset && subscribers.isEmpty() && plates.isEmpty() && officers.isEmpty() && orgs.isEmpty() && sms.isEmpty()
-                && receipts.isEmpty() && ledger.isEmpty() && checks.isEmpty() && tariffLog.isEmpty() && !tariff && !exceptions;
+                && receipts.isEmpty() && ledger.isEmpty() && checks.isEmpty() && tariffLog.isEmpty() && !tariff && !exceptions && !announcements;
     }
 }

@@ -1,68 +1,60 @@
-# ParkNa demo v0.1
+# ParkNa v0.2
 
-A live demo of ParkNa, the road-side parking service for Banjul City Council, built by INNOVII.
-
-It has four parts, and all of them share one live demo:
+ParkNa, the road-side parking service for Banjul City Council, built by INNOVII.
 
 | Part | What it is | Where it runs |
 |---|---|---|
-| **Driver app** | Pay for a plate (daily or monthly) with Wave, Afrimoney, APS or QMoney | Android APK: `ParkNa-Driver-v0.1.apk` |
-| **Officer app** | The parking officer's SMS line: START, a plate, END | Android APK: `ParkNa-Officer-v0.1.apk` |
-| **Organisation portal** | Fleet plates, invoices and checks for a business | Browser: `http://<server>:4000/org` |
-| **Back office** | Attendants, roads, organisations, payments, tariffs | Browser: `http://<server>:4000/admin` |
+| **Driver app** | Pay for a plate (daily or monthly) with Wave, Afrimoney, APS or QMoney; Council announcements on the home screen | Android APK `ParkNa-Driver-v0.2.apk` |
+| **Officer app** | The parking attendant's SMS line: START, a plate, END | Android APK `ParkNa-Officer-v0.2.apk` |
+| **Organisation portal** | Fleet plates, invoices and checks for a business | Browser: `https://<server>/org` |
+| **Back office** | Attendants, roads, organisations, payments, tariffs, announcements | Browser: `https://<server>/admin` |
 
-A payment made in the driver app shows up on the officer's line, in the organisation portal and in the back office straight away.
+A payment in the driver app shows up on the attendant's line, in the organisation portal and in the back office straight away.
 
----
+## How it is built
 
-## 1. Get the APKs
+```
+Phones and browsers ──HTTPS──► Nginx ── front end (static files)
+                                  └── /api ──► Tomcat 10.1: parkna.war (Java 17) ──► MariaDB
+                                                                  └──► Kannel (SMS, optional)
+```
 
-Every push to `main` builds both apps on GitHub:
+- **Front end on Nginx**: the landing page, back office and organisation portal (`frontend/`).
+- **Back end on Tomcat**: `parkna.war`, which holds the business rules and writes to Tomcat's logs (`catalina.out`, `parkna.log`, `parkna-sms.log`).
+- **MariaDB** stores everything. The back end creates and upgrades its tables itself.
+- **Two property files** outside the WAR: `database.properties` (MariaDB connection) and `config.properties`
+  (public address, clock, SMS through Kannel, later the payment providers). Templates are in `config/`.
 
-1. Open the repository on GitHub and go to **Releases**.
-2. Open the newest **ParkNa demo v0.1** release.
-3. Download `ParkNa-Driver-v0.1.apk` and `ParkNa-Officer-v0.1.apk`.
+Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Server installation on Rocky Linux: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
-The same files are also under **Actions → Build demo APKs → (latest run) → Artifacts**.
+## Getting a build
 
-On each Android phone, open the APK and allow **Install unknown apps** when Android asks. New builds install over old ones.
+Every push builds and tests everything on GitHub (**Actions → Build ParkNa**). Each push to `main` also publishes a
+release (**Releases**) with:
 
-## 2. Start the demo server
+- `parkna-0.2.0-b<build>.tar.gz`: the server package (WAR, front end, config templates, deploy scripts, SQL)
+- `ParkNa-Driver-v0.2.apk` and `ParkNa-Officer-v0.2.apk`
 
-On the laptop you will present from (Windows, Mac or Linux, with Node.js 18 or newer):
+On each Android phone, open the APK and allow **Install unknown apps**. New builds install over old ones.
+
+## Installing on a server
+
+Follow [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): prepare Rocky Linux, install MariaDB, Java 17, Tomcat 10.1 and Nginx, fill in
+the two property files, then run:
 
 ```bash
-cd server
-node server.js
+deploy/scripts/deploy.sh /home/sdf/deliverables/parkna-<version>.tar.gz
 ```
 
-It prints the addresses to use, for example:
+It backs up the database, keeps the running version for `rollback.sh`, puts the new front end and WAR live, and waits until the server answers.
 
-```
-  ParkNa demo server v0.1 is running
+## Connecting the apps
 
-  Server address for the phones:  http://192.168.1.20:4000
-     Back office:          http://192.168.1.20:4000/admin
-     Organisation portal:  http://192.168.1.20:4000/org
-```
+The first time each app opens, it asks for the **server address**. Enter the address with `https://`, e.g.
+`https://parkna.example.gm`, and tap **Connect**. To change it later: **Account → Change server** in the driver app, or
+**menu → Change server** on the officer line.
 
-Opening `http://localhost:4000` on the laptop also shows the address for the phones, with links to everything.
-
-- Put the phones on the same Wi-Fi as the laptop, or turn on the laptop's hotspot and join it from the phones.
-- If Windows asks about the firewall, allow Node.js on **private networks**.
-- To use another port: `PORT=5000 node server.js` (on Windows PowerShell: `$env:PORT=5000; node server.js`).
-- The demo state is saved in `server/demo-state.json`, so a restart keeps where you were.
-
-## 3. Connect the apps
-
-The first time each app opens, it asks for the **server address**. Type the "Server address for the phones" the server printed (for example `192.168.1.20:4000`) and tap **Connect**. You can change it later: **Account → Change server** in the driver app, or the **menu → Change server** on the officer line.
-
-Open the portals in the laptop's browser:
-
-- Back office: `http://localhost:4000/admin`
-- Organisation portal: `http://localhost:4000/org`
-
-## 4. Demo logins
+## Demo logins
 
 **Drivers** (tap a name on the driver app sign-in screen, or type the number). Any 4 digits work as the wallet PIN.
 
@@ -89,7 +81,7 @@ On the line, send `START`, then plates such as `BJL1234` (paid), `BJL9191` (unpa
 
 **Back office:** opens signed in as Aisha K., ParkNa Admin.
 
-## 5. Running the demo
+## Running the demo
 
 The back office has a **Demo clock** bar at the bottom:
 
@@ -97,7 +89,7 @@ The back office has a **Demo clock** bar at the bottom:
 - `Next day`: moves to the next day and resets the day's shifts.
 - `Pause` / `Run`: stops or starts the clock.
 - `+ Exception`: records a wrong-plate payment on the latest payment.
-- `Reset demo`: returns every phone and portal to the starting story.
+- `Reset demo`: returns every phone and portal to the starting story (deletes all data; switch the demo controls off on a real server).
 
 A suggested order:
 
@@ -106,8 +98,9 @@ A suggested order:
 3. **Organisation portal**: Demo Bank sees BJL7001 checked at that time.
 4. **Back office**: the payment, the checks and the attendant's shift are live; reassign Modou to another road and his line gets the SMS.
 5. **Driver** Ebrima tries Wave with a low balance, then pays with another provider.
+6. **Back office → Announcements**: publish an event (e.g. a clean-up day). It appears at once as a banner on the driver app's home screen; **Hide** takes it down.
 
-## Pilot rules shown in the demo
+## Pilot rules
 
 - One price for every plate: GMD 200 a day or GMD 4,420 a month.
 - Paid hours: 7am to 7pm, Monday to Saturday.
@@ -119,33 +112,57 @@ A suggested order:
 ## Repository layout
 
 ```
-server/            demo server (no dependencies) and the shared engine
-  engine.js        the demo's rules and state, shared by every part
-  public/          landing page, back office (/admin), organisation portal (/org)
-apps/driver/       driver app (Capacitor): www/ is the app, res/ holds the icon and splash
-apps/officer/      officer app (Capacitor)
-assets/            fonts, the Banjul City Council crest, INNOVII and provider logos, client.js
-scripts/prep.js    copies engine.js and assets/ into each app and the portals
-build/             the shared demo signing key used by the APK build
-.github/workflows/ the APK build
+frontend/portal/      landing page, back office (admin.html), organisation portal (org.html)
+frontend/shared/      engine.js (read-side rules the screens use), client.js, fonts, images
+apps/driver/          driver app (Capacitor): www/ is the app, res/ the icon and splash
+apps/officer/         officer app (Capacitor)
+backend/              Java back end (Maven, WAR for Tomcat 10.1): rules engine, MariaDB, API, SMS gateway
+config/               database.properties and config.properties templates
+deploy/               Nginx, Tomcat and Kannel files; deploy, rollback and backup scripts
+docs/                 ARCHITECTURE.md, DEPLOYMENT.md
+scripts/              build-frontend.js, prepare-android.js, package-release.sh, parity/ (engine parity tests)
+build/                the shared signing key used by the APK builds
+.github/workflows/    the build
 ```
 
-The server uses `server/engine.js` and `assets/` directly. The APK build runs `node scripts/prep.js` to copy them into each app before packaging.
+## Developing
 
-### Building the APKs on your own computer (optional)
+Needs Node.js 22, Java 17 and Maven. For the database tests, a MariaDB with an empty test database.
+
+```bash
+node scripts/build-frontend.js                         # frontend/dist and the apps' shared files
+cd backend && mvn package                              # parkna.war (unit tests only)
+
+# the full tests, as on GitHub:
+node scripts/parity/generate.js backend/target/parity 3 1000
+cd backend && mvn verify -Dparity.dir=target/parity \
+  -Dtest.db.url=jdbc:mariadb://127.0.0.1:3306/parkna_test -Dtest.db.username=parkna_test -Dtest.db.password=<password>
+
+scripts/package-release.sh                             # dist/parkna-<version>.tar.gz
+```
+
+A business rule lives in the Java engine (`backend/.../engine/ParkingEngine.java`), which decides, and in
+`frontend/shared/engine.js`, which the screens use to read the state. Change both, add the new case to
+`scripts/parity/generate.js`, and the parity tests check that they agree. A database change is a new
+`backend/src/main/resources/db/migration/V<n>__name.sql`, added to `index.txt`.
+
+### Building the APKs on your own computer
 
 Needs Node.js 22, Java 21 and the Android SDK.
 
 ```bash
-node scripts/prep.js
-cd apps/driver            # or apps/officer
+node scripts/build-frontend.js
+cd apps/driver                                         # or apps/officer
 npm install
 npx cap add android
-cp -r res/. android/app/src/main/res/
+node ../../scripts/prepare-android.js 0.2 1            # icons, version, text size cap
 npx cap sync android
 cd android && ./gradlew assembleDebug
 ```
 
+The apps follow the phone's font size setting only up to 100%, because the screens are laid out for that size.
+To allow bigger text, raise `MAX_TEXT_ZOOM` in `scripts/prepare-android.js`.
+
 ---
 
-INNOVII · ParkNa demo v0.1
+INNOVII · ParkNa v0.2

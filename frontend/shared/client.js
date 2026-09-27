@@ -1,4 +1,4 @@
-/* ParkNa demo client v0.1 : connection to the demo server (shared by apps and portals) */
+/* ParkNa client: connection to the ParkNa server (shared by the apps and portals) */
 var PN = (function(){
   function ls(k, v){ try { if(v === undefined) return localStorage.getItem(k); if(v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch(e){ return null; } }
   var here = (location.protocol === "http:" || location.protocol === "https:") && location.port && location.hostname !== "localhost" ? location.origin : "";
@@ -18,7 +18,7 @@ var PN = (function(){
       return fetch(api.server + "/api/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(a) })
         .then(function(r){ return r.text(); })
         .then(function(t){ return JSON.parse(t, function(k, v){ if(v && typeof v === "object" && typeof v.$d === "string"){ var p = v.$d.split("-").map(Number); return new Date(p[0], p[1]-1, p[2]); } return v; }); })
-        .catch(function(){ return { err: "Can’t reach the demo server. Check the Wi-Fi and the server address." }; });
+        .catch(function(){ return { err: "Can’t reach the ParkNa server. Check the internet connection and the server address." }; });
     },
     es: null,
     connect: function(onState, onStatus){

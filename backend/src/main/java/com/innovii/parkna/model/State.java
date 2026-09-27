@@ -20,6 +20,8 @@ public class State {
     public Map<String, Organisation> orga = new LinkedHashMap<>();
     public List<ParkedCar> park = new ArrayList<>();
     public List<ExceptionCase> exc = new ArrayList<>();
+    /** Newest first. */
+    public List<Announcement> ann = new ArrayList<>();
     public Tariff tariff = new Tariff();
     public int seq;
 

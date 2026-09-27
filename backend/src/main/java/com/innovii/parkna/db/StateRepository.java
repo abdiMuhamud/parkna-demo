@@ -2,6 +2,7 @@ package com.innovii.parkna.db;
 
 import com.innovii.parkna.engine.Cal;
 import com.innovii.parkna.engine.Changes;
+import com.innovii.parkna.model.Announcement;
 import com.innovii.parkna.model.Check;
 import com.innovii.parkna.model.Clock;
 import com.innovii.parkna.model.DailyPass;
@@ -42,7 +43,7 @@ public final class StateRepository {
     /** Tables cleared by a demo reset, children first. */
     private static final String[] TABLES = {"invoice_line", "invoice", "org_topup", "org_plate", "organisation", "officer_check", "officer",
             "ledger_entry", "plate_payer", "plate", "sms_message", "receipt", "wallet", "subscriber_plate", "subscriber",
-            "tariff_change", "tariff", "park_bay", "exception_case", "system_state"};
+            "tariff_change", "tariff", "park_bay", "exception_case", "announcement", "system_state"};
 
     // ================================================================== load
 
@@ -103,6 +104,14 @@ public final class StateRepository {
                     ExceptionCase e = new ExceptionCase();
                     e.type = rs.getString(1); e.plate = rs.getString(2); e.detail = rs.getString(3); e.status = rs.getString(4);
                     s.exc.add(e);
+                }
+            }
+            try (ResultSet rs = st.executeQuery("SELECT announcement_id, kind, title, body, when_label, link, theme, show_from, show_to, status, created_on, created_by FROM announcement ORDER BY position")) {
+                while (rs.next()) {
+                    Announcement a = new Announcement();
+                    a.id = rs.getString(1); a.kind = rs.getString(2); a.title = rs.getString(3); a.text = rs.getString(4); a.when = rs.getString(5); a.link = rs.getString(6);
+                    a.theme = rs.getString(7); a.from = date(rs.getDate(8)); a.to = date(rs.getDate(9)); a.status = rs.getString(10); a.created = date(rs.getDate(11)); a.by = rs.getString(12);
+                    s.ann.add(a);
                 }
             }
         }
@@ -252,6 +261,7 @@ public final class StateRepository {
         insertChecks(c, ch.checks);
         for (String id : ch.orgs) { Organisation o = s.orga.get(id); if (o != null) saveOrganisation(c, o); }
         if (ch.exceptions) saveExceptions(c, s.exc);
+        if (ch.announcements) saveAnnouncements(c, s.ann);
     }
 
     /** Clears every table and writes the whole state (used for the first start and for a demo reset). */
@@ -286,6 +296,7 @@ public final class StateRepository {
             ps.executeBatch();
         }
         saveExceptions(c, s.exc);
+        saveAnnouncements(c, s.ann);
     }
 
     private void saveSystemState(Connection c, State s) throws SQLException {
@@ -462,6 +473,16 @@ public final class StateRepository {
         try (PreparedStatement ps = c.prepareStatement("INSERT INTO exception_case (position, kind, plate, detail, status) VALUES (?, ?, ?, ?, ?)")) {
             int i = 0;
             for (ExceptionCase e : list) { set(ps, i++, e.type, e.plate, e.detail, e.status); ps.addBatch(); }
+            ps.executeBatch();
+        }
+    }
+
+    private void saveAnnouncements(Connection c, List<Announcement> list) throws SQLException {
+        try (Statement st = c.createStatement()) { st.executeUpdate("DELETE FROM announcement"); }
+        try (PreparedStatement ps = c.prepareStatement("INSERT INTO announcement (announcement_id, position, kind, title, body, when_label, link, theme, show_from, show_to, status, created_on, created_by)"
+                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+            int i = 0;
+            for (Announcement a : list) { set(ps, a.id, i++, a.kind, a.title, a.text, a.when, a.link, a.theme, a.from, a.to, a.status, a.created, a.by); ps.addBatch(); }
             ps.executeBatch();
         }
     }
