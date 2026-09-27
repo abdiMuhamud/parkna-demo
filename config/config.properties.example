@@ -1,6 +1,12 @@
 # ParkNa: application settings
 # Copy to config.properties next to database.properties. Restart Tomcat after a change.
 
+# ---------------------------------------------------------------- mode
+# production: a real service. Starts with an empty database, follows real time, no demo controls,
+#             payments off until a mobile-money provider is connected. Sign-in codes go by SMS.
+# demo:       the demo story (sample drivers, attendants, Demo Bank), demo clock, simulated wallets.
+app.mode=production
+
 # ---------------------------------------------------------------- server
 # The address people type into the apps (shown on the landing page and returned by /api/ping)
 server.publicUrl=https://parkna.example.gm
@@ -10,14 +16,14 @@ server.publicUrl=https://parkna.example.gm
 api.allowedOrigins=*
 
 # ---------------------------------------------------------------- clock
-# demo: the demo clock (starts 2 Nov 2026, moves a minute per real minute, the back office can move it)
-# real: follows the real time in clock.timezone; end-of-day rules (reminders, invoices) run at midnight
-clock.mode=demo
+# real (production default): follows the time in clock.timezone; end-of-day rules run at midnight
+# demo (demo default): starts 2 Nov 2026, the back office can move it
+#clock.mode=real
 clock.timezone=Africa/Banjul
 
-# The back office's demo clock bar and "Reset demo". Default: on in demo mode, off in real mode.
-# Switch OFF on any server with real data: a reset deletes everything.
-demo.controls.enabled=true
+# Demo mode only: the back office's demo clock bar and "Reset demo" (which deletes everything).
+# Never available in production mode.
+#demo.controls.enabled=true
 
 # ---------------------------------------------------------------- SMS
 # simulated: messages only appear in the apps' SMS threads and the portals
@@ -42,6 +48,17 @@ sms.kannel.timeoutMs=5000
 # Only these addresses may call it (the Kannel server's).
 sms.mo.allowedIps=127.0.0.1,::1,0:0:0:0:0:0:0:1
 
-# ---------------------------------------------------------------- payments (planned)
-# Payments are simulated in this version (every number starts with 5,000 GMD per provider).
-# Settings for Wave, Afrimoney, APS and QMoney will go here when those integrations are built.
+# ---------------------------------------------------------------- sign-in
+# Drivers, attendants and organisation contacts sign in with a 6-digit code sent by SMS (through Kannel).
+# On a test server without working SMS, the code can be shown in the app instead. Only works while
+# sms.gateway=simulated. NEVER on a live service: anyone could sign in as anyone.
+auth.otp.showCodeInApp=false
+# How long people stay signed in: phones (days, renewed while the app is used) and staff (hours)
+auth.phoneSessionDays=180
+auth.staffSessionHours=12
+
+# ---------------------------------------------------------------- payments
+# off (production default): the apps show "paying by mobile money opens soon"; organisations pay invoices by bank transfer.
+# simulated (demo default): pretend wallets, passes are issued WITHOUT taking money. Test servers only.
+# Wave, Afrimoney, APS and QMoney will be added here when the provider agreements and API access are in place.
+payments.mode=off
