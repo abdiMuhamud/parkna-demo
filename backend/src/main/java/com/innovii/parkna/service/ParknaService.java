@@ -129,6 +129,9 @@ public final class ParknaService implements AutoCloseable, AuthService.Directory
                 engine = new ParkingEngine(s);
                 log.info("Loaded ParkNa data from the database: {} phone numbers, {} plates, {} attendants, {} organisations, clock {} {}",
                         s.nums.size(), s.plates.size(), s.off.size(), s.orga.size(), s.clock.date, Cal.hm(s.clock.min));
+                if (cfg.mode == AppConfig.Mode.PRODUCTION && s.off.values().stream().anyMatch(o -> o.bg != null))
+                    log.warn("app.mode=production, but this database holds the DEMO story (sample drivers, attendants, Demo Bank). "
+                            + "Empty the database before real use (docs/DEPLOYMENT.md, section 11), or set app.mode=demo for a demo server.");
             }
         }
         engine.setPaymentsEnabled(cfg.payments == AppConfig.PaymentsMode.SIMULATED);

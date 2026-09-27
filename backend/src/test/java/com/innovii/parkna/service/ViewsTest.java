@@ -181,4 +181,16 @@ class ViewsTest {
         assertEquals("+220 400 0000", driver.get("MODE").get("supportPhone").asText());
         assertFalse(M.readTree(new Views(config("production")).forSession(e, session(Role.ORG, "7101234", "ORG-014"), full)).has("BANK"), "no BANK until it is configured");
     }
+
+    @Test
+    void productionServerHoldingTheDemoStoryIsFlagged() throws Exception {
+        Session admin = session(Role.ADMIN, "admin", null);
+        ParkingEngine demo = ParkingEngine.seeded(), fresh = ParkingEngine.empty(java.time.LocalDate.of(2026, 11, 2), 540);
+        JsonNode upgraded = M.readTree(new Views(config("production")).forSession(demo, admin, Json.snapshot(demo.state())));
+        JsonNode clean = M.readTree(new Views(config("production")).forSession(fresh, admin, Json.snapshot(fresh.state())));
+        JsonNode demoServer = M.readTree(new Views(config("demo")).forSession(demo, admin, Json.snapshot(demo.state())));
+        assertTrue(upgraded.get("MODE").get("demoData").asBoolean());
+        assertFalse(clean.get("MODE").has("demoData"));
+        assertFalse(demoServer.get("MODE").has("demoData"));
+    }
 }

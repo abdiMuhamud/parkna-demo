@@ -59,6 +59,8 @@ final class Views {
         m.put("otpInApp", cfg.auth.otpInApp());
         m.put("shortcode", cfg.sms.shortCode());
         m.put("daily", e.state().tariff.daily);
+        // a production server still holding the demo story (e.g. upgraded from a demo install): the back office warns
+        if (cfg.mode == AppConfig.Mode.PRODUCTION && e.state().off.values().stream().anyMatch(o -> o.bg != null)) m.put("demoData", true);
         if (!cfg.supportPhone.isEmpty()) m.put("supportPhone", cfg.supportPhone);
         if (!cfg.supportEmail.isEmpty()) m.put("supportEmail", cfg.supportEmail);
         return m;
