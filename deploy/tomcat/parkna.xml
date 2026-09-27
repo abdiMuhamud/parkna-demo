@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ParkNa context: tells Tomcat to run the WAR from the application user's folder (SI/QA manual 2.5.1).
+  Copy to /opt/tomcat/current/conf/Catalina/localhost/parkna.xml. The API is then at /parkna/api/...
+-->
+<Context docBase="/home/sdf/applications/parkna/parkna.war" unpackWAR="true" />

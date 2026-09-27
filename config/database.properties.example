@@ -1,0 +1,18 @@
+# ParkNa: MariaDB connection
+# Copy to database.properties in the ParkNa config folder (default /home/sdf/applications/parkna/conf)
+# and restrict it:  chown tomcat:vivacom database.properties && chmod 640 database.properties
+# The database and user are created as in SI/QA manual 2.2.3 (see docs/DEPLOYMENT.md, step 4).
+
+# JDBC address of the database. Same server: 127.0.0.1. Separate DB server: use its HeartBeat name, e.g. db-srv
+db.url=jdbc:mariadb://127.0.0.1:3306/parkna
+db.username=parkna
+db.password=CHANGE_ME
+
+# Connection pool
+db.pool.maximumPoolSize=10
+db.pool.minimumIdle=2
+db.pool.connectionTimeoutMs=10000
+
+# Create/upgrade the tables at startup (from the SQL files in the WAR, db/migration).
+# Set to false if the DBA applies the SQL by hand; the account then only needs SELECT, INSERT, UPDATE, DELETE.
+db.migrate=true

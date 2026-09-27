@@ -1,0 +1,24 @@
+# /etc/systemd/system/tomcat.service: Tomcat 10.1 for ParkNa (SI/QA manual 2.4.2, updated for JDK 17)
+[Unit]
+Description=Apache Tomcat (ParkNa)
+After=network.target mariadb.service
+Wants=mariadb.service
+
+[Service]
+Type=forking
+User=tomcat
+Group=tomcat
+UMask=0007
+Environment=JAVA_HOME=/usr/lib/jvm/jre-17
+Environment=CATALINA_HOME=/opt/tomcat/current
+Environment=CATALINA_BASE=/opt/tomcat/current
+Environment=CATALINA_PID=/opt/tomcat/current/temp/tomcat.pid
+PIDFile=/opt/tomcat/current/temp/tomcat.pid
+ExecStart=/opt/tomcat/current/bin/startup.sh
+ExecStop=/opt/tomcat/current/bin/shutdown.sh 20 -force
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
