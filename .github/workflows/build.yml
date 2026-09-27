@@ -141,6 +141,18 @@ jobs:
             cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/out/$N-test.apk"
           fi
 
+      - name: Check the Google Play build still works (throwaway key, nothing is kept)
+        if: env.HAS_KEYSTORE != 'true'
+        working-directory: apps/${{ matrix.app }}/android
+        run: |
+          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/check.jks" -alias check -keyalg RSA -keysize 2048 -validity 2 \
+            -storepass check-pass -keypass check-pass -dname "CN=ParkNa build check"
+          PARKNA_KEYSTORE="$RUNNER_TEMP/check.jks" PARKNA_KEYSTORE_PASSWORD=check-pass PARKNA_KEY_ALIAS=check PARKNA_KEY_PASSWORD=check-pass \
+            ./gradlew bundleRelease --no-daemon
+          jarsigner -verify app/build/outputs/bundle/release/app-release.aab | grep -q "jar verified"
+          rm -f "$RUNNER_TEMP/check.jks" app/build/outputs/bundle/release/app-release.aab
+          echo "Signed release bundle builds"
+
       - uses: actions/upload-artifact@v4
         with:
           name: ParkNa-${{ matrix.label }}-v${{ env.APP_VERSION }}
