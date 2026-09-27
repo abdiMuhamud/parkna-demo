@@ -38,6 +38,8 @@ jobs:
           java-version: 21
 
       - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
 
       - name: Use the shared demo signing key (so new builds install over old ones)
         run: |
