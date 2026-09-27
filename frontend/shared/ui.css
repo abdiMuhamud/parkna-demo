@@ -31,6 +31,8 @@ a{color:inherit}
 /* ---------- screen + scroll ---------- */
 .scr{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding:calc(var(--top) + 6px) 18px calc(118px + var(--bot));scrollbar-width:none;display:flex;flex-direction:column;gap:20px}
 .scr::-webkit-scrollbar{display:none}
+/* scrolling columns: children keep their size on short screens (otherwise carousels and buttons get squashed) */
+.scr>*,.sheet>*{flex-shrink:0}
 .scr.plain{padding-bottom:calc(28px + var(--bot))}
 
 /* ---------- top bar ---------- */

@@ -61,6 +61,10 @@ auth.otp.showCodeInApp=false
 # How long people stay signed in: phones (days, renewed while the app is used) and staff (hours)
 auth.phoneSessionDays=180
 auth.staffSessionHours=12
+# Google Play review only (docs/PLAY_STORE.md): numbers that sign in with a fixed code and get no SMS, so Google's
+# reviewers can open the apps. Use numbers no real person has, register the attendant one in the back office,
+# and remove the line once the apps are approved. Example: 7000001:246810,7000002:135790
+#auth.reviewNumbers=
 
 # ---------------------------------------------------------------- payments
 # off (production default): the apps show "paying by mobile money opens soon"; organisations pay invoices by bank transfer.

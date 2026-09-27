@@ -58,6 +58,7 @@ class SecurityTest {
         Properties cfg = new Properties();
         cfg.setProperty("app.mode", "demo");
         cfg.setProperty("clock.mode", "demo");
+        cfg.setProperty("auth.reviewNumbers", "7000001:246810");
         AppConfig config = AppConfig.of(db, cfg);
         service = new ParknaService(config, ds, new SimulatedSmsGateway());
         service.start();
@@ -189,5 +190,18 @@ class SecurityTest {
             assertTrue(rs.next());
             assertEquals(1, rs.getInt(1));
         }
+    }
+
+    @Test
+    void playReviewNumberSignsInWithItsFixedCodeOnly() {
+        Map<String, Object> r = auth.requestOtp("7000001", "driver", "10.0.0.9");
+        assertEquals(true, r.get("ok"));
+        assertNull(r.get("code"), "the fixed code is never sent back, even on a server that shows codes in the app");
+        assertThrows(AuthException.class, () -> auth.verifyOtp("7000001", "driver", "111111", "10.0.0.9", "test"));
+        Map<String, Object> ok = auth.verifyOtp("7000001", "driver", "246810", "10.0.0.9", "test");
+        assertNotNull(ok.get("token"));
+        // other numbers still get a random code
+        Map<String, Object> other = auth.requestOtp("7000002", "driver", "10.0.0.9");
+        assertTrue(!"246810".equals(other.get("code")));
     }
 }

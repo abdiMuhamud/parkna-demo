@@ -91,7 +91,8 @@ public final class AuthService {
                 throw AuthException.tooMany("Too many codes for this number. Try again in 10 minutes.");
             if (ip != null && count(c, "SELECT COUNT(*) FROM otp_challenge WHERE ip = ? AND created_at > ?", ip, Instant.now().minus(Duration.ofHours(1))) >= 30)
                 throw AuthException.tooMany("Too many sign-in attempts from this network. Try again later.");
-            String code = Passwords.otp();
+            String review = cfg.auth.reviewNumbers().get(num);
+            String code = review != null ? review : Passwords.otp();
             try (PreparedStatement ps = c.prepareStatement("UPDATE otp_challenge SET used = TRUE WHERE msisdn = ? AND role = ? AND used = FALSE")) {
                 ps.setString(1, num); ps.setString(2, role.name()); ps.executeUpdate();
             }
@@ -104,7 +105,9 @@ public final class AuthService {
             Map<String, Object> r = new LinkedHashMap<>();
             r.put("ok", true);
             r.put("expiresInMinutes", cfg.auth.otpMinutes());
-            if (cfg.auth.otpInApp()) {
+            if (review != null) {
+                log.info("Sign-in for review number +220 {} ({}): fixed code, no SMS (auth.reviewNumbers)", num, role.name().toLowerCase());
+            } else if (cfg.auth.otpInApp()) {
                 r.put("code", code);
                 log.info("Sign-in code for +220 {} ({}) shown in the app (auth.otp.showCodeInApp)", num, role.name().toLowerCase());
             } else {

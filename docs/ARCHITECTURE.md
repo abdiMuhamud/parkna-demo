@@ -16,7 +16,7 @@
 | Folder | What it is | Runs on |
 |---|---|---|
 | `frontend/portal/` | Landing page, back office (`admin.html`), organisation portal (`org.html`) and their JS/CSS | Nginx |
-| `frontend/shared/` | `client.js` (server connection), `engine.js` (read-side rules the screens use), fonts, images | Nginx and inside the APKs |
+| `frontend/shared/` | `client.js` (server connection and sign-in), `engine.js` (read-side rules the screens use), `ui.css` / `ui.js` (the apps' design system), fonts, images | Nginx and inside the apps |
 | `apps/driver`, `apps/officer` | Capacitor apps: `www/` is the app, `res/` the icons and splash | Android |
 | `backend/` | Java 17 Maven project, packaged as `parkna.war` | Tomcat 10.1 |
 | `config/` | Templates for the two property files | copied to the server |
@@ -29,19 +29,39 @@ front end, the config templates, `deploy/`, the SQL and these docs into `dist/pa
 
 ## How a request flows
 
-Every screen talks to the server through four endpoints, unchanged since v0.1:
+| Endpoint | Signed in? | Use |
+|---|---|---|
+| `GET /api/ping` | no | "Is this a ParkNa server?", its version, mode and public settings (shortcode, daily price, support contact) |
+| `GET /api/health` | no | For monitoring: 200 when MariaDB answers, 503 if not |
+| `POST /api/auth/code`, `/api/auth/verify` | no | Phone sign-in: send a 6-digit SMS code, check it, get a session token |
+| `POST /api/auth/staff` | no | Back-office sign-in with username and password |
+| `GET /api/state` | yes | This person's view of the state as JSON |
+| `POST /api/auth/ticket`, `GET /api/events?ticket=` | yes | Server-Sent Events: this person's view again after every change (a one-time ticket, because EventSource cannot send headers) |
+| `POST /api/act` | yes | One action, e.g. `{"type":"driver.addPlate","plate":"BJL1234"}` |
+| `GET/POST /api/staff`, `/api/staff/update`, `GET /api/audit` | administrators | Staff accounts and the audit log |
+| `POST /api/auth/password`, `/api/auth/logout` | yes | Change password, sign out |
+| `GET /api/sms/mo` | Kannel's address | Incoming SMS (allowed IPs only; Nginx blocks it) |
 
-| Endpoint | Use |
-|---|---|
-| `GET /api/ping` | "Is this a ParkNa server?" (the apps' Connect button) |
-| `GET /api/state` | The whole state as JSON |
-| `GET /api/events` | Server-Sent Events: the whole state again after every change |
-| `POST /api/act` | One action, e.g. `{"type":"driver.pay","num":"7012345","plate":"BJL1234","prov":"Wave"}` |
-| `GET /api/health` | For monitoring: 200 when MariaDB answers, 503 if not |
-| `GET /api/sms/mo` | Incoming SMS from Kannel (allowed IPs only; Nginx blocks it) |
+**Sign-in and sessions** (`auth/AuthService`). Phones (drivers, attendants, organisation contacts) sign in with a code sent
+by SMS: 6 digits, valid 5 minutes, 5 tries, at most one code per 30 seconds and 3 per 10 minutes for a number, 30 an hour
+from one address. Attendants must be registered and organisation contacts must be on an account before a code is sent.
+Staff passwords are PBKDF2-SHA256 (600,000 rounds); 5 wrong passwords lock the account for 15 minutes; a new account
+or a reset gives a temporary password that must be changed at the first sign-in. The session token is a random 256-bit
+value kept on the device; the database stores only its SHA-256. Phone sessions last 180 days and renew while used; staff
+sessions end after 12 hours. Changing a staff member's role, switching them off or resetting their password signs them
+out everywhere; open screens are disconnected within a minute. Every sign-in and back-office change goes to `audit_log`.
+
+**Who sees what** (`service/Views`). Staff receive the full state. A driver receives only their own number, plates,
+receipts, messages and the checks on their plates; an attendant their own shift, checks and road; an organisation its own
+account, fleet and invoices. Nobody but staff receives other people's phone numbers (`payers` are removed). Every view
+starts with `ME` (who is signed in) and `MODE` (production or demo, payments on or off, ...).
+
+**Who may do what** (`ParknaService.ALLOWED`). The server fills in the phone number or organisation from the session, so
+a person can only act as themselves: drivers `driver.*`, attendants the SMS line, organisations `org.*` on their own
+account; staff actions follow the role (administrator, supervisor, finance; the Council role is read-only).
 
 For `POST /api/act`, `ParknaService`:
-1. takes the lock (one action at a time, like the v0.1 server),
+1. checks the session and the role, then takes the lock (one action at a time, like the v0.1 server),
 2. runs `ParkingEngine.act()`, which changes the in-memory state and records what it touched in `Changes`,
 3. saves exactly those changes to MariaDB in one transaction (if the save fails, it reloads from the database, so the action is undone, and answers with an error),
 4. hands new outgoing SMS to the SMS gateway and the new state to every open screen,
@@ -86,11 +106,16 @@ Schema changes are new files `V<n>__description.sql` listed in `index.txt`. They
 ## Configuration
 
 Two property files outside the WAR, in the folder given by `-Dparkna.config.dir` (set in Tomcat's `setenv.sh`):
-`database.properties` (MariaDB) and `config.properties` (public address, clock mode, demo controls, SMS gateway, and later
-the payment providers). See `config/*.example` for every setting.
+`database.properties` (MariaDB) and `config.properties` (mode, public address, SMS gateway, sign-in, payments, support
+contact, bank details, and later the payment providers). See `config/*.example` for every setting.
 
-- **Clock.** `clock.mode=demo` runs the demo clock (it starts on 2 Nov 2026 and the back office can move it). `clock.mode=real` follows
-  the time in `clock.timezone` and runs the end-of-day rules (pass reminders, invoices, grace periods) at midnight.
+- **Mode.** `app.mode=production` starts from an empty database on the real clock, with payments off and no demo
+  controls, and creates the first `admin` account (password written once to `parkna.log`). `app.mode=demo` loads the demo
+  story with the demo clock and simulated wallets.
+- **Clock.** Real time in `clock.timezone` (production): the end-of-day rules (pass reminders, invoices, grace periods)
+  run at midnight. The demo clock starts on 2 Nov 2026 and administrators can move it from the back office.
+- **Payments.** `payments.mode=off` (production default): the apps say mobile money opens soon; organisations pay invoices
+  by bank transfer, which Finance matches. `simulated`: pretend wallets, for demo and test servers.
 - **SMS.** `sms.gateway=simulated` shows SMS only on screens; `kannel` also sends them through Kannel's `sendsms` and takes
   incoming SMS on `/api/sms/mo`. New gateways implement `SmsGateway`.
 
@@ -107,6 +132,8 @@ screen, under the payment buttons. Actions: `back.announce`, `back.announceStatu
 
 ## Known gaps
 
-- No sign-in for the back office and organisation portal, and no authentication on the API. Needed before real use.
-- Payments are simulated wallets. Wave, Afrimoney, APS and QMoney integrations will need a `PaymentProvider` like `SmsGateway`.
+- Mobile-money payments are not connected yet. Wave, Afrimoney, APS and QMoney will need a `PaymentProvider` like
+  `SmsGateway`, with their payment confirmations (callbacks) checked on the server.
+- Roads and bays are fixed in the engine (the five pilot roads). Adding a road is a code change.
+- Organisations report a bank transfer; there is no upload of a proof document yet.
 - Announcement banners are text only (no uploaded images yet).

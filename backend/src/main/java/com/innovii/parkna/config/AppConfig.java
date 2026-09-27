@@ -10,7 +10,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -53,9 +55,10 @@ public final class AppConfig {
 
     /**
      * Sign-in settings. otpInApp shows the one-time code in the app instead of sending it, for a test server without
-     * working SMS; it is only honoured while sms.gateway=simulated.
+     * working SMS; it is only honoured while sms.gateway=simulated. reviewNumbers are phone numbers that sign in with a
+     * fixed code and get no SMS, for Google Play's app reviewers (number -> code).
      */
-    public record Auth(boolean otpInApp, int phoneSessionDays, int staffSessionHours, int otpMinutes) {}
+    public record Auth(boolean otpInApp, int phoneSessionDays, int staffSessionHours, int otpMinutes, Map<String, String> reviewNumbers) {}
 
     public record Database(String url, String username, String password, int maxPoolSize, int minIdle, long connectionTimeoutMs, boolean migrate) {}
 
@@ -104,7 +107,15 @@ public final class AppConfig {
             inApp = false;
         }
         if (inApp && !demo) log.warn("auth.otp.showCodeInApp=true: sign-in codes are shown in the app, not sent by SMS. Test servers only.");
-        this.auth = new Auth(inApp, integer(cfg, "auth.phoneSessionDays", 180), integer(cfg, "auth.staffSessionHours", 12), integer(cfg, "auth.otpMinutes", 5));
+        Map<String, String> review = new LinkedHashMap<>();
+        for (String pair : list(cfg.getProperty("auth.reviewNumbers", ""))) {
+            String[] nc = pair.split(":");
+            if (nc.length != 2 || !nc[0].trim().matches("\\d{7}") || !nc[1].trim().matches("\\d{6}"))
+                throw new IllegalStateException("config.properties: auth.reviewNumbers takes 7-digit numbers with 6-digit codes, e.g. 7000001:246810");
+            review.put(nc[0].trim(), nc[1].trim());
+        }
+        if (!review.isEmpty()) log.warn("auth.reviewNumbers: {} sign in with a fixed code and get no SMS. For Google Play review only: remove them afterwards", review.keySet());
+        this.auth = new Auth(inApp, integer(cfg, "auth.phoneSessionDays", 180), integer(cfg, "auth.staffSessionHours", 12), integer(cfg, "auth.otpMinutes", 5), Map.copyOf(review));
         this.billing = new Billing(cfg.getProperty("billing.bank.name", "").trim(),
                 cfg.getProperty("billing.bank.accountName", "ParkNa Collections").trim(),
                 cfg.getProperty("billing.bank.accountNumber", "").trim());
