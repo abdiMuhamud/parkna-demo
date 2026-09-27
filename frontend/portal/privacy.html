@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ParkNa privacy policy</title>
+<meta name="theme-color" content="#EDEFF2">
+<link rel="icon" href="shared/img/crest.png">
+<style>
+@font-face{font-family:Jakarta;font-weight:400;font-display:swap;src:url(shared/fonts/jakarta-400.woff2) format('woff2')}
+@font-face{font-family:Jakarta;font-weight:600;font-display:swap;src:url(shared/fonts/jakarta-600.woff2) format('woff2')}
+@font-face{font-family:Jakarta;font-weight:800;font-display:swap;src:url(shared/fonts/jakarta-800.woff2) format('woff2')}
+*{box-sizing:border-box;margin:0}
+body{font-family:Jakarta,system-ui,sans-serif;word-spacing:.07em;color:#0B2540;background:#EDEFF2;padding:24px 16px 48px;line-height:1.6}
+main{max-width:760px;margin:0 auto;background:#fff;border-radius:24px;padding:28px 24px}
+a{color:#0B2540;font-weight:600}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.top img{width:40px}
+.top small{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#5E6B7D;font-weight:600}
+.top b{font-size:19px;font-weight:800}
+h1{font-size:30px;font-weight:800;letter-spacing:-.03em;line-height:1.15}
+.upd{color:#5E6B7D;font-size:14px;margin:6px 0 18px}
+h2{font-size:18px;font-weight:800;margin:24px 0 6px;letter-spacing:-.01em}
+p,li{font-size:15px;color:#33465C}
+ul{padding-left:20px;display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.box{background:#F4FADF;border-radius:16px;padding:14px 16px;margin-top:10px}
+</style>
+</head>
+<body><main>
+<div class="top"><img src="shared/img/crest.png" alt=""><div><small>Banjul City Council</small><b>ParkNa</b></div></div>
+<h1>Privacy policy</h1>
+<p class="upd">For the ParkNa app, the ParkNa Officer app, the organisation portal and the ParkNa SMS line. Last updated 27 September 2026.</p>
+
+<p>ParkNa is the parking service of Banjul City Council, run by INNOVII for the Council. This page explains what ParkNa records about you, why, and what you can ask us to do with it.</p>
+
+<h2>What we record</h2>
+<ul>
+<li><b>Your mobile number.</b> You sign in with it: we send a one-time code by SMS. We also send your receipts and parking messages to it.</li>
+<li><b>Your name</b>, if you give it in the app. You can use ParkNa without it.</li>
+<li><b>Number plates</b> you add, and the passes bought for them (date, pass type, amount, ticket number).</li>
+<li><b>Attendant checks.</b> When an attendant checks a plate we record the plate, the time, the road and whether it was paid.</li>
+<li><b>Messages</b> you send to the ParkNa SMS line and the replies.</li>
+<li><b>Organisations:</b> the organisation's name, its billing contact's name and number, the fleet plates with the department and driver name the organisation enters, invoices and payments.</li>
+<li><b>Attendants:</b> name, staff ID, registered number, road and shift, and the start and end of each shift.</li>
+<li><b>Sign-in records:</b> when you signed in, and the address and type of the device, to keep accounts safe.</li>
+</ul>
+<p>The apps do not use your location, contacts, camera, photos or files. They only need an internet connection.</p>
+
+<h2>Why</h2>
+<ul>
+<li>To issue parking passes and show attendants whether a plate is paid.</li>
+<li>To send receipts, reminders and service messages, such as a pass ending or a change of tariff.</li>
+<li>To bill organisations for their fleet cover.</li>
+<li>To give Banjul City Council its revenue and compliance reports. These are totals by road and day; they do not name drivers.</li>
+<li>To answer questions and complaints, and to find and stop misuse.</li>
+</ul>
+
+<h2>Payments</h2>
+<p>Paying by mobile money is not open yet. When it opens, your payment is made in your mobile money provider's own service (for example Wave, Afrimoney, APS or QMoney). ParkNa receives the confirmation and the amount. We never see or store your wallet PIN.</p>
+
+<h2>Who sees it</h2>
+<ul>
+<li><b>You</b> see your own plates, passes, receipts and the checks on your plates.</li>
+<li><b>Attendants</b> see whether a plate is paid, never who paid for it or their number.</li>
+<li><b>An organisation</b> sees its own fleet plates, the attendant checks on them, and its invoices.</li>
+<li><b>ParkNa and Council staff</b> see what their role needs. Every staff sign-in and change is recorded in an audit log.</li>
+<li><b>Mobile network operators</b> in The Gambia deliver the SMS messages.</li>
+</ul>
+<p>We do not sell your information, and we do not use it for advertising.</p>
+
+<h2>How long we keep it</h2>
+<p>We keep records for as long as the service and the Council's financial records need them, and as the law requires. Sign-in codes expire after 5 minutes and are then useless. You can remove a plate from your account at any time in the app.</p>
+
+<h2>Keeping it safe</h2>
+<p>Connections to ParkNa are encrypted. Sign-in codes can only be tried a few times. Staff accounts have their own passwords, and only the records a role needs are shown to it.</p>
+
+<h2>Your choices</h2>
+<p>You can ask to see the information ParkNa holds about you, to correct it, or to delete your account. Some payment records must be kept for the Council's accounts even after an account is deleted.</p>
+<div class="box" id="contact">Contact ParkNa at Banjul City Council.</div>
+
+<h2>Changes</h2>
+<p>If this policy changes we update this page and the date at the top.</p>
+</main>
+<script>
+fetch("/api/ping").then(function(r){ return r.json(); }).then(function(j){
+  var parts = [];
+  if(j.supportPhone) parts.push('call <a href="tel:' + encodeURIComponent(j.supportPhone) + '">' + j.supportPhone.replace(/</g, "&lt;") + '</a>');
+  if(j.supportEmail) parts.push('email <a href="mailto:' + encodeURIComponent(j.supportEmail) + '">' + j.supportEmail.replace(/</g, "&lt;") + '</a>');
+  if(parts.length) document.getElementById("contact").innerHTML = "To ask, " + parts.join(" or ") + ".";
+}).catch(function(){});
+</script>
+</body></html>

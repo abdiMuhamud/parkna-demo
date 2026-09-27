@@ -11,6 +11,11 @@ app.mode=production
 # The address people type into the apps (shown on the landing page and returned by /api/ping)
 server.publicUrl=https://parkna.example.gm
 
+# How drivers, organisations and attendants reach ParkNa: shown in the apps' help, on the landing page
+# and in the privacy policy (/privacy.html). Set both before publishing the apps on Google Play.
+support.phone=
+support.email=
+
 # Which web pages may call the API from a browser. The APKs load from http://localhost.
 # * allows any; for production list them, e.g. https://parkna.example.gm,http://localhost
 api.allowedOrigins=*
@@ -62,3 +67,10 @@ auth.staffSessionHours=12
 # simulated (demo default): pretend wallets, passes are issued WITHOUT taking money. Test servers only.
 # Wave, Afrimoney, APS and QMoney will be added here when the provider agreements and API access are in place.
 payments.mode=off
+
+# ---------------------------------------------------------------- organisation invoices
+# The bank account organisations pay their monthly invoice into (shown on the invoice in the organisation portal).
+# Organisations quote the invoice number as the reference; Finance matches the transfer in the back office.
+billing.bank.name=
+billing.bank.accountName=ParkNa Collections
+billing.bank.accountNumber=

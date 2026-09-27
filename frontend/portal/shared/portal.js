@@ -1,18 +1,16 @@
-/* ParkNa portals v0.1 : organisation portal + back office screens (from the live demo v0.4) */
-
-/* ============================================================
-   v0.3 web: organisation portal (G1-G7) and back office (B1-B6)
-   Premium dashboard system: lavender canvas, soft panels,
-   lime highlight card, dashed stat cards, indigo insight card.
-   ============================================================ */
+/* ParkNa portals: the organisation portal and back office screens. portal-app.js signs people in and connects
+   these screens to the ParkNa server.
+   Look: grey canvas, white panels, lime highlight card, navy text and insight cards (the same brand as the apps). */
 let OS, BS;
-const freshOS = () => ({ org: "ORG-014", view: "overview", seg: "plates", dept: null, q: "", sheet: null, bell: false, why: false,
-  login: { phone: "", code: "", sent: false, err: "" }, add: { open: false, plate: "", dept: "", driver: "", err: "" }, upload: null, inv: null, pay: { method: "transfer" } });
-const freshBS = () => ({ view: "dash", seg: "roads", aseg: "all", road: "WEL", q: "", sheet: null, bell: false, why: false,
-  reg: { name: "", staff: "", phone: "", road: "RUS", shift: "AM", err: "" }, re: { off: "7300007", road: "LEM", err: "" },
+const freshOS = () => ({ org: null, view: "overview", seg: "plates", dept: null, q: "", sheet: null, bell: false, why: false, user: false,
+  add: { open: false, plate: "", dept: "", driver: "", err: "" }, upload: null, inv: null, pay: { method: "transfer" } });
+const freshBS = () => ({ view: "dash", seg: "roads", aseg: "all", road: "WEL", q: "", sheet: null, bell: false, why: false, user: false, pw: false,
+  reg: { name: "", staff: "", phone: "", road: "RUS", shift: "AM", err: "" }, re: { off: "", road: "LEM", err: "" },
   no: { name: "", plates: "", disc: "0.15", contact: "", phone: "", signed: false, err: "" }, tar: { daily: "", auth: "", err: "" },
   ann: { kind: "Event", theme: "blue", title: "", text: "", when: "", link: "", from: "", to: "", err: "" } });
-const ROOT = n => n === "OS" ? OS : BS;
+/* form fields name their state: data-f="OS.add.plate" (organisation), "BS.reg.name" (back office), "AU.phone" (sign-in),
+   "PW.next" (password), "ST.add.name" (staff accounts) */
+const ROOT = n => ({ OS, BS, AU: AUTH, PW, ST: STAFF })[n];
 function setF(path, v){ const k = path.split("."), r = ROOT(k[0]); let o = r; for(let i = 1; i < k.length-1; i++) o = o[k[i]]; o[k[k.length-1]] = v; }
 function paint(el, html){
   const a = document.activeElement; let id = null, s = null, e = null;
@@ -93,14 +91,14 @@ function topbar(ph, q, bellOn, user, sub, initials, kind){
    <div class="etr"><span class="epill">${ic("cal", 16, 2)}${dstr(B.date)} · ${hm(B.min)} · ${paidHours() ? "Paid hours" : "Free now"}</span>
     <button class="eic" ${A("help")} aria-label="Help">${ic("help", 19, 1.9)}</button>
     <button class="eic" ${A("bell")} aria-label="Notifications">${ic("bell", 19, 1.9)}${bellOn ? '<span class="rd"></span>' : ""}</button>
-    <button class="euser" data-a="user"><span class="av">${initials}</span><span><b>${esc(user)}</b><small>${esc(sub)}</small></span>${ic("chevD", 15, 2)}</button></div></header>`;
+    <button class="euser" data-a="user" aria-label="Account"><span class="av">${esc(initials)}</span><span><b>${esc(user)}</b><small>${esc(sub)}</small></span>${ic("chevD", 15, 2)}</button></div></header>`;
 }
 function sidebar(items, on, secT, secItems, secOn){
   return `<aside class="eside"><div class="hd"><span>Workspace</span>${ic("panel", 16, 1.8)}</div>
    ${items.map(it => `<button class="enav ${it.k === on ? "on" : ""}" ${A("nav", it.k)}><span class="ico">${ic(it.i, 17, 1.9)}</span>${it.l}${it.n !== "" && it.n != null ? `<span class="n ${it.hot ? "hot" : ""}">${it.n}</span>` : ""}</button>`).join("")}
    <div class="esep"></div><div class="sec"><span>${secT}</span><span>${secItems.length}</span></div>
    ${secItems.map(s => `<button class="emine ${s.k === secOn ? "on" : ""}" ${A(s.a, s.k)}><span class="cd">${s.code}</span><span><b>${esc(s.t)}</b><small>${esc(s.s)}</small></span></button>`).join("")}
-   <div class="foot"><button class="enav" ${A("help")}><span class="ico">${ic("gear", 17, 1.9)}</span>Settings</button></div></aside>`;
+   <div class="foot"><button class="enav" ${A("help")}><span class="ico">${ic("help", 17, 1.9)}</span>Help</button><button class="enav" ${A("user")}><span class="ico">${ic("gear", 17, 1.9)}</span>Account</button></div></aside>`;
 }
 function frame(top, side, main, right, overlay){
   return top + `<div class="ebody">${side}<main class="emain ${right ? "two" : ""}"><div class="ecol">${main}</div>${right ? `<div class="ecol">${right}</div>` : ""}</main></div>${overlay || ""}`;
@@ -110,20 +108,85 @@ function plateSheet(p, scope){
   const pays = LOG.filter(l => l.plate === p && !l.bad).slice(0, 4), chks = CHECKS.filter(c => c.plate === p && c.day === d).slice(-4).reverse();
   const known = r || o || PARK.some(c => c.plate === p) || Object.values(ORGA).some(x => x.plates.some(y => y.plate === p));
   const chipC = { UNPAID: "bad", DAILY: "ok", MONTHLY: "vio", ORG: "org" }[st];
-  return `<div class="esheet" ${A("sheetx")}><div class="card" onclick="event.stopPropagation()"><div class="eh"><span class="eplate">${p}</span><button class="x" ${A("sheetx")} aria-label="Close">${ic("x", 15, 2.2)}</button></div>
+  return `<div class="esheet" ${A("sheetx")}><div class="card"><div class="eh"><span class="eplate">${p}</span><button class="x" ${A("sheetx")} aria-label="Close">${ic("x", 15, 2.2)}</button></div>
    ${known ? `<div style="display:flex;gap:8px;align-items:center">${eChip(chipC, st === "DAILY" ? "PAID · DAILY" : st === "MONTHLY" ? "PAID · MONTHLY" : st === "ORG" ? "PAID · ORGANISATION" : "UNPAID")}<small style="color:var(--em)">${st === "UNPAID" ? "No pass today" : "Until " + untilOf(p)}</small></div>
    <div class="emini">${o ? `<div><span>Covered by</span><b>${esc(o.name)} · ${o.id}</b></div>` : ""}${r && r.monthly ? `<div><span>Monthly pass</span><b>to ${fmtD(r.monthly.to)}</b></div>` : ""}
-    ${scope === "back" ? `<div><span>Paid by</span><b>${r && r.payers.length ? r.payers.map(n => esc(N(n).name)).join(", ") : "—"}</b></div>` : ""}
+    ${scope === "back" && can("payers") ? `<div><span>Drivers on ParkNa</span><b>${r && r.payers.length ? r.payers.map(n => esc(N(n).name)).join(", ") : "—"}</b></div>` : ""}
     <div><span>Payments</span><b>${pays.length ? pays.map(l => l.ticket || "invoice").join(", ") : "none recorded"}</b></div>
     <div><span>Checks today</span><b>${chks.length ? chks.map(c => hm(c.t) + " " + (c.st === "UNPAID" ? "unpaid" : "paid")).join(" · ") : "none yet"}</b></div></div>`
    : `<div class="eban vio">No record for this plate yet. It shows here as soon as it is paid, checked or added to a fleet.</div>`}</div></div>`;
 }
 function bellSheet(items){
-  return `<div class="esheet" ${A("bellx")}><div class="card" onclick="event.stopPropagation()"><div class="eh"><h2>Notifications</h2><button class="x" ${A("bellx")} aria-label="Close">${ic("x", 15, 2.2)}</button></div>
+  return `<div class="esheet" ${A("bellx")}><div class="card"><div class="eh"><h2>Notifications</h2><button class="x" ${A("bellx")} aria-label="Close">${ic("x", 15, 2.2)}</button></div>
    ${items.length ? items.map(it => `<button class="erow" style="grid-template-columns:1fr 32px;text-align:left;border:none;width:100%" ${A(it.a, it.v)}><div class="tt"><b>${esc(it.t)}</b><small>${esc(it.s)}</small></div><span class="ech">${ic("chevR", 14, 2.4)}</span></button>`).join("") : `<div class="eban vio">All clear. Nothing needs you right now.</div>`}</div></div>`;
 }
 function helpSheet(text){
-  return `<div class="esheet" ${A("helpx")}><div class="card" onclick="event.stopPropagation()"><div class="eh"><h2>About this screen</h2><button class="x" ${A("helpx")} aria-label="Close">${ic("x", 15, 2.2)}</button></div><div style="font-size:12.8px;line-height:1.55;color:#3A3D4A">${text}</div></div></div>`;
+  return `<div class="esheet" ${A("helpx")}><div class="card"><div class="eh"><h2>About this screen</h2><button class="x" ${A("helpx")} aria-label="Close">${ic("x", 15, 2.2)}</button></div><div style="font-size:12.8px;line-height:1.55;color:#3A3D4A">${text}</div></div></div>`;
+}
+
+/* ================= account: sign-in, password, user menu ================= */
+const brand = sub => `<div class="elogo" style="padding:0"><i>P</i><span>ParkNa<small>${sub}</small></span></div>`;
+const testBanner = () => PN.info && PN.info.otpInApp ? `<div class="etest">${ic("info", 15, 2.2)}<span>Test server: sign-in codes are shown here instead of being sent by SMS.</span></div>` : "";
+function signInFrame(left, box){
+  return `<div class="elog"><div class="l">${left}</div><div class="r"><div class="box">${box}</div></div></div>`;
+}
+function staffSignIn(){
+  const F = AUTH;
+  return signInFrame(`<div><span class="tag">${spark(11)}ParkNa back office</span>
+      <h2>Parking for Banjul, run from one place.</h2><p>For ParkNa and Banjul City Council staff. Sign in with your own account: everything you do is recorded in the audit log.</p></div>
+    <div class="chips"><span>${ic("users", 16, 2.2)}Attendants and roads, live</span><span>${ic("building", 16, 2.2)}Organisations and invoices</span><span>${ic("chart", 16, 2.2)}Revenue for the Council</span></div>`,
+    `${brand("Back office · Banjul City Council")}
+    <div><h1>Sign in</h1><p>With the username and password your ParkNa administrator gave you.</p></div>
+    ${F.note ? `<div class="eban vio">${esc(F.note)}</div>` : ""}
+    <label class="ef">Username${inp("auUser", "AU.user", F.user, "e.g. fatou.jallow", "text", 'autocapitalize="none" spellcheck="false" autocomplete="username"')}</label>
+    <label class="ef">Password${inp("auPass", "AU.pass", F.pass, "", "password", 'autocomplete="current-password"')}</label>
+    ${F.err ? `<div class="eerr">${esc(F.err)}</div>` : ""}
+    <button class="eb pri full" style="height:46px" ${A("staffin")} ${F.busy ? "disabled" : ""}>${F.busy ? "Signing in…" : "Sign in"}</button>
+    <p style="font-size:11.5px">Forgot your password? Ask a ParkNa administrator to reset it. After 5 wrong tries the account waits 15 minutes.</p>`);
+}
+function orgSignIn(){
+  const F = AUTH;
+  return signInFrame(`<div><span class="tag">${spark(11)}ParkNa for organisations</span>
+      <h2>One invoice.<br>Every plate covered.</h2><p>Banks, ministries, telcos and NGOs cover their fleets with one monthly pass per plate, paid on one invoice.</p></div>
+    <div class="chips"><span>${ic("check", 16, 2.4)}PAID for attendants, nothing to pay for drivers</span><span>${ic("check", 16, 2.4)}Add or remove plates any time</span><span>${ic("check", 16, 2.4)}Statements and attendant checks, monthly</span></div>`,
+    `${brand("Organisation portal · Banjul City Council")}
+    <div><h1>Sign in</h1><p>${F.sent ? `We sent a 6-digit code by SMS to +220 ${esc(F.phone.replace(/\D/g, "").slice(-7))}. It expires in 5 minutes.` : "With the billing contact’s phone number. We send a code by SMS."}</p></div>
+    ${F.note ? `<div class="eban vio">${esc(F.note)}</div>` : ""}${F.sent ? "" : testBanner()}
+    ${F.sent ? `<label class="ef">Code from the SMS${inp("auCode", "AU.code", F.code, "6 digits", "text", 'inputmode="numeric" maxlength="6" autocomplete="one-time-code"')}</label>
+      ${F.test ? `<div class="etest">${ic("info", 15, 2.2)}<span>Test server: your code is <b>${esc(F.test)}</b></span></div>` : ""}`
+    : `<label class="ef">Phone number (+220)${inp("auPhone", "AU.phone", F.phone, "7 digits", "tel", 'autocomplete="tel"')}</label>`}
+    ${F.err ? `<div class="eerr">${esc(F.err)}</div>` : ""}
+    <button class="eb pri full" style="height:46px" ${A(F.sent ? "verify" : "sendcode")} ${F.busy ? "disabled" : ""}>${F.busy ? "One moment…" : F.sent ? "Sign in" : "Send code"}</button>
+    ${F.sent ? `<div class="elinks"><button ${A("resend")}>Send the code again</button><button ${A("otherphone")}>Use another number</button></div>` : ""}
+    <p style="font-size:11.5px">New organisations are set up by the ParkNa account manager after the agreement is signed. There is no self sign-up.</p>`);
+}
+const pwFields = () => `<label class="ef">${ME().mustChangePassword ? "Temporary password" : "Current password"}${inp("pwCur", "PW.cur", PW.cur, "", "password", 'autocomplete="current-password"')}</label>
+    <label class="ef">New password (10 characters or more)${inp("pwNext", "PW.next", PW.next, "", "password", 'autocomplete="new-password"')}</label>
+    <label class="ef">New password again${inp("pwAgain", "PW.again", PW.again, "", "password", 'autocomplete="new-password"')}</label>
+    ${PW.err ? `<div class="eerr">${esc(PW.err)}</div>` : ""}
+    <button class="eb pri full" style="height:44px" ${A("savepw")} ${PW.busy ? "disabled" : ""}>${PW.busy ? "Saving…" : "Save new password"}</button>`;
+function choosePassword(){
+  const m = ME();
+  return signInFrame(`<div><span class="tag">${spark(11)}Welcome, ${esc(firstName(m.name))}</span>
+      <h2>Choose your own password.</h2><p>You signed in with a temporary password. Choose one only you know before you start. A long phrase is easier to remember and harder to guess.</p></div>
+    <div class="chips"><span>${ic("shield", 16, 2.2)}At least 10 characters</span><span>${ic("shield", 16, 2.2)}Never share it, even with colleagues</span><span>${ic("shield", 16, 2.2)}Other browsers are signed out</span></div>`,
+    `${brand("Back office · " + esc(STAFF_ROLES[m.role] || ""))}
+    <div><h1>New password</h1><p>Signed in as <b>${esc(m.username)}</b>.</p></div>
+    ${pwFields()}
+    <div class="elinks"><button ${A("signout")}>Sign out</button></div>`);
+}
+function userSheet(){
+  const m = ME(), o = ROLE === "org" ? ORGA[OS.org] : null;
+  const name = o ? o.contact.name : m.name || "", sub = o ? "+220 " + m.num + " · " + o.name : m.username + " · " + (STAFF_ROLES[m.role] || "");
+  return `<div class="esheet" ${A("userx")}><div class="card">
+    <div class="eh"><div class="euh"><span class="av">${esc(initialsOf(name))}</span><span><b>${esc(name)}</b><small>${esc(sub)}</small></span></div><button class="x" ${A("userx")} aria-label="Close">${ic("x", 15, 2.2)}</button></div>
+    ${ROLE === "back" ? `<button class="emenu" ${A("pwopen")}>${ic("shield", 17, 2)}<span><b>Change password</b><small>Signs out your other browsers</small></span></button>` : ""}
+    <button class="emenu" ${A("print")}>${ic("file", 17, 2)}<span><b>Print this page</b><small>Or save it as a PDF</small></span></button>
+    <button class="emenu" ${A("signout")}>${ic("x", 17, 2)}<span><b>Sign out</b><small>On this browser</small></span></button>
+    <small class="efine">ParkNa ${esc(PN.info && PN.info.version || "")}${isDemo() ? " · demo server" : ""}</small></div></div>`;
+}
+function pwSheet(){
+  return `<div class="esheet" ${A("userx")}><div class="card"><div class="eh"><h2>Change password</h2><button class="x" ${A("userx")} aria-label="Close">${ic("x", 15, 2.2)}</button></div>${pwFields()}</div></div>`;
 }
 
 /* ================= organisation portal ================= */
@@ -142,7 +205,7 @@ function orgAlerts(o){
   if(o.status === "grace" && un) a.push({ t: un.no + " is overdue", s: `Grace day ${o.graceDay} of ${T.grace} · plates still covered`, a: "openinv", v: un.no });
   if(o.status === "reverted" && un) a.push({ t: "Plates reverted to UNPAID", s: un.no + " unpaid after " + T.grace + " days of grace", a: "openinv", v: un.no });
   if(un && un.status === "open" && o.status === "active") a.push({ t: un.no + " is ready", s: "GMD " + gmd(un.amount) + " · due " + fmtD(un.due), a: "openinv", v: un.no });
-  if(un && un.status === "proof") a.push({ t: "Transfer proof received", s: un.no + " · ParkNa Admin is matching it", a: "openinv", v: un.no });
+  if(un && un.status === "proof") a.push({ t: "Transfer reported", s: un.no + " · ParkNa Finance is matching it", a: "openinv", v: un.no });
   o.plates.filter(x => x.to && x.to > today()).forEach(x => a.push({ t: x.plate + " stops at midnight", s: "Removed from the fleet today", a: "nav", v: "fleet" }));
   if(!o.plates.length) a.push({ t: "Add your plates", s: "Cover starts the moment a plate is added", a: "addgo" });
   return a;
@@ -150,7 +213,9 @@ function orgAlerts(o){
 function renderOrg(){
   const o = ORGA[OS.org], el = $("orgWeb");
   el.className = "ed";
-  if(!o.session) return paint(el, orgLogin(o));
+  if(!o) return paint(el, signInFrame(`<div><span class="tag">${spark(11)}ParkNa for organisations</span><h2>Account not found.</h2></div>`,
+    `${brand("Organisation portal")}<div><h1>No organisation</h1><p>This number is no longer the contact on a ParkNa organisation account. Ask your ParkNa account manager.</p></div>
+     <button class="eb pri full" style="height:46px" ${A("signout")}>Sign out</button>`));
   const open = o.invoices.filter(i => i.status !== "paid").length, act = activePlates(o);
   const depts = {}; o.plates.filter(x => !x.to || x.to > today()).forEach(x => { depts[x.dept] = (depts[x.dept] || 0) + 1; });
   const view = OS.inv ? "invoices" : OS.view;
@@ -164,21 +229,8 @@ function renderOrg(){
   else if(view === "invoices") [main, right] = orgInvoices(o);
   else if(view === "reports") [main, right] = orgReports(o);
   else [main, right] = orgOverview(o, first);
-  const ov = OS.sheet ? plateSheet(OS.sheet, "org") : OS.bell ? bellSheet(alerts) : OS.help ? helpSheet("This is the organisation portal: <b>one monthly pass per plate</b>, billed on one invoice. Invoices are issued on the 25th and due by the 1st, with " + T.grace + " days of grace. Plates added mid-month are charged pro-rata; removed plates stop at midnight. Fleet cars park in any marked ParkNa bay: there are no reserved bays.") : "";
+  const ov = OS.user ? userSheet() : OS.sheet ? plateSheet(OS.sheet, "org") : OS.bell ? bellSheet(alerts) : OS.help ? helpSheet("This is the organisation portal: <b>one monthly pass per plate</b>, billed on one invoice. Invoices are issued on the 25th and due by the 1st, with " + T.grace + " days of grace. Plates added mid-month are charged pro-rata; removed plates stop at midnight. Fleet cars park in any marked ParkNa bay: there are no reserved bays.") : "";
   paint(el, frame(top, side, main, right, ov));
-}
-function orgLogin(o){
-  const L = OS.login;
-  return `<div class="elog"><div class="l"><div><span class="tag" style="display:inline-flex;gap:6px;align-items:center;background:#D2F46C;color:#0E0F14;border-radius:9px;padding:4px 9px;font-size:11px;font-weight:600">${spark(11)}ParkNa for organisations</span>
-    <h2>One invoice.<br>Every plate covered.</h2><p>Banks, ministries, telcos and NGOs cover their fleets with one monthly pass per plate, paid on one invoice.</p></div>
-    <div class="chips"><span>${ic("check", 16, 2.4)}PAID for attendants, nothing to pay for drivers</span><span>${ic("check", 16, 2.4)}Add or remove plates any time</span><span>${ic("check", 16, 2.4)}Statements and attendant checks, monthly</span></div></div>
-   <div class="r"><div class="box"><div class="elogo" style="padding:0"><i>P</i><span>ParkNa<small>Organisation portal · Banjul City Council</small></span></div>
-    <div><h1>Sign in</h1><p>With the billing contact’s phone number. We send a code by SMS.</p></div>
-    <label class="ef">Phone number (+220)${inp("lgPhone", "OS.login.phone", L.phone, "7101234", "tel")}</label>
-    ${L.sent ? `<label class="ef">Code from the SMS${inp("lgCode", "OS.login.code", L.code, "6 digits", "text", 'inputmode="numeric"')}</label>` : ""}
-    ${L.err ? `<div class="eerr">${esc(L.err)}</div>` : ""}
-    <button class="eb pri full" style="height:46px" ${A(L.sent ? "signin" : "sendcode")}>${L.sent ? "Sign in" : "Send code"}</button>
-    <p style="font-size:11.5px">New organisations are set up by the ParkNa account manager. Accounts are created by ParkNa Admin, not self-service.</p></div></div></div>`;
 }
 function orgStats(o){
   const act = activePlates(o), ch = orgChecks(o), inv = o.invoices[0], rev = o.status === "reverted";
@@ -193,7 +245,7 @@ function orgInsight(o){
   if(!o.plates.length) return insight({ tag: "Setup", title: "Add your plates to start cover", items: [{ t: "Upload your fleet list", s: "Plate, department, driver · every row is checked", a: "upload" }, { t: "Add one plate", s: "Covered from today, charged pro-rata", a: "addgo" }], btn: { l: "Add plates", a: "addgo" } });
   if(o.status === "reverted" && un) return insight({ tag: "Billing", title: "Your plates are UNPAID", body: `<div class="wx">${un.no} was not paid after ${T.grace} days of grace. Fleet drivers must pay daily until it is paid.</div>`, items: [{ t: un.no + " · GMD " + gmd(un.amount), s: "Due " + fmtD(un.due) + " · pay to restore cover at once", a: "openinv", v: un.no }], btn: { l: "Pay now", a: "openinv", v: un.no } });
   if(o.status === "grace" && un) return insight({ tag: "Billing", title: `Grace day ${o.graceDay} of ${T.grace}`, body: `<div class="wx">Plates stay covered during grace. After day ${T.grace} every plate reverts to UNPAID.</div>`, items: [{ t: un.no + " · GMD " + gmd(un.amount), s: "Was due " + fmtD(un.due), a: "openinv", v: un.no }], btn: { l: "Pay now", a: "openinv", v: un.no } });
-  if(un) return insight({ tag: "Billing", title: `${un.month.split(" ")[0]} invoice is ${un.status === "proof" ? "being matched" : "ready"}`, items: [{ t: un.no + " · GMD " + gmd(un.amount), s: un.status === "proof" ? "Proof received · Admin is matching it" : "Due " + fmtD(un.due) + " · bank transfer or Wave Business", a: "openinv", v: un.no }], btn: { l: "Open invoice", a: "openinv", v: un.no } });
+  if(un) return insight({ tag: "Billing", title: `${un.month.split(" ")[0]} invoice is ${un.status === "proof" ? "being matched" : "ready"}`, items: [{ t: un.no + " · GMD " + gmd(un.amount), s: un.status === "proof" ? "Transfer reported · Finance is matching it" : "Due " + fmtD(un.due) + " · by bank transfer", a: "openinv", v: un.no }], btn: { l: "Open invoice", a: "openinv", v: un.no } });
   const topN = o.topups.length, nx = next25();
   return insight({ tag: "Billing", why: 1, title: `All ${plural(n, "plate")} covered`, wx: OS.why ? `Each plate on the account has a monthly pass at ${gmd(T.monthly)} GMD less your ${Math.round(o.disc * 100)}% discount. Attendants see PAID; drivers are told there is nothing to pay.` : "",
     items: [{ t: "Next invoice on " + fmtD(nx), s: "For " + MONL[(nx.getMonth() + 1) % 12] + " · " + plural(n, "plate") + (topN ? " + " + plural(topN, "pro-rata line") : ""), a: "nav", v: "invoices" }, { t: "Fleet list", s: "Add or remove plates any time", a: "nav", v: "fleet" }], btn: { l: "View invoices", a: "nav", v: "invoices" } });
@@ -232,7 +284,7 @@ function orgFleet(o){
   let review = "";
   if(OS.upload){
     const U = OS.upload, ready = U.rows.filter(r => r.ok === "ready").length;
-    review = `<div class="ep"><div class="eh"><div><h2>fleet_nov.csv</h2><p style="margin-top:2px">${plural(U.rows.length, "row")} checked · covered from today, pro-rata GMD ${gmd(proRata(o))} a plate</p></div><div class="btns">${eBtn("Cancel", "cancelup", null, "ol")}<button class="eb pri" ${A("confirmup")} ${ready ? "" : "disabled"}>${ic("check", 16, 2.4)}Confirm ${plural(ready, "plate")}</button></div></div>
+    review = `<div class="ep"><div class="eh"><div><h2>${esc(U.name)}</h2><p style="margin-top:2px">${plural(U.rows.length, "row")} checked · covered from today, pro-rata GMD ${gmd(proRata(o))} a plate</p></div><div class="btns">${eBtn("Cancel", "cancelup", null, "ol")}<button class="eb pri" ${A("confirmup")} ${ready ? "" : "disabled"}>${ic("check", 16, 2.4)}Confirm ${plural(ready, "plate")}</button></div></div>
      <div class="erows">${U.rows.map(r => row({ lead: esc(r.raw), mono: 1, title: esc(r.dept), sub: esc(r.driver), mid: r.ok === "ready" ? "Ready to add" : esc(r.why), chip: r.ok === "ready" ? eChip("ok", "Ready", "check") : r.ok === "flag" ? eChip("warn", "Flagged") : eChip("bad", "Rejected"), cls: r.ok === "ready" ? "" : "dim" })).join("")}</div></div>`;
   }
   const list = o.plates.filter(x => !OS.dept || x.dept === OS.dept);
@@ -244,7 +296,7 @@ function orgFleet(o){
     ${Ad.open ? `<div style="display:flex;flex-direction:column;gap:9px;margin-top:12px"><label class="ef">Plate${inp("adPlate", "OS.add.plate", Ad.plate, "BJL7010")}</label><label class="ef">Department${inp("adDept", "OS.add.dept", Ad.dept, "Branch ops")}</label><label class="ef">Driver${inp("adDrv", "OS.add.driver", Ad.driver, "Name")}</label>
       ${Ad.err ? `<div class="eerr">${esc(Ad.err)}</div>` : ""}<div style="font-size:11.5px;color:var(--em)">Covered from today · pro-rata GMD ${gmd(proRata(o))}</div>
       <div style="display:flex;gap:8px">${eBtn("Add plate", "addplate", null, "pri", "plus")}${eBtn("Cancel", "addcancel", null, "ol")}</div></div>`
-    : `<div class="edrop" style="margin-top:12px">${ic("upload", 20, 2)}<span><b>Drop a CSV</b> · plate, department, driver</span>${eBtn("Upload fleet_nov.csv", "upload", null, "gh sm")}</div><div style="margin-top:10px">${eBtn("Add one plate", "addopen", null, "full", "plus")}</div>`}</div>`;
+    : `<div class="edrop" style="margin-top:12px">${ic("upload", 20, 2)}<span><b>Drop a CSV file here</b><br>one plate a line: plate, department, driver</span>${eBtn("Choose a file", "upload", null, "gh sm")}</div><div style="margin-top:10px">${eBtn("Add one plate", "addopen", null, "full", "plus")}</div>`}</div>`;
   const right = addCard + insight({ tag: "Rules", title: "How fleet cover works", items: [{ t: "One pass per plate", s: "Park in any marked ParkNa bay", a: "help" }, { t: "Added mid-month", s: "Covered at once, charged pro-rata", a: "help" }, { t: "Removed", s: "Cover stops at midnight", a: "help" }] })
     + callout("shield", "No reserved bays", "Requests for reserved bays go to the Council.");
   return [main, right];
@@ -265,13 +317,15 @@ function orgInvoice(o, inv){
      <div class="erow sel" style="grid-template-columns:66px 1fr auto"><span class="lead">Total</span><div class="tt"><b>GMD ${gmd(inv.amount)}</b><small>One monthly pass per plate at ${gmd(T.monthly)} GMD, less ${Math.round(o.disc * 100)}%</small></div><span>${invChipE(inv)}</span></div></div></div>`;
   let right;
   if(inv.status === "paid") right = insight({ tag: "Paid", title: "Paid " + fmtD(inv.paidOn), body: `<div class="kvw"><span>Method</span><b>${esc(inv.method)}</b><span>Amount</span><b>GMD ${gmd(inv.amount)}</b><span>Covered to</span><b>${fmtD(inv.end)}</b></div>`, btn: { l: "Download statement", a: "download", v: inv.no } });
-  else if(inv.status === "proof") right = insight({ tag: "Awaiting match", title: "Proof received " + fmtD(inv.proofOn), body: `<div class="wx">ParkNa Admin matches the transfer to ${inv.no}. You get an SMS when it is matched. Plates stay covered meanwhile.</div>` });
+  else if(inv.status === "proof") right = insight({ tag: "Awaiting match", title: "Transfer reported " + fmtD(inv.proofOn), body: `<div class="wx">ParkNa Finance matches your transfer to ${inv.no} when it reaches the account. You get an SMS when it is matched. Plates stay covered meanwhile.</div>` });
   else {
-    const over = inv.amount > T.walletLimit, m = over ? "transfer" : OS.pay.method;
-    right = insight({ tag: "Pay invoice", title: `<span class="big">GMD ${gmd(inv.amount)}</span><div style="font-size:12px;color:#CFC8FF;margin-top:6px;font-weight:500">Due ${fmtD(inv.due)}</div>`,
-      body: `<div class="opt3"><button class="${m === "wallet" ? "on" : ""}" ${A("paymethod", "wallet")} ${over ? "disabled" : ""}><b>Wave Business</b><small>${over ? "above " + gmd(T.walletLimit) + " limit" : "business wallet"}</small></button><button class="${m === "transfer" ? "on" : ""}" ${A("paymethod", "transfer")}><b>Bank transfer</b><small>quote the invoice</small></button></div>
-        ${m === "transfer" ? `<div class="kvw"><span>Account</span><b>ParkNa Collections</b><span>Bank</span><b>Demo Commercial Bank</b><span>Account no.</span><b>0012 3456 789</b><span>Reference</span><b>${inv.no}</b></div>` : ""}`,
-      btn: m === "transfer" ? { l: "Upload proof of transfer", a: "uploadproof", pri: 1 } : { l: "Pay with Wave Business", a: "paywallet", pri: 1 } });
+    const wallet = !!(PN.mode && PN.mode.payments), over = inv.amount > T.walletLimit, m = !wallet || over ? "transfer" : OS.pay.method;
+    const bank = PN.bank || (isDemo() ? { bank: "Demo Commercial Bank", accountName: "ParkNa Collections", accountNumber: "0012 3456 789" } : null);
+    right = insight({ tag: "Pay invoice", title: `<span class="big">GMD ${gmd(inv.amount)}</span><div class="insub">Due ${fmtD(inv.due)}</div>`,
+      body: `<div class="opt3"><button class="${m === "wallet" ? "on" : ""}" ${A("paymethod", "wallet")} ${!wallet || over ? "disabled" : ""}><b>Wave Business</b><small>${!wallet ? "opens soon" : over ? "above " + gmd(T.walletLimit) + " limit" : "business wallet"}</small></button><button class="${m === "transfer" ? "on" : ""}" ${A("paymethod", "transfer")}><b>Bank transfer</b><small>quote the invoice</small></button></div>
+        ${m !== "transfer" ? "" : bank ? `<div class="kvw"><span>Account</span><b>${esc(bank.accountName)}</b><span>Bank</span><b>${esc(bank.bank)}</b><span>Account no.</span><b>${esc(bank.accountNumber)}</b><span>Reference</span><b>${inv.no}</b></div>`
+          : `<div class="wx">Pay by bank transfer to the ParkNa account named in your agreement and quote <b>${inv.no}</b> as the reference. Your account manager can send the bank details again.</div>`}`,
+      btn: m === "transfer" ? { l: "I have paid by transfer", a: "uploadproof", pri: 1 } : { l: "Pay with Wave Business", a: "paywallet", pri: 1 } });
   }
   return [main, right + callout("clock", "Grace", T.grace + " days after the due date, with a daily SMS. Then plates revert to UNPAID.")];
 }
@@ -290,11 +344,13 @@ function orgReports(o){
     + callout("shield", "No fines in the pilot", "Unpaid checks are shown for information only.");
   return [main, right];
 }
-function uploadRows(o){
-  const demo = [["BJL6101", "Water ops", "Ebou K."], ["BJL6102", "Electricity", "Fatou M."], ["BJL6103", "Metering", "Alhaji S."], ["BJL7777", "Admin", "—"], ["BJL 61 004", "Water ops", "Pa M."]];
-  return demo.map(([raw, dept, driver]) => {
+function uploadRows(o, list){
+  const seen = new Set();
+  return list.map(([raw, dept, driver]) => {
     const p = normPlate(raw);
     if(!p) return { raw, dept, driver, ok: "rej", why: "Not a valid plate" };
+    if(seen.has(p)) return { raw, dept, driver, p, ok: "flag", why: "Twice in this file" };
+    seen.add(p);
     const r = PLATES[p], other = Object.values(ORGA).find(x => x.plates.some(y => y.plate === p && !y.to));
     if(other && other.id === o.id) return { raw, dept, driver, p, ok: "flag", why: "Already on this account" };
     if(other) return { raw, dept, driver, p, ok: "flag", why: "On another organisation" };
@@ -302,12 +358,8 @@ function uploadRows(o){
     return { raw, dept, driver, p, ok: "ready" };
   });
 }
-function addFleetPlate(o, p, dept, driver){
-  o.plates.push({ plate: p, dept: dept || "—", driver: driver || "—", from: today(), to: null });
-  o.topups.push({ t: `${p} from ${fmtD(today())} (pro-rata)`, a: proRata(o) });
-  if(o.status === "new") o.status = "active";
-}
-async function orgActUI(a, v){
+/* screen-only organisation actions (the ones that change data are in portal-app.js) */
+function orgActUI(a, v){
   const o = ORGA[OS.org];
   if(a === "nav"){ OS.view = v; OS.inv = null; OS.sheet = null; OS.bell = false; return renderOrg(); }
   if(a === "seg"){ OS.seg = v; return renderOrg(); }
@@ -315,42 +367,18 @@ async function orgActUI(a, v){
   if(a === "why"){ OS.why = !OS.why; return renderOrg(); }
   if(a === "plate"){ OS.sheet = v; return renderOrg(); }
   if(a === "sheetx"){ OS.sheet = null; return renderOrg(); }
-  if(a === "bell"){ OS.bell = !OS.bell; OS.help = false; return renderOrg(); }
+  if(a === "bell"){ OS.bell = !OS.bell; OS.help = false; OS.user = false; return renderOrg(); }
   if(a === "bellx"){ OS.bell = false; return renderOrg(); }
-  if(a === "help"){ OS.help = true; OS.bell = false; return renderOrg(); }
+  if(a === "help"){ OS.help = true; OS.bell = false; OS.user = false; return renderOrg(); }
   if(a === "helpx"){ OS.help = false; return renderOrg(); }
-  if(a === "addgo"){ OS.view = "fleet"; OS.inv = null; OS.add.open = true; OS.bell = false; return renderOrg(); }
-  if(a === "sendcode"){
-    const ph = OS.login.phone.replace(/\D/g, "").slice(-7);
-    if(ph !== o.contact.num){ OS.login.err = "This number is not the contact on a ParkNa organisation account."; return renderOrg(); }
-    OS.login.err = ""; OS.login.sent = true; renderOrg();
-    return mt(o.contact.num, `ParkNa portal code: ${CODE}. It expires in 10 minutes. Do not share it.`, "Code");
-  }
-  if(a === "signin"){
-    if(OS.login.code.trim() !== CODE){ OS.login.err = "That code is not right. Check the SMS and try again."; return renderOrg(); }
-    o.session = true; OS.login = freshOS().login; OS.view = "overview"; renderAll(); return wtoast("stOrg", "Signed in as " + o.contact.name);
-  }
-  if(a === "addopen"){ OS.view = "fleet"; OS.inv = null; OS.add.open = true; return renderOrg(); }
+  if(a === "addgo" || a === "addopen"){ OS.view = "fleet"; OS.inv = null; OS.add.open = true; OS.bell = false; renderOrg(); const i = $("adPlate"); if(i) i.focus(); return; }
   if(a === "addcancel"){ OS.add = freshOS().add; return renderOrg(); }
-  if(a === "addplate"){
-    const p = normPlate(OS.add.plate);
-    if(!p){ OS.add.err = "Enter a plate like BJL7010"; return renderOrg(); }
-    if(o.plates.some(x => x.plate === p && !x.to)){ OS.add.err = p + " is already on this account"; return renderOrg(); }
-    const pr = proRata(o); addFleetPlate(o, p, OS.add.dept, OS.add.driver); OS.add = freshOS().add;
-    renderAll(); return wtoast("stOrg", `${p} covered from today · pro-rata GMD ${gmd(pr)} on the next invoice`);
-  }
-  if(a === "upload"){ OS.view = "fleet"; OS.inv = null; OS.upload = { rows: uploadRows(o) }; return renderOrg(); }
   if(a === "cancelup"){ OS.upload = null; return renderOrg(); }
-  if(a === "confirmup"){ const rs = OS.upload.rows.filter(r => r.ok === "ready"); rs.forEach(r => addFleetPlate(o, r.p, r.dept, r.driver)); OS.upload = null; renderAll(); return wtoast("stOrg", `${rs.length} plates added · covered from today`); }
-  if(a === "remove"){ const x = o.plates.find(y => y.plate === v && !y.to); x.to = addDays(today(), 1); renderAll(); return wtoast("stOrg", `${v}: cover stops at midnight`); }
   if(a === "openinv"){ OS.inv = v; OS.view = "invoices"; OS.bell = false; return renderOrg(); }
   if(a === "paymethod"){ OS.pay.method = v; return renderOrg(); }
-  if(a === "uploadproof"){ const inv = o.invoices.find(i => i.no === OS.inv); inv.status = "proof"; inv.proofOn = today(); renderAll(); return wtoast("stOrg", "Proof uploaded · ParkNa Admin will match it"); }
-  if(a === "paywallet"){ const inv = o.invoices.find(i => i.no === OS.inv); await payInvoice(o, inv, "Wave Business"); renderAll(); return wtoast("stOrg", "Paid · receipt sent by SMS"); }
-  if(a === "download"){ return wtoast("stOrg", `Statement ${v}.pdf downloaded (demo)`); }
   if(a === "search"){ const q = OS.q.trim(), p = normPlate(q);
     const inv = o.invoices.find(i => i.no.toUpperCase() === q.toUpperCase());
-    if(inv) return orgAct("openinv", inv.no);
+    if(inv) return orgActUI("openinv", inv.no);
     if(p && o.plates.some(x => x.plate === p)){ OS.sheet = p; return renderOrg(); }
     return wtoast("stOrg", q ? `${q.toUpperCase()} is not on this account` : "Type a plate or an invoice number"); }
 }
@@ -358,7 +386,8 @@ async function orgActUI(a, v){
 /* ================= back office ================= */
 function revenueToday(){
   const d = dkey(B.date), f = paidDay() ? Math.max(0, Math.min(1, (B.min - 420) / 720)) : 0;
-  const R = {}; Object.keys(ROADS).forEach(k => R[k] = { n: Math.floor(BG_DAILY[k] * f), m: 0, amt: 0 });
+  const bg = isDemo() ? BG_DAILY : {};           /* demo servers add simulated background passes on the five roads */
+  const R = {}; Object.keys(ROADS).forEach(k => R[k] = { n: Math.floor((bg[k] || 0) * f), m: 0, amt: 0 });
   R.OTH = { n: 0, m: 0, amt: 0 };
   Object.keys(ROADS).forEach(k => R[k].amt = R[k].n * T.daily);
   const src = { daily: Object.values(R).reduce((s, r) => s + r.amt, 0), monthly: 0, org: 0 };
@@ -403,44 +432,47 @@ function shiftQueue(){
   return queue({ title: "Shift progress", pill: on.length + " on shift", items: on.slice(0, 5).map(([o, s]) => ({ t: `Attendant ${o.id} · ${shortRoad(roadOf(o))}`, s: `${o.name} · ${s[1] === "Quiet" ? "quiet since " + hm(s[2].last) : "last SMS " + (s[2].last != null ? hm(s[2].last) : "—")}`, v: s[2].checked + " / " + target, n: s[2].checked, of: target, bc: s[1] === "Quiet" ? "r" : s[2].checked >= target ? "g" : "", vc: s[2].checked >= target ? "g" : "" })), empty: "Nobody is on shift right now." });
 }
 function renderBack(){
-  const el = $("backWeb"), V = BS.view, council = V === "council";
+  if(!canSee(BS.view)) BS.view = (PAGES[myRole()] || ["council"])[0];
+  const el = $("backWeb"), V = BS.view, council = myRole() === "council", m = ME();
   el.className = "ed";
   const proofs = []; Object.values(ORGA).forEach(o => o.invoices.forEach(i => { if(i.status === "proof") proofs.push([o, i]); }));
   const exc = EXC.filter(e => e.status === "open").length, C = checksByRoad();
   const onRoad = k => Object.values(OFF).filter(o => o.active && roadOf(o) === k && offStats(o).on).map(o => o.id);
   const side = sidebar([{ k: "dash", l: "Dashboard", i: "grid" }, { k: "attendants", l: "Attendants", i: "users", n: Object.values(OFF).filter(o => o.active).length }, { k: "orgs", l: "Organisations", i: "building", n: Object.keys(ORGA).length },
-    { k: "payments", l: "Payments", i: "card", n: (proofs.length + exc) || "", hot: 1 }, { k: "tariff", l: "Tariffs & rules", i: "sliders" }, { k: "ann", l: "Announcements", i: "mega", n: (typeof ANN !== "undefined" && ANN ? ANN.filter(annLive).length : 0) || "" }, { k: "council", l: "Revenue report", i: "chart" }],
-    V === "register" ? "attendants" : V === "neworg" ? "orgs" : V, "Pilot roads", Object.keys(ROADS).map(k => ({ k, code: k, t: ROADS[k].name, s: (onRoad(k).length ? "Att. " + onRoad(k).join(", ") : "No attendant") + " · " + C[k].c + " checks", a: "road" })), BS.road);
-  const nd = needs();
-  const top = topbar("Search plate, e.g. BJL1234", BS.q, nd.length > 0, council ? "BCC revenue office" : "Aisha K.", council ? "Council · read-only" : "ParkNa Admin", council ? "BC" : "AK", council ? "Council view" : "Back office");
-  const [main, right] = { dash: backDash, attendants: backAtt, register: backReg, orgs: backOrgs, neworg: backNewOrg, payments: () => backPay(proofs), tariff: backTariff, ann: backAnn, council: backCouncil }[V]();
-  const ov = BS.sheet ? plateSheet(BS.sheet, "back") : BS.bell ? bellSheet(nd) : BS.help ? helpSheet("The ParkNa back office. <b>Admin</b> registers officers and assigns their fixed road, creates organisation accounts, applies the tariff adopted by the Council and reconciles payments. The <b>Revenue report</b> is the Council’s read-only view. Roads and attendants other than 07 and 12 run simulated background activity so the console looks like a live morning.") : "";
+    { k: "payments", l: "Payments", i: "card", n: (proofs.length + exc) || "", hot: 1 }, { k: "tariff", l: "Tariffs & rules", i: "sliders" }, { k: "ann", l: "Announcements", i: "mega", n: (typeof ANN !== "undefined" && ANN ? ANN.filter(annLive).length : 0) || "" }, { k: "council", l: "Revenue report", i: "chart" },
+    { k: "staff", l: "Staff & audit", i: "shield" }].filter(it => canSee(it.k)),
+    pageOf(V), "Pilot roads", Object.keys(ROADS).map(k => ({ k, code: k, t: ROADS[k].name, s: (onRoad(k).length ? "Att. " + onRoad(k).join(", ") : "No attendant") + " · " + C[k].c + " checks", a: "road" })), BS.road);
+  const nd = needs().filter(x => x.a === "cover" ? can("officers") : canSee(x.v));
+  const top = topbar("Search plate, e.g. BJL1234", BS.q, nd.length > 0, m.name || m.username || "", STAFF_ROLES[m.role] || "", initialsOf(m.name || m.username), council ? "Council view" : "Back office");
+  const [main, right] = { dash: backDash, attendants: backAtt, register: backReg, orgs: backOrgs, neworg: backNewOrg, payments: () => backPay(proofs), tariff: backTariff, ann: backAnn, council: backCouncil, staff: backStaff }[V]();
+  const ov = BS.user ? userSheet() : BS.pw ? pwSheet() : BS.sheet ? plateSheet(BS.sheet, "back") : BS.bell ? bellSheet(nd) : BS.help ? helpSheet("The ParkNa back office. <b>Administrators</b> register attendants and set their fixed road, create organisation accounts, apply the tariff adopted by the Council, publish announcements and manage staff accounts. <b>Supervisors</b> look after attendants and roads. <b>Finance</b> matches organisation bank transfers and handles payment exceptions. The <b>Revenue report</b> is the Council’s read-only view. Every change is recorded in the audit log with the name of the person who made it." + (isDemo() ? " On this demo server, roads and attendants other than 07 and 12 run simulated background activity." : "")) : "";
   paint(el, frame(top, side, main, right, ov));
 }
 function backDash(){
   const offs = Object.values(OFF).filter(o => o.active), st = offs.map(o => offStatus(o));
   const on = st.filter(x => x[1] === "Active" || x[1] === "Quiet").length, quiet = st.filter(x => x[1] === "Quiet").length;
-  const C = checksByRoad(), tc = Object.values(C).reduce((s, x) => s + x.c, 0), tu = Object.values(C).reduce((s, x) => s + x.u, 0), rv = revenueToday(), nd = needs();
+  const C = checksByRoad(), tc = Object.values(C).reduce((s, x) => s + x.c, 0), tu = Object.values(C).reduce((s, x) => s + x.u, 0), rv = revenueToday(), nd = needs().filter(x => x.a === "cover" ? can("officers") : canSee(x.v));
   const frac = paidDay() ? Math.max(0, Math.min(1, (B.min - 420) / 720)) : 0;
   const p1 = nd.filter(x => x.a === "cover").length, p2 = nd.filter(x => /transfer/i.test(x.s)).length;
   const sub = `GMD ${gmd(rv.total)} collected so far today. ` + (nd.length ? [p1 ? plural(p1, "attendant is", "attendants are") + " quiet" : "", p2 ? plural(p2, "transfer is", "transfers are") + " waiting" : "", nd.length - p1 - p2 > 0 ? plural(nd.length - p1 - p2, "other item") + " to review" : ""].filter(Boolean).join(" and ") + "." : "Nothing needs you right now.");
   const stats = `<div class="est4">${stat({ hi: 1, t: "Collected today", big: kfmt(rv.total), unit: "GMD", dots: dots(Math.round(frac * 10), 10, "k"), chip: eChip("ink", "60% Council", "up") })}
-   ${stat({ t: "On shift now", big: on, unit: "of " + offs.length + " attendants", dots: dots(on, offs.length, "v"), chip: quiet ? eChip("warn", quiet + " quiet") : eChip("ok", "All covered", "check") })}
+   ${stat({ t: "On shift now", big: on, unit: "of " + offs.length + " attendants", dots: dots(on, offs.length, "v"), chip: !offs.length ? eChip("grey", "none registered") : quiet ? eChip("warn", quiet + " quiet") : eChip("ok", "All covered", "check") })}
    ${stat({ t: "Plates checked", big: tc, unit: "today", dots: dots(Math.round(pct(tu, tc) / 10), 10, "l"), chip: eChip("vio", pct(tu, tc) + "% paid", "plus") })}
    ${stat({ t: "Unpaid when checked", big: tc ? 100 - pct(tu, tc) : 0, unit: "%", dots: dots(Math.round((tc ? 100 - pct(tu, tc) : 0) / 10), 10, "k"), chip: eChip("ok", "No fines yet", "down") })}</div>`;
   let rows;
-  if(BS.seg === "attendants") rows = offs.map((o, i) => { const [c, l, s] = st[i]; return row({ lead: o.id, title: esc(o.name), sub: shortRoad(roadOf(o)) + (roadOf(o) !== o.road ? " · moved" : "") + " · " + SHIFTS[o.shift].label, mid: s.last != null ? "Last SMS " + hm(s.last) : "No SMS yet", dur: s.checked + " checks", chip: eChip(c, l), a: "pick", v: o.num }); }).join("");
+  if(BS.seg === "attendants") rows = offs.map((o, i) => { const [c, l, s] = st[i]; return row({ lead: o.id, title: esc(o.name), sub: shortRoad(roadOf(o)) + (roadOf(o) !== o.road ? " · moved" : "") + " · " + SHIFTS[o.shift].label, mid: s.last != null ? "Last SMS " + hm(s.last) : "No SMS yet", dur: s.checked + " checks", chip: eChip(c, l), a: can("officers") ? "pick" : null, v: o.num }); }).join("")
+    || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No attendants registered yet.${can("officers") ? " Register the first one from Attendants." : ""}</small></div>`;
   else if(BS.seg === "payments"){ const d = dkey(B.date), w = LOG.filter(l => l.day === d && !l.bad).slice(0, 6);
     rows = w.map(l => row({ lead: l.t, title: l.src === "org" ? esc(l.text.split("·")[1] || l.text) : l.plate, sub: l.src === "org" ? "Organisation invoice" : (l.ticket || "") + " · " + (l.prov || ""), mid: l.src === "monthly" ? "Monthly pass" : l.src === "org" ? "Bank transfer" : "Daily pass", dur: "GMD " + gmd(l.amount), chip: eChip("ok", "Matched", "check"), a: "nav", v: "payments" })).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No live payments yet today. Background totals are in the Revenue report.</small></div>`; }
   else rows = Object.keys(ROADS).map(k => { const ids = Object.values(OFF).filter(o => o.active && roadOf(o) === k && offStats(o).on), q = ids.some(o => offStatus(o)[1] === "Quiet");
     return row({ lead: k, cls: BS.road === k ? "sel" : "", title: ROADS[k].name, sub: "Bays " + ROADS[k].bays.replace("-", "–") + " · " + (ids.length ? "Attendant " + ids.map(o => o.id).join(", ") : "no attendant"), mid: plural(C[k].c, "check"), dur: pct(C[k].u, C[k].c) + "% paid", chip: !ids.length ? eChip("grey", "Uncovered") : q ? eChip("warn", "Quiet") : eChip("ok", "Active"), a: "road", v: k }); }).join("");
   const glance = `<div class="eglh"><b>Roads at a glance</b><span class="lg"><span><i></i>Paid</span><span><i class="o"></i>Unpaid</span></span></div>
    <div class="egl">${Object.keys(ROADS).map(k => `<button class="egc ${BS.road === k ? "on" : ""}" ${A("road", k)}><span class="r">${k}<span>${kfmt(rv.R[k].amt)}</span></span><span class="bg">${C[k].c}</span><small>checks</small>${dots(Math.round(pct(C[k].u, C[k].c) / 20), 5, "k")}</button>`).join("")}</div>`;
-  const main = `<div class="ep"><div class="eh"><div><h1>Good ${partOfDay()}, Aisha</h1><p>${sub}</p></div><div class="btns">${eBtn("Revenue report", "nav", "council", "ol")}${eBtn("Register officer", "nav", "register", "", "plus")}</div></div>${stats}</div>
+  const main = `<div class="ep"><div class="eh"><div><h1>Good ${partOfDay()}, ${esc(firstName(ME().name))}</h1><p>${sub}</p></div><div class="btns">${eBtn("Revenue report", "nav", "council", "ol")}${can("officers") ? eBtn("Register officer", "nav", "register", "", "plus") : ""}</div></div>${stats}</div>
    <div class="ep"><div class="eh"><div><h2>Live across the pilot</h2><p style="margin-top:2px">${dstr(B.date)} · ${hm(B.min)}</p></div>${seg("seg", BS.seg, [["roads", "Roads"], ["attendants", "Attendants"], ["payments", "Payments"]])}</div><div class="erows">${rows}</div>${BS.seg === "roads" ? glance : ""}</div>`;
   const k = BS.road, ids = Object.values(OFF).filter(o => o.active && roadOf(o) === k && offStats(o).on);
   const right = insight({ tag: "Needs attention", why: 1, title: nd.length ? `${plural(nd.length, "thing")} need${nd.length === 1 ? "s" : ""} you now` : "All clear right now", wx: BS.why ? "ParkNa flags attendants with no SMS for 40 minutes, officers who have not sent START, bank transfers waiting to be matched, organisations in grace and payment exceptions." : "",
-      items: nd.slice(0, 3), btn: nd.length ? { l: "Review " + (nd.length > 1 ? "all" : "it"), a: nd[0].a, v: nd[0].v } : { l: "Open attendants", a: "nav", v: "attendants" } })
+      items: nd.slice(0, 3), btn: nd.length ? { l: "Review " + (nd.length > 1 ? "all" : "it"), a: nd[0].a, v: nd[0].v } : canSee("attendants") ? { l: "Open attendants", a: "nav", v: "attendants" } : { l: "Open payments", a: "nav", v: "payments" } })
     + shiftQueue()
     + callout("map", `${ROADS[k].name}: ${plural(C[k].c, "check")}`, `${C[k].u} unpaid · GMD ${gmd(rv.R[k].amt)} collected · ${ids.length ? "Attendant " + ids.map(o => o.id).join(", ") : "no attendant on shift"}`);
   return [main, right];
@@ -449,7 +481,9 @@ function backAtt(){
   const offs = Object.values(OFF), st = offs.map(o => offStatus(o)), C = checksByRoad();
   const tc = Object.values(C).reduce((s, x) => s + x.c, 0), tu = Object.values(C).reduce((s, x) => s + x.u, 0);
   const on = st.filter(x => x[1] === "Active" || x[1] === "Quiet").length, quietN = st.filter(x => x[1] === "Quiet").length, act = offs.filter(o => o.active).length;
-  const R = BS.re, ro = OFF[R.off], eligible = offs.filter(o => o.active && !o.bg);
+  const R = BS.re, eligible = offs.filter(o => o.active && !o.bg);
+  if(!eligible.some(o => o.num === R.off)) R.off = eligible.length ? eligible[0].num : "";
+  const ro = OFF[R.off];
   const sums = offs.filter(o => o.summary && o.summary.day === dkey(B.date));
   const stats = `<div class="est4">${stat({ hi: 1, t: "On shift now", big: on, unit: "of " + act, dots: dots(on, act, "k"), chip: eChip("ink", "START sent", "check") })}
    ${stat({ t: "Plates checked", big: tc, unit: "today", dots: dots(Math.min(10, Math.round(tc / 50)), 10, "v"), chip: eChip("vio", "all roads", "plus") })}
@@ -458,20 +492,22 @@ function backAtt(){
   const list = offs.map((o, i) => [o, st[i]]).filter(([o, s]) => BS.aseg === "all" || (BS.aseg === "on" ? s[1] === "Active" || s[1] === "Quiet" : s[1] === "Quiet"));
   const main = `<div class="ep"><div class="eh"><div><h1>Attendants & roads</h1><p>${act} attendants · 5 pilot roads · two shifts · fixed road for each officer</p></div><div class="btns">${eBtn("Register officer", "nav", "register", "", "plus")}</div></div>${stats}</div>
    <div class="ep"><div class="eh"><div><h2>Today</h2><p style="margin-top:2px">Tap an attendant to reassign</p></div>${seg("aseg", BS.aseg, [["all", "All"], ["on", "On shift"], ["quiet", "Quiet"]])}</div>
-   <div class="erows">${list.map(([o, [c, l, s]]) => row({ lead: o.id, cls: o.num === R.off ? "sel" : "", title: esc(o.name) + (o.isNew ? " " + eChip("lime", "New") : ""), sub: shortRoad(roadOf(o)) + (roadOf(o) !== o.road ? " · moved" : "") + " · " + SHIFTS[o.shift].label, mid: plural(s.checked, "check") + " · " + (s.last != null ? hm(s.last) : "no SMS"), dur: s.unpaid + " unpaid", chip: eChip(c, l), a: !o.bg ? "pick" : null, v: o.num })).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">Nobody in this list right now.</small></div>`}</div></div>
+   <div class="erows">${list.map(([o, [c, l, s]]) => row({ lead: o.id, cls: o.num === R.off ? "sel" : "", title: esc(o.name) + (o.isNew ? " " + eChip("lime", "New") : ""), sub: shortRoad(roadOf(o)) + (roadOf(o) !== o.road ? " · moved" : "") + " · " + SHIFTS[o.shift].label, mid: plural(s.checked, "check") + " · " + (s.last != null ? hm(s.last) : "no SMS"), dur: s.unpaid + " unpaid", chip: eChip(c, l), a: !o.bg ? "pick" : null, v: o.num })).join("")
+     || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">${offs.length ? "Nobody in this list right now." : "No attendants yet. Register each attendant with the phone number they will use for ParkNa."}</small></div>`}</div></div>
    ${sums.length ? `<div class="ep"><div class="eh"><h2>Shift summaries today</h2></div><div class="erows">${sums.map(o => row({ lead: o.id, title: esc(o.name), sub: ROADS[o.summary.road].name, mid: "Ended " + hm(o.summary.end) + (o.summary.auto ? " (auto)" : ""), dur: (o.summary.checked || 0) + " checked", chip: eChip("grey", "Cash: none") })).join("")}</div></div>` : ""}`;
-  const right = insight({ tag: "Reassign officer", title: `Move Attendant ${ro.id}`, body: `<label class="fld2">Officer${sel("reOff", "BS.re.off", R.off, eligible.map(o => [o.num, `Attendant ${o.id} · ${shortRoad(roadOf(o))}`]))}</label>
+  const right = (ro ? insight({ tag: "Reassign officer", title: `Move Attendant ${ro.id}`, body: `<label class="fld2">Officer${sel("reOff", "BS.re.off", R.off, eligible.map(o => [o.num, `Attendant ${o.id} · ${shortRoad(roadOf(o))}`]))}</label>
       <label class="fld2">Move to${sel("reRoad", "BS.re.road", R.road, Object.keys(ROADS).map(k => [k, ROADS[k].name + " " + ROADS[k].bays.replace("-", "–")]))}</label>
       <div class="kvw"><span>From</span><b>Today ${hm(B.min)}</b><span>Until</span><b>End of shift</b></div>${R.err ? `<div class="err">${esc(R.err)}</div>` : ""}`,
       btn: { l: "Reassign · notify by SMS", a: "reassign", pri: 1 } })
+      : insight({ tag: "Get started", title: "Register your attendants", body: `<div class="wx">Each attendant gets a number (01, 02…), a fixed road and a shift. They sign in to the ParkNa Officer app with their registered phone number, or text START to ${esc(PN.mode && PN.mode.shortcode || SC)}.</div>`, btn: { l: "Register officer", a: "nav", v: "register", pri: 1 } }))
     + shiftQueue() + callout("clock", "Fixed road for the pilot", "Tomorrow every officer returns to their fixed road.");
   return [main, right];
 }
 function backReg(){
-  const F = BS.reg, first = (F.name || "Name").split(" ")[0], nextId = pad(Math.max(...Object.values(OFF).map(o => +o.id)) + 1);
+  const F = BS.reg, first = (F.name || "Name").split(" ")[0], nextId = pad(Object.values(OFF).reduce((m, o) => Math.max(m, +o.id || 0), 0) + 1);
   const main = `<div class="ep"><div class="eh"><div><h1>Register officer</h1><p>Each attendant texts from one registered number, with a fixed road and shift for the pilot. This will be Attendant ${nextId}.</p></div><div class="btns">${eBtn("Back", "nav", "attendants", "ol")}</div></div>
     <div class="efg" style="margin-top:18px"><label class="ef">Full name${inp("rgName", "BS.reg.name", F.name, "e.g. Ousman Colley", "text", 'data-rr="1"')}</label><label class="ef">Staff ID${inp("rgStaff", "BS.reg.staff", F.staff, "BCC-0415")}</label>
-     <label class="ef">Registered phone (+220)${inp("rgPhone", "BS.reg.phone", F.phone, "7300015", "tel")}</label><label class="ef">Supervisor<input value="Supervisor Jobe" disabled></label>
+     <label class="ef">Registered phone (+220)${inp("rgPhone", "BS.reg.phone", F.phone, "7300015", "tel")}</label><label class="ef">Registered by<input value="${esc(ME().name || "")}" disabled></label>
      <label class="ef">Fixed road${sel("rgRoad", "BS.reg.road", F.road, Object.keys(ROADS).map(k => [k, ROADS[k].name + " " + ROADS[k].bays.replace("-", "–")]))}</label><label class="ef">Shift${sel("rgShift", "BS.reg.shift", F.shift, [["AM", "Morning 7am–1pm"], ["PM", "Afternoon 1pm–7pm"]])}</label></div>
     ${F.err ? `<div class="eerr" style="margin-top:10px">${esc(F.err)}</div>` : ""}
     <div style="display:flex;gap:8px;margin-top:16px">${eBtn("Register · send welcome SMS", "register", null, "pri", "check")}${eBtn("Cancel", "nav", "attendants", "ol")}</div></div>`;
@@ -487,10 +523,11 @@ function backOrgs(){
    ${stat({ t: "Invoices open", big: open, dots: dots(open, 4, "l"), chip: open ? eChip("warn", "due the 1st") : eChip("ok", "all paid", "check") })}
    ${stat({ t: "Collected from organisations", big: kfmt(paid), unit: "GMD", dots: dots(Math.min(10, orgs.length * 2), 10, "k"), chip: eChip("ok", "matched", "check") })}</div>`;
   const stc = o => o.status === "active" ? eChip("ok", "Active") : o.status === "grace" ? eChip("warn", "Grace " + o.graceDay + "/" + T.grace) : o.status === "reverted" ? eChip("bad", "Reverted") : eChip("vio", "New");
-  const main = `<div class="ep"><div class="eh"><div><h1>Organisations</h1><p>Created by Admin after the account manager’s visit and a signed agreement. Never self-service.</p></div><div class="btns">${eBtn("New organisation", "nav", "neworg", "", "plus")}</div></div>${stats}</div>
-   <div class="ep"><div class="eh"><h2>Accounts</h2></div><div class="erows">${orgs.map(o => { const i = o.invoices[0]; return row({ lead: o.id.slice(4), title: esc(o.name), sub: esc(o.contact.name) + " · +220 " + o.contact.num, mid: activePlates(o).length + " / " + o.agreed + " plates · " + Math.round(o.disc * 100) + "%", dur: i ? i.no.slice(4) : "no invoice", chip: stc(o) }); }).join("")}</div></div>`;
+  const main = `<div class="ep"><div class="eh"><div><h1>Organisations</h1><p>Created by an administrator after the account manager’s visit and a signed agreement. Never self-service.</p></div><div class="btns">${can("orgs") ? eBtn("New organisation", "nav", "neworg", "", "plus") : ""}</div></div>${stats}</div>
+   <div class="ep"><div class="eh"><h2>Accounts</h2></div><div class="erows">${orgs.map(o => { const i = o.invoices[0]; return row({ lead: o.id.slice(4), title: esc(o.name), sub: esc(o.contact.name) + " · +220 " + o.contact.num, mid: activePlates(o).length + " / " + o.agreed + " plates · " + Math.round(o.disc * 100) + "%", dur: i ? i.no.slice(4) : "no invoice", chip: stc(o) }); }).join("")
+     || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No organisation accounts yet.</small></div>`}</div></div>`;
   const alert = orgs.filter(o => o.status !== "active" && o.status !== "new" || o.invoices.some(i => i.status === "proof"));
-  const right = insight({ tag: "Billing", title: alert.length ? plural(alert.length, "account") + " to watch" : "All accounts in good standing", items: alert.map(o => ({ t: o.name, s: o.status === "grace" ? "Grace day " + o.graceDay : o.status === "reverted" ? "Plates reverted" : "Transfer waiting to be matched", a: "nav", v: o.invoices.some(i => i.status === "proof") ? "payments" : "orgs" })), btn: { l: "New organisation", a: "nav", v: "neworg" } })
+  const right = insight({ tag: "Billing", title: alert.length ? plural(alert.length, "account") + " to watch" : "All accounts in good standing", items: alert.map(o => ({ t: o.name, s: o.status === "grace" ? "Grace day " + o.graceDay : o.status === "reverted" ? "Plates reverted" : "Transfer waiting to be matched", a: "nav", v: o.invoices.some(i => i.status === "proof") ? "payments" : "orgs" })), btn: can("orgs") ? { l: "New organisation", a: "nav", v: "neworg" } : null })
     + callout("shield", "No reserved bays", "Organisation plates park in any marked ParkNa bay. Requests go to the Council.");
   return [main, right];
 }
@@ -514,24 +551,26 @@ function backPay(proofs){
    ${stat({ t: "Wallet payments", big: wal.length, unit: "live today", dots: dots(Math.min(10, wal.length), 10, "v"), chip: eChip("ok", "by callback", "check") })}
    ${stat({ t: "Transfers to match", big: proofs.length, dots: dots(proofs.length, 4, "l"), chip: proofs.length ? eChip("warn", "by invoice no.") : eChip("ok", "none waiting", "check") })}
    ${stat({ t: "Exceptions", big: openExc, unit: "open", dots: dots(openExc, 4, "r"), chip: openExc ? eChip("bad", "to decide") : eChip("ok", "none open", "check") })}</div>`;
-  const main = `<div class="ep"><div class="eh"><div><h1>Payments</h1><p>Wallet payments match by callback. Organisation bank transfers match to invoices by reference.</p></div></div>${stats}</div>
-   <div class="ep"><div class="eh"><h2>Bank transfers to match</h2></div><div class="erows">${proofs.map(([o, i]) => row({ lead: fmtD(i.proofOn), cls: "sel", title: i.no, sub: esc(o.name) + " · proof uploaded", mid: "Reference " + i.no, dur: "GMD " + gmd(i.amount), chip: eChip("vio", "Awaiting"), btn: `<button class="eb sm pri" ${A("match", o.id + "|" + i.no)}>Match</button>` })).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">Nothing to match.</small></div>`}</div></div>
-   <div class="ep"><div class="eh"><h2>Wallet payments today</h2><span class="ec ok">${ic("check", 12, 2.8)}matched by callback</span></div><div class="erows">${wal.slice(0, 8).map(l => row({ lead: l.t, title: l.plate, sub: l.ticket + " · " + N(l.num).name, mid: l.prov + " · " + (l.src === "monthly" ? "monthly" : "daily"), dur: "GMD " + gmd(l.amount), chip: eChip("ok", "Matched", "check"), a: "plate", v: l.plate })).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No live wallet payments yet today.</small></div>`}</div></div>`;
+  const wallets = !!(PN.mode && PN.mode.payments);
+  const main = `<div class="ep"><div class="eh"><div><h1>Payments</h1><p>${wallets ? "Wallet payments match by callback. " : ""}Organisation bank transfers are matched to invoices by their reference.</p></div></div>${stats}</div>
+   <div class="ep"><div class="eh"><h2>Bank transfers to match</h2></div><div class="erows">${proofs.map(([o, i]) => row({ lead: fmtD(i.proofOn), cls: "sel", title: i.no, sub: esc(o.name) + " · says it has paid", mid: "Reference " + i.no, dur: "GMD " + gmd(i.amount), chip: eChip("vio", "Awaiting"), btn: can("money") ? `<button class="eb sm pri" ${A("match", o.id + "|" + i.no)}>Match</button>` : "<span></span>" })).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">Nothing to match.</small></div>`}</div></div>
+   <div class="ep"><div class="eh"><h2>Wallet payments today</h2>${wallets ? `<span class="ec ok">${ic("check", 12, 2.8)}matched by callback</span>` : `<span class="ec grey">not switched on yet</span>`}</div><div class="erows">${wal.slice(0, 8).map(l => row({ lead: l.t, title: l.plate, sub: l.ticket + " · " + N(l.num).name, mid: l.prov + " · " + (l.src === "monthly" ? "monthly" : "daily"), dur: "GMD " + gmd(l.amount), chip: eChip("ok", "Matched", "check"), a: "plate", v: l.plate })).join("")
+     || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">${wallets ? "No wallet payments yet today." : "Mobile money payments (Wave, Afrimoney, APS, QMoney) are added when the provider agreements are in place. Until then drivers see “opens soon”."}</small></div>`}</div></div>`;
   const right = insight({ tag: "Revenue share", title: `<span class="big">GMD ${gmd(rv.total)}</span><div style="font-size:12px;color:#CFC8FF;margin-top:6px;font-weight:500">collected today</div>`,
       body: `<div class="br2"><span>Council 60%</span><i style="width:100%"></i><span>${gmd(rv.total * .6)}</span></div><div class="br2"><span>Operator 40%</span><i class="l" style="width:66%"></i><span>${gmd(rv.total * .4)}</span></div>` })
-    + queue({ title: "Exceptions", pill: openExc ? openExc + " open" : "clear", pillCls: openExc ? "" : "ok", items: EXC.map((e, i) => ({ t: e.type + " · " + e.plate, s: e.detail, btn: e.status === "open" ? `<button class="eb gh sm" ${A("refer", i)}>Refer</button>` : `<span class="ec grey">With Finance</span>` })), empty: "No exceptions." });
+    + queue({ title: "Exceptions", pill: openExc ? openExc + " open" : "clear", pillCls: openExc ? "" : "ok", items: EXC.map((e, i) => ({ t: e.type + " · " + e.plate, s: e.detail, btn: e.status === "open" ? (can("money") ? `<button class="eb gh sm" ${A("refer", i)}>Refer</button>` : `<span class="ec warn">Open</span>`) : `<span class="ec grey">With Finance</span>` })), empty: "No exceptions." });
   return [main, right];
 }
 function backTariff(){
   const F = BS.tar, v = F.daily === "" ? T.daily : +F.daily, mo = monthlyFor(v || 0);
   const main = `<div class="ep"><div class="eh"><div><h1>Tariffs & rules</h1><p>Decided by Banjul City Council. Admin applies them and publishes to every channel at once.</p></div><div class="btns">${eChip("ok", "Live · one price for every plate", "check")}</div></div>
     <div class="efg" style="margin-top:18px"><label class="ef big">Daily pass (GMD)${inp("tDaily", "BS.tar.daily", F.daily === "" ? String(T.daily) : F.daily, "200", "number", 'data-rr="1"')}</label><label class="ef big">Monthly pass (GMD)<input value="${gmd(mo)}" disabled></label></div>
-    <div class="ekv" style="margin-top:14px"><span>Monthly</span><b>26 paid days less 15%</b><span>Paid hours</span><b>7am–7pm, Monday to Saturday</b><span>Organisations</span><b>15–20% bulk discount · ${T.grace} days’ grace</b><span>Officer line</span><b>START, a plate, END · fixed road per officer</b><span>Shortcode</span><b>7275 (placeholder)</b></div>
+    <div class="ekv" style="margin-top:14px"><span>Monthly</span><b>26 paid days less 15%</b><span>Paid hours</span><b>7am–7pm, Monday to Saturday</b><span>Organisations</span><b>15–20% bulk discount · ${T.grace} days’ grace</b><span>Officer line</span><b>START, a plate, END · fixed road per officer</b><span>Shortcode</span><b>${esc(PN.mode && PN.mode.shortcode || SC)}</b></div>
     <label class="ef" style="margin-top:14px">Council authority reference${inp("tAuth", "BS.tar.auth", F.auth, "e.g. BCC resolution number")}</label>
     ${F.err ? `<div class="eerr" style="margin-top:8px">${esc(F.err)}</div>` : ""}
     <div style="margin-top:14px">${eBtn("Publish to all channels", "publish", null, "pri", "up")}</div></div>
    <div class="ep"><div class="eh"><h2>Change log</h2></div><div class="erows">${T.log.slice().reverse().map((l, i) => row({ lead: l.when.split(" ").slice(0, 2).join(" "), title: esc(l.what), sub: esc(l.auth), mid: "", dur: esc(l.by), chip: i === 0 ? eChip("ok", "Live") : eChip("grey", "Earlier") })).join("")}</div></div>`;
-  const right = insight({ tag: "Preview", title: "Drivers will see", body: `<div class="bub">Daily pass BJL1234: ${v || "?"} GMD, valid till 7pm today.\n1 Wave 2 Afrimoney</div><div class="wx">Also the driver app, the Park &amp; Pay card and the organisation portal.</div>` })
+  const right = insight({ tag: "Preview", title: "Drivers will see", body: `<div class="bub">${PN.mode && PN.mode.payments ? `Daily pass BJL1234: ${v || "?"} GMD, valid till 7pm today.\n1 Wave 2 Afrimoney` : `BJL1234 is not paid today (${v || "?"} GMD till 7pm). Paying by mobile money opens soon.`}</div><div class="wx">Also the driver app, the Park &amp; Pay card and the organisation portal.</div>` })
     + queue({ title: "Not in the pilot", pill: "off", items: [{ t: "Tariffs by vehicle type", s: "One price for every plate", v: "Off" }, { t: "Fines and violations", s: "Unpaid checks counted for the Council", v: "Off" }, { t: "Clamping", s: "No clamping journey", v: "Off" }] });
   return [main, right];
 }
@@ -566,7 +605,7 @@ function backCouncil(){
    ${stat({ t: "Operator share 40%", big: kfmt(rv.total * .4), unit: "GMD", dots: dots(4, 10, "l"), chip: eChip("grey", "operator") })}
    ${stat({ t: "Unpaid when checked", big: un, unit: "%", dots: dots(Math.round(un / 10), 10, "k"), chip: eChip("ok", tu + " / " + tc, "down") })}</div>`;
   const main = `${callout("shield", "Council view · read-only", "Banjul City Council revenue office: what was collected, where, and how often checked cars were unpaid.")}
-   <div class="ep"><div class="eh"><div><h1>Revenue report</h1><p>${dstr(B.date)} · to ${hm(B.min)} · includes simulated background activity for the five pilot roads</p></div><div class="btns">${eBtn("Download PDF", "cdl", null, "ol")}</div></div>${stats}</div>
+   <div class="ep"><div class="eh"><div><h1>Revenue report</h1><p>${dstr(B.date)} · to ${hm(B.min)}${isDemo() ? " · includes simulated background activity for the five pilot roads" : ""}</p></div><div class="btns">${eBtn("Print or save as PDF", "print", null, "ol")}</div></div>${stats}</div>
    <div class="ep"><div class="eh"><h2>By road</h2></div><div class="erows">${Object.keys(ROADS).map(k => { const u = C[k].c ? 100 - pct(C[k].u, C[k].c) : 0;
      return row({ lead: k, title: ROADS[k].name, sub: rv.R[k].n + " daily · " + rv.R[k].m + " monthly · " + plural(C[k].c, "check"), mid: `<div class="emin"><i style="width:${100 * rv.R[k].amt / mx}%"></i></div>`, dur: "GMD " + gmd(rv.R[k].amt), chip: u >= 18 ? eChip("warn", u + "% unpaid") : eChip("grey", u + "% unpaid") }); }).join("")}
      ${rv.R.OTH.amt ? row({ lead: "—", title: "Other roads", sub: rv.R.OTH.n + " daily", dur: "GMD " + gmd(rv.R.OTH.amt) }) : ""}</div></div>`;
@@ -575,70 +614,83 @@ function backCouncil(){
     + callout("chart", "Evidence for the fines decision", "The unpaid rate by road informs when and how fines start after the pilot.");
   return [main, right];
 }
-async function backActUI(a, v){
-  if(a === "nav"){ BS.view = v; BS.sheet = null; BS.bell = false; return renderBack(); }
+/* staff accounts and the audit log (administrators only; the data comes from /api/staff and /api/audit) */
+const AUDIT_WHAT = { "auth.staff": "Signed in", "auth.signin": "Signed in with an SMS code", "auth.code": "Asked for a sign-in code", "auth.verify": "Entered a sign-in code",
+  "auth.password": "Changed their password", "staff.create": "Created a staff account", "staff.update": "Changed a staff account", "back.register": "Registered an attendant",
+  "back.reassign": "Moved an attendant", "back.createOrg": "Created an organisation", "back.match": "Matched a bank transfer", "back.refer": "Referred to Finance",
+  "back.publish": "Published a tariff", "back.announce": "Published an announcement", "back.announceStatus": "Showed or hid an announcement", "back.announceDelete": "Deleted an announcement",
+  "back.exception": "Recorded a payment exception", "demo.reset": "Reset the demo" };
+/* "SUPERVISOR", "role=finance active=false password reset" -> "Supervisor", "role Finance · switched off · password reset" */
+const auditDetail = e => { const d = String(e.detail || "").trim(); if(!d) return "";
+  if(e.action === "staff.create") return STAFF_ROLES[d.toLowerCase()] || d;
+  if(e.action === "staff.update") return d.replace(/role=(\w+)/, (m, r) => "role " + (STAFF_ROLES[r.toLowerCase()] || r)).replace("active=false", "switched off").replace("active=true", "switched on").split(/\s+(?=role|switched|password)/).join(" · ");
+  return d; };
+const whenOf = iso => { const d = new Date(iso); return isNaN(d) ? "" : fmtD(d) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()); };
+function backStaff(){
+  const S = STAFF, list = S.list || [], u = list.find(x => x.username === S.sel);
+  const active = list.filter(x => x.active), admins = active.filter(x => x.role === "admin").length, due = active.filter(x => x.mustChangePassword).length;
+  const week = active.filter(x => x.lastLogin && Date.now() - new Date(x.lastLogin) < 7 * 864e5).length;
+  const stats = `<div class="est4">${stat({ hi: 1, t: "Active accounts", big: active.length, unit: "people", dots: dots(active.length, Math.max(active.length, 6), "k"), chip: eChip("ink", plural(admins, "administrator"), "shield") })}
+   ${stat({ t: "Signed in this week", big: week, unit: "of " + active.length, dots: dots(week, Math.max(active.length, 1), "v"), chip: eChip("vio", "12-hour sessions", "clock") })}
+   ${stat({ t: "New password due", big: due, unit: due === 1 ? "person" : "people", dots: dots(due, 4, "l"), chip: due ? eChip("warn", "first sign-in") : eChip("ok", "none", "check") })}
+   ${stat({ t: "Switched off", big: list.length - active.length, unit: "accounts", dots: dots(list.length - active.length, 4, "r"), chip: eChip("grey", "kept for the audit log") })}</div>`;
+  const rows = S.list == null ? `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">${S.err ? esc(S.err) : "Loading…"}</small></div>`
+    : list.map(x => row({ lead: initialsOf(x.name), cls: x.username === S.sel ? "sel" : x.active ? "" : "dim", title: esc(x.name) + (x.username === S.me ? " " + eChip("lime", "You") : ""),
+        sub: esc(x.username) + " · " + (STAFF_ROLES[x.role] || x.role), mid: x.lastLogin ? "Last sign-in " + whenOf(x.lastLogin) : "Never signed in", dur: "",
+        chip: !x.active ? eChip("grey", "Switched off") : x.mustChangePassword ? eChip("warn", "New password due") : eChip("ok", "Active", "check"), a: "staffsel", v: x.username })).join("");
+  const audit = (S.audit || []).filter(e => S.auditAll || !/^(driver|officer|org)$/.test(e.role || "")).map(e => row({ lead: whenOf(e.at).split(" ").pop(), title: esc(AUDIT_WHAT[e.action] || e.action) + (e.target ? " · " + esc(e.target) : ""),
+      sub: whenOf(e.at).split(" ").slice(0, 2).join(" ") + " · " + esc(e.actor || "—") + (e.role ? " · " + esc(STAFF_ROLES[e.role] || e.role) : ""), mid: esc(auditDetail(e)), dur: "",
+      chip: e.result === "ok" ? eChip("ok", "Done", "check") : eChip("bad", e.result === "refused" ? "Refused" : e.result || "Failed") })).join("");
+  const main = `<div class="ep"><div class="eh"><div><h1>Staff & audit</h1><p>Everyone who can sign in to the back office, with their role. Temporary passwords are shown once, when they are set, and must be changed at the first sign-in.</p></div><div class="btns">${eBtn("Add staff", "staffnew", null, "", "plus")}</div></div>${stats}</div>
+   <div class="ep"><div class="eh"><h2>Accounts</h2></div><div class="erows">${rows}</div></div>
+   <div class="ep"><div class="eh"><div><h2>Audit log</h2><p style="margin-top:2px">Sign-ins and every change made in the back office, newest first. It cannot be edited.</p></div>${seg("auditall", S.auditAll ? "all" : "staff", [["staff", "Staff"], ["all", "Everyone"]])}</div><div class="erows">${audit || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No entries yet.</small></div>`}</div>
+     ${(S.audit || []).length >= (S.limit || 60) ? `<div style="margin-top:10px">${eBtn("Show older entries", "auditmore", null, "gh sm")}</div>` : ""}</div>`;
+  let right;
+  if(S.shown) right = insight({ tag: S.shown.fresh ? "Account created" : "Password reset", title: esc(S.shown.name), body: `<div class="wx">Give this temporary password to ${esc(firstName(S.shown.name))} in person or by phone, never by email or chat. They must choose their own password when they first sign in.</div>
+      <div class="kvw"><span>Username</span><b>${esc(S.shown.username)}</b></div><div class="epw" title="Temporary password">${esc(S.shown.password)}</div>`, btn: { l: "Done, I have given it", a: "shownx", pri: 1 } });
+  else if(u) right = insight({ tag: "Manage account", title: esc(u.name), body: `<div class="kvw"><span>Username</span><b>${esc(u.username)}</b><span>Created</span><b>${esc(whenOf(u.created))}</b><span>Status</span><b>${u.active ? "Active" : "Switched off"}</b></div>
+      <label class="fld2">Role${sel("stRole", "ST.role", S.role, Object.keys(STAFF_ROLES).map(k => [k, STAFF_ROLES[k]]))}</label>
+      ${S.role !== u.role ? `<button class="eb lm full" ${A("staffrole")}>Save role · signs them out</button>` : ""}
+      <div class="opt3"><button ${A("staffreset")} ${u.active ? "" : "disabled"}><b>Reset password</b><small>new temporary one</small></button><button ${A(u.active ? "staffoff" : "staffon")} ${u.username === S.me ? "disabled" : ""}><b>${u.active ? "Switch off" : "Switch on"}</b><small>${u.active ? "signs them out now" : "they can sign in again"}</small></button></div>
+      ${S.err ? `<div class="err">${esc(S.err)}</div>` : ""}` });
+  else { const F = S.add;
+    right = insight({ tag: "Add staff", title: "New back-office account", body: `<label class="fld2">Full name${inp("stName", "ST.add.name", F.name, "e.g. Fatou Jallow")}</label>
+      <label class="fld2">Username${inp("stUser", "ST.add.username", F.username, "e.g. fatou.jallow", "text", 'autocapitalize="none" spellcheck="false"')}</label>
+      <label class="fld2">Role${sel("stNewRole", "ST.add.role", F.role, Object.keys(STAFF_ROLES).map(k => [k, STAFF_ROLES[k]]))}</label>
+      ${F.err ? `<div class="err">${esc(F.err)}</div>` : ""}`, btn: { l: "Create account", a: "staffadd", pri: 1 } }); }
+  right += queue({ title: "Roles", items: [{ t: "Administrator", s: "Everything, including staff accounts and tariffs", v: "All" }, { t: "Supervisor", s: "Attendants, roads and the dashboard", v: "Ops" },
+    { t: "Finance", s: "Organisations, transfers and exceptions", v: "Money" }, { t: "Council", s: "The revenue report, read-only", v: "Read" }] });
+  return [main, right];
+}
+/* screen-only back-office actions (the ones that change data are in portal-app.js) */
+function backActUI(a, v){
+  if(a === "nav"){ if((v === "register" && !can("officers")) || (v === "neworg" && !can("orgs"))) return; BS.view = v; BS.sheet = null; BS.bell = false; BS.user = false; return renderBack(); }
   if(a === "seg"){ BS.seg = v; return renderBack(); }
   if(a === "aseg"){ BS.aseg = v; return renderBack(); }
-  if(a === "road"){ BS.road = v; if(BS.view !== "dash"){ BS.view = "dash"; BS.seg = "roads"; } return renderBack(); }
-  if(a === "pick"){ BS.re.off = v; BS.re.err = ""; if(BS.view !== "attendants") BS.view = "attendants"; return renderBack(); }
-  if(a === "cover"){ const q = OFF[v], road = roadOf(q), helper = Object.values(OFF).find(o => o.active && !o.bg && offStats(o).on && roadOf(o) !== road) || OFF["7300007"];
+  if(a === "road"){ BS.road = v; if(BS.view !== "dash" && canSee("dash")){ BS.view = "dash"; BS.seg = "roads"; } return renderBack(); }
+  if(a === "pick"){ if(!can("officers")) return; BS.re.off = v; BS.re.err = ""; if(BS.view !== "attendants") BS.view = "attendants"; return renderBack(); }
+  if(a === "cover"){
+    const q = OFF[v]; if(!q || !can("officers")) return;
+    const road = roadOf(q), free = o => o.active && !o.bg && o.num !== v;
+    const helper = Object.values(OFF).find(o => free(o) && offStats(o).on && roadOf(o) !== road) || Object.values(OFF).find(free);
+    if(!helper){ BS.view = "attendants"; renderBack(); return wtoast("stBack", "No other attendant to send. Register another attendant first."); }
     BS.re = { off: helper.num, road, err: "" }; BS.view = "attendants"; BS.bell = false; return renderBack(); }
   if(a === "why"){ BS.why = !BS.why; return renderBack(); }
   if(a === "plate"){ BS.sheet = v; return renderBack(); }
   if(a === "sheetx"){ BS.sheet = null; return renderBack(); }
-  if(a === "bell"){ BS.bell = !BS.bell; BS.help = false; return renderBack(); }
+  if(a === "bell"){ BS.bell = !BS.bell; BS.help = false; BS.user = false; return renderBack(); }
   if(a === "bellx"){ BS.bell = false; return renderBack(); }
-  if(a === "help"){ BS.help = true; BS.bell = false; return renderBack(); }
+  if(a === "help"){ BS.help = true; BS.bell = false; BS.user = false; return renderBack(); }
   if(a === "helpx"){ BS.help = false; return renderBack(); }
-  if(a === "cdl"){ return wtoast("stBack", "Revenue report PDF downloaded (demo)"); }
   if(a === "search"){ const p = normPlate(BS.q); if(p){ BS.sheet = p; return renderBack(); } return wtoast("stBack", BS.q.trim() ? "Enter a plate like BJL1234" : "Type a plate to look it up"); }
-  if(a === "register"){
-    const F = BS.reg, ph = F.phone.replace(/\D/g, "");
-    if(!F.name.trim()) F.err = "Enter the officer’s full name.";
-    else if(ph.length !== 7) F.err = "Enter the 7-digit registered phone number.";
-    else if(OFF[ph]) F.err = "That number is already registered to Attendant " + OFF[ph].id + ".";
-    else F.err = "";
-    if(F.err) return renderBack();
-    const o = await registerOfficer({ name: F.name.trim(), staff: F.staff.trim() || "—", phone: ph, road: F.road, shift: F.shift });
-    BS.reg = freshBS().reg; BS.view = "attendants"; renderAll();
-    return wtoast("stBack", `Attendant ${o.id} registered · welcome SMS sent`);
-  }
-  if(a === "reassign"){
-    const R = BS.re, o = OFF[R.off];
-    if(roadOf(o) === R.road){ R.err = "Attendant " + o.id + " is already on " + ROADS[R.road].name + "."; return renderBack(); }
-    R.err = ""; await reassign(R.off, R.road); renderAll();
-    return wtoast("stBack", `Attendant ${o.id} moved to ${ROADS[R.road].name} · SMS sent`);
-  }
-  if(a === "createorg"){
-    const F = BS.no, ph = F.phone.replace(/\D/g, "");
-    if(!F.name.trim()) F.err = "Enter the organisation name.";
-    else if(!(+F.plates > 0)) F.err = "Enter the number of plates agreed.";
-    else if(!F.contact.trim() || ph.length !== 7) F.err = "Enter the billing contact and a 7-digit phone number.";
-    else if(!F.signed) F.err = "Tick when the signed agreement is received.";
-    else F.err = "";
-    if(F.err) return renderBack();
-    const o = await createOrg({ name: F.name.trim(), plates: +F.plates, disc: +F.disc, contact: F.contact.trim(), phone: ph });
-    BS.no = freshBS().no; BS.view = "orgs"; renderAll();
-    return wtoast("stBack", `${o.id} created · login SMS sent to ${o.contact.name}`);
-  }
-  if(a === "match"){ const [oid, no] = v.split("|"), o = ORGA[oid], inv = o.invoices.find(i => i.no === no); await payInvoice(o, inv, "Bank transfer"); renderAll(); return wtoast("stBack", `${no} matched · ${o.name} notified by SMS`); }
-  if(a === "refer"){ EXC[+v].status = "finance"; renderAll(); return wtoast("stBack", "Referred to Finance for the refund decision"); }
-  if(a === "publish"){
-    const F = BS.tar, v2 = F.daily === "" ? T.daily : Math.round(+F.daily);
-    if(!(v2 >= 50 && v2 <= 2000)) F.err = "Enter a daily price between 50 and 2,000 GMD.";
-    else if(v2 === T.daily) F.err = "No change to publish.";
-    else if(!F.auth.trim()) F.err = "Add the Council authority reference. Tariff changes need one.";
-    else F.err = "";
-    if(F.err) return renderBack();
-    const old = T.daily; T.daily = v2; T.monthly = monthlyFor(v2);
-    T.log.push({ when: fmtD(B.date) + " " + B.date.getFullYear() + " " + hm(B.min), what: `Daily ${old} → ${v2} GMD; monthly ${gmd(monthlyFor(old))} → ${gmd(T.monthly)} GMD`, auth: F.auth.trim(), by: "Aisha K." });
-    BS.tar = freshBS().tar; renderAll();
-    return wtoast("stBack", "Published to SMS, app, portal and cards");
-  }
 }
 function bindWeb(id, act, rer){
   const el = $(id);
-  el.addEventListener("click", e => { const b = e.target.closest("[data-a]"); if(!b || b.disabled || !el.contains(b)) return; act(b.dataset.a, b.dataset.v); });
+  el.addEventListener("click", e => {
+    const b = e.target.closest("[data-a]"); if(!b || b.disabled || !el.contains(b)) return;
+    if(b.classList.contains("esheet") && e.target !== b) return;      /* a card closes from its backdrop, not from clicks inside it */
+    act(b.dataset.a, b.dataset.v);
+  });
   el.addEventListener("input", e => { const t = e.target; if(!t.dataset.f) return; setF(t.dataset.f, t.type === "checkbox" ? t.checked : t.value); if(t.dataset.rr) rer(); });
   el.addEventListener("change", e => { const t = e.target; if(!t.dataset.f) return; setF(t.dataset.f, t.type === "checkbox" ? t.checked : t.value); if(t.tagName === "SELECT") rer(); });
   el.addEventListener("keydown", e => {

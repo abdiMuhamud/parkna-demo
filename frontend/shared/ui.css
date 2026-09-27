@@ -20,7 +20,8 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;background:var(--bg)}
-body{font-family:Jakarta,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);font-size:15px;line-height:1.4;-webkit-font-smoothing:antialiased;overscroll-behavior:none;font-feature-settings:"ss01"}
+button,input,select,textarea{word-spacing:inherit}
+body{font-family:Jakarta,system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);font-size:15px;line-height:1.4;word-spacing:.07em;-webkit-font-smoothing:antialiased;overscroll-behavior:none;font-feature-settings:"ss01"}
 button,input,select{font:inherit;color:inherit}
 button{background:none;border:0;cursor:pointer}
 a{color:inherit}

@@ -16,7 +16,7 @@ var PN = (function(){
     as: "driver",
     server: "",
     token: null,
-    me: null, mode: null, info: null,
+    me: null, mode: null, info: null, bank: null,
     online: false, ready: false,
     onSignOut: null,
     ls: ls,
@@ -83,7 +83,7 @@ var PN = (function(){
         var es = api.es = new EventSource(api.server + "/api/events?ticket=" + encodeURIComponent(r.ticket));
         es.addEventListener("state", function(e){
           var s = hydrate(e.data);
-          api.me = s.ME || null; api.mode = s.MODE || null;
+          api.me = s.ME || null; api.mode = s.MODE || null; api.bank = s.BANK || null;
           api.ready = true; api.wait = 1000; api.status(true);
           if(api.onState) api.onState();
         });

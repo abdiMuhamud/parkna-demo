@@ -3,42 +3,84 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ParkNa</title>
+<title>ParkNa · Banjul City Council parking</title>
+<meta name="description" content="ParkNa is Banjul City Council's parking service: daily and monthly passes on your phone, fleet cover for organisations.">
+<meta name="theme-color" content="#EDEFF2">
 <link rel="icon" href="shared/img/crest.png">
 <style>
-@font-face{font-family:Inter;font-weight:400;src:url(shared/fonts/inter-400.woff2)}@font-face{font-family:Inter;font-weight:600;src:url(shared/fonts/inter-600.woff2)}@font-face{font-family:Inter;font-weight:700;src:url(shared/fonts/inter-700.woff2)}
+@font-face{font-family:Jakarta;font-weight:400;font-display:swap;src:url(shared/fonts/jakarta-400.woff2) format('woff2')}
+@font-face{font-family:Jakarta;font-weight:600;font-display:swap;src:url(shared/fonts/jakarta-600.woff2) format('woff2')}
+@font-face{font-family:Jakarta;font-weight:800;font-display:swap;src:url(shared/fonts/jakarta-800.woff2) format('woff2')}
+:root{--navy:#0B2540;--lime:#D5F56E;--grey:#EDEFF2;--muted:#5E6B7D;--card:#fff}
 *{box-sizing:border-box;margin:0}
-body{min-height:100vh;font-family:Inter,sans-serif;color:#fff;background:radial-gradient(90% 70% at 100% 0%,rgba(68,176,241,.5) 0,transparent 60%),linear-gradient(180deg,#0B2A4A,#071B33);padding:48px 24px}
-.w{max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:26px}
-.brand{display:flex;align-items:center;gap:14px}.brand span{width:60px;height:60px;border-radius:18px;background:#fff;display:grid;place-items:center}.brand img{width:46px}
-.brand small{display:block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#9CC3E6;font-weight:600}.brand b{font-size:22px}
-h1{font-size:40px;letter-spacing:-.04em;line-height:1.05}h1 em{font-style:normal;color:#44B0F1}
-.addr{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:20px;padding:18px 20px}
-.addr small{color:#9CC3E6;font-size:13px}.addr b{display:block;font:700 30px ui-monospace,Consolas,monospace;margin-top:6px;letter-spacing:.02em;color:#F9DD17}
-.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
-.g a{background:#fff;color:#0C2D4E;text-decoration:none;border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:6px}
-.g a b{font-size:17px}.g a span{font-size:13px;color:#667587;line-height:1.45}
-.stripe{height:5px;width:64px;border-radius:3px;background:linear-gradient(90deg,#F9DD17 0 50%,#44B0F1 50% 100%)}
-p{color:#B9D3EB;line-height:1.55}
-.foot{display:flex;align-items:center;gap:10px;color:#8FB0CF;font-size:12px}.foot img{height:16px}
+body{min-height:100vh;font-family:Jakarta,system-ui,sans-serif;word-spacing:.07em;color:var(--navy);background:var(--grey);padding:28px 16px 40px}
+.w{max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:center;gap:12px}
+.brand span{width:48px;height:48px;border-radius:15px;background:#fff;display:grid;place-items:center;box-shadow:0 1px 2px rgba(11,37,64,.08)}
+.brand img{width:36px}
+.brand small{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.brand b{font-size:21px;font-weight:800;letter-spacing:-.02em}
+.staff{color:var(--navy);font-weight:600;font-size:14px;text-decoration:none;background:#fff;border-radius:999px;padding:10px 16px}
+.hero{background:var(--navy);color:#fff;border-radius:28px;padding:34px 28px;display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center;
+  background-image:radial-gradient(90% 90% at 100% 0,rgba(213,245,110,.18) 0,transparent 60%)}
+.hero h1{font-size:44px;font-weight:800;letter-spacing:-.035em;line-height:1.04}
+.hero h1 em{font-style:normal;color:var(--lime)}
+.hero p{color:#C3D1E0;line-height:1.55;margin-top:14px;font-size:16px;max-width:460px}
+.pass{background:var(--lime);color:var(--navy);border-radius:22px;padding:20px;transform:rotate(-3deg);box-shadow:0 18px 30px -18px rgba(0,0,0,.6)}
+.pass small{font-size:12px;font-weight:600;opacity:.75}
+.pass b{display:block;font-size:34px;font-weight:800;letter-spacing:-.03em;margin:4px 0}
+.pass .pl{display:inline-block;border:2.5px solid var(--navy);border-radius:9px;padding:3px 10px;font-weight:800;letter-spacing:.08em;margin-top:6px}
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.g a{background:var(--card);color:var(--navy);text-decoration:none;border-radius:22px;padding:20px;display:flex;flex-direction:column;gap:8px;min-height:150px;transition:transform .15s}
+.g a:hover{transform:translateY(-2px)}
+.g a i{width:40px;height:40px;border-radius:13px;background:var(--grey);display:grid;place-items:center;font-style:normal;font-size:20px}
+.g a.hi{background:var(--lime)}
+.g a.hi i{background:rgba(11,37,64,.1)}
+.g a b{font-size:17px;font-weight:800;letter-spacing:-.01em;margin-top:auto}
+.g a span{font-size:13.5px;color:var(--muted);line-height:1.45}
+.g a.hi span{color:#33465C}
+.note{background:#FFF6D6;color:#6B4E00;border-radius:18px;padding:14px 16px;font-size:14px;line-height:1.5}
+.addr{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13.5px;color:var(--muted)}
+.addr b{font-family:ui-monospace,Consolas,monospace;color:var(--navy);background:#fff;border-radius:10px;padding:6px 10px}
+footer{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;color:var(--muted);font-size:13px}
+footer a{color:var(--navy);font-weight:600}
+footer img{height:16px}
+@media (max-width:720px){.hero{grid-template-columns:1fr;padding:26px 20px}.hero h1{font-size:34px}.pass{transform:none}}
 </style>
 </head>
 <body><div class="w">
-<div class="brand"><span><img src="shared/img/crest.png" alt="Banjul City Council crest"></span><div><small>Banjul City Council</small><b>ParkNa</b></div></div>
-<div class="stripe"></div>
-<h1>Everything in the demo <em>connects here</em>.</h1>
-<div class="addr"><small>Server address to type into the driver and officer apps</small><b id="addr"></b></div>
+<header>
+  <div class="brand"><span><img src="shared/img/crest.png" alt="Banjul City Council crest"></span><div><small>Banjul City Council</small><b>ParkNa</b></div></div>
+  <a class="staff" href="/admin">Staff sign-in</a>
+</header>
+<section class="hero">
+  <div><h1>Park in Banjul.<br><em>Pay on your phone.</em></h1>
+  <p>Daily and monthly parking passes for every marked ParkNa bay, from the ParkNa app or by SMS. Attendants check plates, never cash.</p></div>
+  <div class="pass" aria-hidden="true"><small>Daily pass · till 7pm</small><b id="price">200 GMD</b><span class="pl">BJL 1234</span></div>
+</section>
+<div class="note" id="note" hidden></div>
 <div class="g">
-<a href="/admin"><b>Back office</b><span>Admin console, Council revenue report and the demo clock</span></a>
-<a href="/org"><b>Organisation portal</b><span>Sign in as Demo Bank: phone 7101234, code from the SMS</span></a>
-<a href="/driver/"><b>Driver app</b><span>The APK’s screens in a browser</span></a>
-<a href="/officer/"><b>Officer line</b><span>The officer APK’s screens in a browser</span></a>
+  <a class="hi" id="getDriver" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.driver"><i>🚗</i><b>ParkNa for drivers</b><span>Get the app on Google Play. Sign in with your phone number.</span></a>
+  <a href="/org"><i>🏢</i><b>Organisations</b><span>Fleet cover on one monthly invoice. The billing contact signs in with an SMS code.</span></a>
+  <a id="getOfficer" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.officer"><i>🦺</i><b>Parking attendants</b><span>The ParkNa Officer app, for attendants registered by their supervisor.</span></a>
+  <a href="/admin"><i>🔒</i><b>Back office</b><span>For ParkNa and Council staff.</span></a>
 </div>
-<p>Type the address above into the driver and officer apps (Account → Change server). Payments are simulated in this version: no real Wave, Afrimoney, APS or QMoney charges.</p>
-<div class="foot"><img src="shared/img/innovii-white.png" alt="INNOVII">ParkNa demo · INNOVII</div>
+<div class="addr" id="addrRow" hidden><span>Server address for the apps:</span><b id="addr"></b></div>
+<footer><img src="shared/img/innovii-navy.png" alt="INNOVII"><span>ParkNa is run by INNOVII for Banjul City Council.</span><a href="/privacy.html">Privacy policy</a><span id="ver"></span></footer>
 </div>
 <script>
-var el = document.getElementById("addr"); el.textContent = location.origin;
-fetch("/api/ping").then(function(r){ return r.json(); }).then(function(j){ if(j.addresses && j.addresses.length && /localhost|127\.0\.0\.1/.test(location.hostname)) el.textContent = j.addresses[0]; if(j.addresses && j.addresses.length > 1) el.title = j.addresses.join("  "); }).catch(function(){});
+fetch("/api/ping").then(function(r){ return r.json(); }).then(function(j){
+  var addr = (j.addresses && j.addresses[0]) || location.origin;
+  document.getElementById("addr").textContent = addr;
+  document.getElementById("ver").textContent = j.version ? "Version " + j.version : "";
+  if(j.daily) document.getElementById("price").textContent = j.daily + " GMD";
+  if(j.demo){
+    var n = document.getElementById("note");
+    n.hidden = false;
+    n.innerHTML = "<b>Demo server.</b> Sample data and pretend payments: no real money moves. Organisation portal: sign in as Demo Bank with phone 7101234. The driver and attendant apps also run in the browser: <a href='/driver/'>driver</a> · <a href='/officer/'>attendant</a>.";
+    document.getElementById("addrRow").hidden = false;
+  }
+}).catch(function(){});
 </script>
 </body></html>

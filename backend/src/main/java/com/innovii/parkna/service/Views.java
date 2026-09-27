@@ -57,6 +57,10 @@ final class Views {
         m.put("payments", e.paymentsEnabled());
         m.put("clock", cfg.clockMode.name().toLowerCase());
         m.put("otpInApp", cfg.auth.otpInApp());
+        m.put("shortcode", cfg.sms.shortCode());
+        m.put("daily", e.state().tariff.daily);
+        if (!cfg.supportPhone.isEmpty()) m.put("supportPhone", cfg.supportPhone);
+        if (!cfg.supportEmail.isEmpty()) m.put("supportEmail", cfg.supportEmail);
         return m;
     }
 
@@ -72,6 +76,11 @@ final class Views {
             me.put("needName", u == null || u.name.equals("+220 " + s.subject()));
         }
         String head = "{\"ME\":" + Json.write(me) + ",\"MODE\":" + Json.write(mode(e));
+        if ((s.staff() || s.role() == Role.ORG) && cfg.billing.configured()) {
+            Map<String, Object> bank = new LinkedHashMap<>();
+            bank.put("bank", cfg.billing.bankName()); bank.put("accountName", cfg.billing.accountName()); bank.put("accountNumber", cfg.billing.accountNumber());
+            head += ",\"BANK\":" + Json.write(bank);
+        }
         return body.length() > 2 ? head + "," + body.substring(1) : head + "}";
     }
 

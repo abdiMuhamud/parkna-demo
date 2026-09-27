@@ -156,4 +156,29 @@ class ViewsTest {
         assertFalse(mode.get("payments").asBoolean());
         assertFalse(mode.get("demo").asBoolean());
     }
+
+    @Test
+    void bankDetailsGoOnlyToOrganisationsAndStaff() throws Exception {
+        Properties db = new Properties();
+        db.setProperty("db.url", "jdbc:mariadb://127.0.0.1/none");
+        db.setProperty("db.username", "x");
+        Properties cfg = new Properties();
+        cfg.setProperty("app.mode", "production");
+        cfg.setProperty("billing.bank.name", "Test Bank");
+        cfg.setProperty("billing.bank.accountNumber", "001 234");
+        cfg.setProperty("support.phone", "+220 400 0000");
+        Views views = new Views(AppConfig.of(db, cfg));
+        ParkingEngine e = busy();
+        String full = Json.snapshot(e.state());
+        JsonNode org = M.readTree(views.forSession(e, session(Role.ORG, "7101234", "ORG-014"), full));
+        JsonNode staff = M.readTree(views.forSession(e, session(Role.FINANCE, "lamin", null), full));
+        JsonNode driver = M.readTree(views.forSession(e, session(Role.DRIVER, "7055501", null), full));
+        JsonNode officer = M.readTree(views.forSession(e, session(Role.OFFICER, "7300007", null), full));
+        assertEquals("Test Bank", org.get("BANK").get("bank").asText());
+        assertEquals("001 234", staff.get("BANK").get("accountNumber").asText());
+        assertFalse(driver.has("BANK"));
+        assertFalse(officer.has("BANK"));
+        assertEquals("+220 400 0000", driver.get("MODE").get("supportPhone").asText());
+        assertFalse(M.readTree(new Views(config("production")).forSession(e, session(Role.ORG, "7101234", "ORG-014"), full)).has("BANK"), "no BANK until it is configured");
+    }
 }

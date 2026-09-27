@@ -3,15 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
 <title>ParkNa Organisation portal</title>
 <link rel="icon" href="shared/img/crest.png">
+<link rel="preload" href="shared/fonts/jakarta-600.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="shared/portal.css">
 </head>
 <body data-role="org">
-<div class="stage" id="stOrg"><div class="ed" id="orgWeb"><div style="margin:auto;font:500 14px Inter;color:#6B6F82">Connecting to the ParkNa server…</div></div></div>
+<div class="stage" id="stOrg"><div class="ed" id="orgWeb"><div class="ewait"><span class="spin"></span>Connecting to the ParkNa server…</div></div></div>
 <div class="notes" id="notes"></div>
-
 <div class="conn" id="conn" hidden>Reconnecting to the ParkNa server…</div>
+<input type="file" id="csvFile" accept=".csv,text/csv,text/plain" hidden>
 <script src="engine.js"></script>
 <script src="shared/client.js"></script>
 <script src="shared/portal.js"></script>

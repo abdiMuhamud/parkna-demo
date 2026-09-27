@@ -42,6 +42,14 @@ public final class AppConfig {
     public final Sms sms;
     public final PaymentsMode payments;
     public final Auth auth;
+    public final Billing billing;
+    /** How people reach ParkNa (help screens, landing page, privacy policy). Empty until set. */
+    public final String supportPhone, supportEmail;
+
+    /** Where organisations pay their invoices by bank transfer (printed on the invoice screen). Empty until set. */
+    public record Billing(String bankName, String accountName, String accountNumber) {
+        public boolean configured() { return !bankName.isEmpty() && !accountNumber.isEmpty(); }
+    }
 
     /**
      * Sign-in settings. otpInApp shows the one-time code in the app instead of sending it, for a test server without
@@ -97,6 +105,11 @@ public final class AppConfig {
         }
         if (inApp && !demo) log.warn("auth.otp.showCodeInApp=true: sign-in codes are shown in the app, not sent by SMS. Test servers only.");
         this.auth = new Auth(inApp, integer(cfg, "auth.phoneSessionDays", 180), integer(cfg, "auth.staffSessionHours", 12), integer(cfg, "auth.otpMinutes", 5));
+        this.billing = new Billing(cfg.getProperty("billing.bank.name", "").trim(),
+                cfg.getProperty("billing.bank.accountName", "ParkNa Collections").trim(),
+                cfg.getProperty("billing.bank.accountNumber", "").trim());
+        this.supportPhone = cfg.getProperty("support.phone", "").trim();
+        this.supportEmail = cfg.getProperty("support.email", "").trim();
     }
 
     public static AppConfig load() {

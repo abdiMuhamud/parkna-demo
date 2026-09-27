@@ -307,7 +307,8 @@ function helpSheet(){
        ["cal", "Monthly pass", gmd(T.monthly) + " GMD for 30 days (26 paid days less 15%). Renew up to 3 days before it ends, with no gap."],
        ["car", "The pass follows the plate", "Pay for your own car or anyone else’s. Attendants check the plate, not the phone."],
        ["shield", "Attendants", "Attendants never take cash. If a car is not paid they leave a Park & Pay card; there are no fines in the pilot."],
-       ["sms", "No data?", "Text your plate to 7275 to check it, the same pass and price."]].map(function(r){
+       ["sms", "No data?", "Text your plate to " + ((PN.mode && PN.mode.shortcode) || SC) + " to check it, the same pass and price."]]
+      .concat(PN.mode && (PN.mode.supportPhone || PN.mode.supportEmail) ? [["help", "Need help?", "ParkNa support: " + [PN.mode.supportPhone, PN.mode.supportEmail].filter(Boolean).join(" · ")]] : []).map(function(r){
         return '<div class="row" style="align-items:flex-start"><span class="av ic-soft">'+ic(r[0], 20, 2)+'</span><span class="t"><b>'+r[1]+'</b><small style="line-height:1.5">'+esc(r[2])+'</small></span><span></span></div>'; }).join("")+'</div>';
 }
 function doneView(){
