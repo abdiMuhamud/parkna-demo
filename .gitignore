@@ -1,0 +1,11 @@
+node_modules/
+apps/*/android/
+server/demo-state.json
+*.apk
+.DS_Store
+# copies made by scripts/prep.js (the server and the APK build use the originals in assets/ and server/)
+apps/*/www/assets/
+apps/*/www/engine.js
+server/public/shared/fonts/
+server/public/shared/img/
+server/public/shared/client.js

@@ -1,0 +1,102 @@
+# ParkNa demo v0.1: builds the driver and officer Android apps (APK) on every push to main.
+# The APKs appear under this run's "Artifacts" and as a GitHub Release.
+name: Build demo APKs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  DEMO_VERSION: "0.1"
+
+jobs:
+  apk:
+    name: ${{ matrix.label }} APK
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: driver
+            label: Driver
+          - app: officer
+            label: Officer
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Use the shared demo signing key (so new builds install over old ones)
+        run: |
+          mkdir -p ~/.android
+          cp build/debug.keystore ~/.android/debug.keystore
+
+      - name: Copy the shared engine and assets into the app
+        run: node scripts/prep.js
+
+      - name: Create the Android project
+        working-directory: apps/${{ matrix.app }}
+        run: |
+          npm install --no-audit --no-fund
+          npx cap add android
+
+      - name: Icons, splash, version and local network access
+        working-directory: apps/${{ matrix.app }}
+        run: |
+          cp -r res/. android/app/src/main/res/
+          sed -i 's/<application/<application android:usesCleartextTraffic="true"/' android/app/src/main/AndroidManifest.xml
+          sed -i -E 's/versionName "[^"]*"/versionName "'"$DEMO_VERSION"'"/' android/app/build.gradle
+          sed -i -E 's/versionCode [0-9]+/versionCode ${{ github.run_number }}/' android/app/build.gradle
+          sed -i 's|<item name="android:background">@drawable/splash</item>|&<item name="windowSplashScreenBackground">#0C2D4E</item>|' android/app/src/main/res/values/styles.xml
+          npx cap sync android
+
+      - name: Build the APK
+        working-directory: apps/${{ matrix.app }}/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/out/ParkNa-${{ matrix.label }}-v$DEMO_VERSION.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ParkNa-${{ matrix.label }}-v${{ env.DEMO_VERSION }}
+          path: out/*.apk
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: apk
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: demo-v${{ env.DEMO_VERSION }}.${{ github.run_number }}
+          name: ParkNa demo v${{ env.DEMO_VERSION }} (build ${{ github.run_number }})
+          make_latest: "true"
+          body: |
+            ParkNa demo apps v${{ env.DEMO_VERSION }}, built from ${{ github.sha }}.
+
+            - **ParkNa-Driver-v${{ env.DEMO_VERSION }}.apk**: the driver app
+            - **ParkNa-Officer-v${{ env.DEMO_VERSION }}.apk**: the parking officer line
+
+            Install on Android, open the app and enter the demo server address shown on the laptop running `node server.js`.
+          files: out/*.apk
