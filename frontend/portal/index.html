@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ParkNa</title>
+<link rel="icon" href="shared/img/crest.png">
+<style>
+@font-face{font-family:Inter;font-weight:400;src:url(shared/fonts/inter-400.woff2)}@font-face{font-family:Inter;font-weight:600;src:url(shared/fonts/inter-600.woff2)}@font-face{font-family:Inter;font-weight:700;src:url(shared/fonts/inter-700.woff2)}
+*{box-sizing:border-box;margin:0}
+body{min-height:100vh;font-family:Inter,sans-serif;color:#fff;background:radial-gradient(90% 70% at 100% 0%,rgba(68,176,241,.5) 0,transparent 60%),linear-gradient(180deg,#0B2A4A,#071B33);padding:48px 24px}
+.w{max-width:880px;margin:0 auto;display:flex;flex-direction:column;gap:26px}
+.brand{display:flex;align-items:center;gap:14px}.brand span{width:60px;height:60px;border-radius:18px;background:#fff;display:grid;place-items:center}.brand img{width:46px}
+.brand small{display:block;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#9CC3E6;font-weight:600}.brand b{font-size:22px}
+h1{font-size:40px;letter-spacing:-.04em;line-height:1.05}h1 em{font-style:normal;color:#44B0F1}
+.addr{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.16);border-radius:20px;padding:18px 20px}
+.addr small{color:#9CC3E6;font-size:13px}.addr b{display:block;font:700 30px ui-monospace,Consolas,monospace;margin-top:6px;letter-spacing:.02em;color:#F9DD17}
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.g a{background:#fff;color:#0C2D4E;text-decoration:none;border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:6px}
+.g a b{font-size:17px}.g a span{font-size:13px;color:#667587;line-height:1.45}
+.stripe{height:5px;width:64px;border-radius:3px;background:linear-gradient(90deg,#F9DD17 0 50%,#44B0F1 50% 100%)}
+p{color:#B9D3EB;line-height:1.55}
+.foot{display:flex;align-items:center;gap:10px;color:#8FB0CF;font-size:12px}.foot img{height:16px}
+</style>
+</head>
+<body><div class="w">
+<div class="brand"><span><img src="shared/img/crest.png" alt="Banjul City Council crest"></span><div><small>Banjul City Council</small><b>ParkNa</b></div></div>
+<div class="stripe"></div>
+<h1>Everything in the demo <em>connects here</em>.</h1>
+<div class="addr"><small>Server address to type into the driver and officer apps</small><b id="addr"></b></div>
+<div class="g">
+<a href="/admin"><b>Back office</b><span>Admin console, Council revenue report and the demo clock</span></a>
+<a href="/org"><b>Organisation portal</b><span>Sign in as Demo Bank: phone 7101234, code from the SMS</span></a>
+<a href="/driver/"><b>Driver app</b><span>The APK’s screens in a browser</span></a>
+<a href="/officer/"><b>Officer line</b><span>The officer APK’s screens in a browser</span></a>
+</div>
+<p>Type the address above into the driver and officer apps (Account → Change server). Payments are simulated in this version: no real Wave, Afrimoney, APS or QMoney charges.</p>
+<div class="foot"><img src="shared/img/innovii-white.png" alt="INNOVII">ParkNa demo · INNOVII</div>
+</div>
+<script>
+var el = document.getElementById("addr"); el.textContent = location.origin;
+fetch("/api/ping").then(function(r){ return r.json(); }).then(function(j){ if(j.addresses && j.addresses.length && /localhost|127\.0\.0\.1/.test(location.hostname)) el.textContent = j.addresses[0]; if(j.addresses && j.addresses.length > 1) el.title = j.addresses.join("  "); }).catch(function(){});
+</script>
+</body></html>

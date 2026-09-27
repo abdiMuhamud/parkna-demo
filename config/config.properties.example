@@ -1,0 +1,47 @@
+# ParkNa: application settings
+# Copy to config.properties next to database.properties. Restart Tomcat after a change.
+
+# ---------------------------------------------------------------- server
+# The address people type into the apps (shown on the landing page and returned by /api/ping)
+server.publicUrl=https://parkna.example.gm
+
+# Which web pages may call the API from a browser. The APKs load from http://localhost.
+# * allows any; for production list them, e.g. https://parkna.example.gm,http://localhost
+api.allowedOrigins=*
+
+# ---------------------------------------------------------------- clock
+# demo: the demo clock (starts 2 Nov 2026, moves a minute per real minute, the back office can move it)
+# real: follows the real time in clock.timezone; end-of-day rules (reminders, invoices) run at midnight
+clock.mode=demo
+clock.timezone=Africa/Banjul
+
+# The back office's demo clock bar and "Reset demo". Default: on in demo mode, off in real mode.
+# Switch OFF on any server with real data: a reset deletes everything.
+demo.controls.enabled=true
+
+# ---------------------------------------------------------------- SMS
+# simulated: messages only appear in the apps' SMS threads and the portals
+# kannel:    also sent to phones through Kannel's sendsms interface (SI/QA manual 2.1)
+sms.gateway=simulated
+sms.shortcode=7275
+
+# Kannel smsbox (sendsms-user in kannel.conf). Same server: 127.0.0.1; separate gateway: sms-gw
+sms.kannel.sendsmsUrl=http://127.0.0.1:13013/cgi-bin/sendsms
+sms.kannel.username=parkna
+sms.kannel.password=CHANGE_ME
+# Sender ID approved by the operator for this account
+sms.kannel.from=7275
+# Numbers are stored as 7 digits; this is put in front for Kannel (+220)
+sms.kannel.countryCode=220
+# auto: plain GSM text as normal SMS, anything else (e.g. ×, –, ’) as Unicode (70 characters per SMS)
+# gsm | ucs2 to force one
+sms.kannel.coding=auto
+sms.kannel.timeoutMs=5000
+
+# Incoming SMS: Kannel calls /parkna/api/sms/mo on Tomcat directly (see deploy/kannel/parkna-sms-service.conf).
+# Only these addresses may call it (the Kannel server's).
+sms.mo.allowedIps=127.0.0.1,::1,0:0:0:0:0:0:0:1
+
+# ---------------------------------------------------------------- payments (planned)
+# Payments are simulated in this version (every number starts with 5,000 GMD per provider).
+# Settings for Wave, Afrimoney, APS and QMoney will go here when those integrations are built.

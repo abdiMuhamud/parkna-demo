@@ -1,9 +1,0 @@
-{
-  "name": "parkna-demo-server",
-  "version": "0.1.0",
-  "private": true,
-  "description": "ParkNa demo server v0.1: one shared demo for the driver app, officer app, organisation portal and back office",
-  "main": "server.js",
-  "scripts": { "start": "node server.js" },
-  "engines": { "node": ">=18" }
-}

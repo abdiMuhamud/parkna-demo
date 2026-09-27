@@ -4,7 +4,7 @@
   "private": true,
   "description": "ParkNa demo app v0.1 (INNOVII for Banjul City Council)",
   "scripts": {
-    "prep": "node ../../scripts/prep.js",
+    "prep": "node ../../scripts/build-frontend.js",
     "android:add": "npx cap add android",
     "android:sync": "npx cap sync android"
   },
