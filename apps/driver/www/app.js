@@ -14,9 +14,7 @@ var V = {
 var LOGO = { Wave: "wave", Afrimoney: "afrimoney", APS: "aps", QMoney: "qmoney" };
 
 var SI = UI.SignIn({
-  as: "driver", app: "ParkNa", version: VERSION, ill: UI.ILL.driver,
-  title: "Park smarter<br>in <em>Banjul</em>",
-  lead: "Pay for street parking, keep every receipt, and get Banjul City Council news, all from your phone.",
+  as: "driver",
   demo: function(){ return PERSONAS.map(function(p){ return { num: p.num, name: p.name, note: p.note }; }); },
   render: render, onDone: function(){ start(); }
 });
@@ -32,7 +30,7 @@ function inbox(u){ return (u.sms || []).filter(function(m){ return m.i; }); }
 function seenKey(){ return "parkna.seen." + (PN.me ? PN.me.num : ""); }
 function unread(u){ return Math.max(0, inbox(u).length - (+PN.ls(seenKey()) || 0)); }
 function provOf(u){ return V.pay.prov || (u && u.prov) || "Wave"; }
-function logo(n){ return '<img src="assets/img/logos/'+LOGO[n]+'.png" alt="">'; }
+function logo(n){ return '<img src="assets/img/art/pay-'+LOGO[n]+'.webp" alt="'+n+'">'; }
 
 /* ---------- render ---------- */
 function render(){
@@ -57,17 +55,18 @@ function paint(h){
   if(id){ var n = document.getElementById(id); if(n){ n.focus(); try { if(s != null) n.setSelectionRange(s, e); } catch(x){} } }
 }
 function loadingView(){
-  return '<div class="auth"><div class="grow"></div><div class="spin" style="align-self:center"></div><p class="lead" style="text-align:center">'
-    + (V.slow ? "Can’t reach ParkNa yet. Check your internet connection." : "Loading your account…") + '</p><div class="grow"></div>'
-    + (V.slow ? '<button class="btn ghost" data-a="signout">Sign out</button>' : "") + '</div>';
+  return '<div class="center">'+UI.crest()+'<div class="spin"></div><p>'+(V.slow ? "Can’t reach ParkNa yet. Check your internet connection." : "Loading your account…")+'</p>'
+    + (V.slow ? '<button class="btn ghost" style="max-width:260px" data-a="signout">Sign out</button>' : "") + '</div>';
 }
 function setupView(){
   var S = V.setup;
-  return '<div class="auth"><div class="brand"><img src="assets/img/crest.png" alt=""><span>ParkNa<small>Banjul City Council</small></span></div>'
-    + '<h2>Connect to<br><em>ParkNa</em></h2><p class="lead">Enter the ParkNa server address, for example <b>https://parkna.gm</b>.</p>'
-    + '<label class="fld">Server address<input class="inp" id="srv" inputmode="url" autocapitalize="off" placeholder="https://parkna.gm" value="'+esc(S.url)+'"></label>'
+  return '<div class="auth"><div class="ahead">'+UI.crest()+UI.bname()+'</div><div class="aform">'
+    + '<div class="atitle"><span class="i">'+ic("wifi", 22, 2)+'</span><div><div class="eyebrow">FIRST START</div><h1>Connect to ParkNa</h1></div></div>'
+    + '<p class="alead">Enter the ParkNa server address, for example <b>https://parkna.gm</b>.</p>'
+    + '<label class="fld">Server address<div class="box solo"><input id="srv" inputmode="url" autocapitalize="off" placeholder="https://parkna.gm" value="'+esc(S.url)+'"></div></label>'
     + (S.err ? '<div class="err">'+esc(S.err)+'</div>' : "")
-    + '<button class="btn" data-a="connect"'+(S.busy ? " disabled" : "")+'>'+(S.busy ? "Connecting…" : "Connect")+'</button><div class="grow"></div></div>';
+    + '<button class="btn" data-a="connect"'+(S.busy ? " disabled" : "")+'>'+(S.busy ? "Connecting…" : "Connect")+'<span class="ar">'+ic("arrow", 20, 2.3)+'</span></button>'
+    + '<div class="secure">A secure service by Banjul City Council</div></div></div>';
 }
 function mainView(){
   var h = ({ home: homeView, activity: activityView, plates: platesView, profile: profileView })[V.tab]();
@@ -78,9 +77,9 @@ function mainView(){
   return h;
 }
 function tabbar(){
-  function t(k, l, i){ return '<button class="'+(V.tab === k ? "on" : "")+'" data-a="tab" data-v="'+k+'">'+ic(i, 23, V.tab === k ? 2.2 : 1.8)+l+'</button>'; }
-  return '<nav class="tabs">'+t("home", "Home", "home")+t("activity", "Activity", "chart")
-    + '<button class="fab" data-a="pay" aria-label="Pay for parking">'+ic("pay", 28, 2.2)+'</button>'
+  function t(k, l, i){ var on = V.tab === k; return '<button class="'+(on ? "on" : "")+'" data-a="tab" data-v="'+k+'">'+ic(on && k === "home" ? "homef" : i, 26, 1.8)+l+'</button>'; }
+  return '<nav class="tabs">'+t("home", "Home", "home")+t("activity", "Activity", "doc")
+    + '<button class="fab" data-a="pay" aria-label="Pay for parking">'+ic("car", 28, 2)+'Pay</button>'
     + t("plates", "Plates", "car")+t("profile", "Profile", "user")+'</nav>';
 }
 function topbar(title, left){
@@ -92,46 +91,53 @@ function topbar(title, left){
 
 /* ---------- home ---------- */
 function homeView(){
-  var u = me(), p = focusPlate(u);
-  var sel = p ? '<button class="sel" data-a="sheet" data-v="plates"><span class="ch">'+ic("car", 13, 2.4)+'</span><span class="pl">'+plateTxt(p)+'</span>'+ic("chevD", 16, 2.2)+'</button>'
-              : '<button class="sel" data-a="sheet" data-v="addplate"><span class="ch">'+ic("plus", 13, 2.8)+'</span>Add your plate</button>';
-  var acts = '<div class="acts">'
-    + act("pay", "Pay", "up", true) + act("monthly", "Monthly", "cal") + act("addplate", "Add plate", "plus") + act("receipts", "Receipts", "receipt") + '</div>';
-  return '<div class="scr">'+topbar("ParkNa")+sel+hero(u, p)+acts+announcements()+recent(u)+'</div>';
+  var u = me(), p = focusPlate(u), n = unread(u), st = p ? state(p) : null;
+  var head = '<div class="hdr">'+UI.crest()+UI.bname()+'<button class="bell" data-a="sheet" data-v="inbox" aria-label="Messages">'+ic("bell", 30, 1.9)+(n ? '<span class="bd">'+(n > 9 ? "9+" : n)+'</span>' : "")+'</button></div>'
+    + (PN.online ? "" : '<span class="offl">'+ic("wifi", 14, 2.2)+'Reconnecting…</span>')
+    + '<p class="greet">'+UI.greet(B.min)+', <b>'+esc(u.name.split(" ")[0])+'</b></p>';
+  var monthly = st === "MONTHLY";
+  var tiles = '<div class="tiles">'+tile("pay", "Pay", "car", !monthly)+tile("monthly", "Monthly", "cal", monthly)+tile("addplate", "Add plate", "plusc")+tile("receipts", "Receipts", "doc")+'</div>';
+  return '<div class="scr">'+head+hero(u, p)+tiles+announcements()+recent(u)+'</div>';
 }
-function act(a, label, icon, pri){ return '<button class="'+(pri ? "pri" : "")+'" data-a="'+a+'"><span class="ico">'+ic(icon, 22, 2.1)+'</span>'+label+'</button>'; }
+function tile(a, label, icon, on){ return '<button class="'+(on ? "on" : "")+'" data-a="'+a+'">'+ic(icon, 30, 1.8)+label+'</button>'; }
 function hero(u, p){
-  var first = esc(u.name.split(" ")[0]);
-  function h(lb, big, chip){ return '<div class="hero"><span class="lb">'+lb+'</span><span class="big">'+big+'</span>'+(chip || "")+'</div>'; }
-  if(!p) return h(UI.greet(B.min)+", "+first, "Add your car", '<button class="chip lime" data-a="sheet" data-v="addplate">'+ic("plus", 15, 2.4)+'Takes ten seconds'+ic("chevR", 14, 2.4)+'</button>');
+  var sel = p ? '<button class="hsel" data-a="sheet" data-v="plates">'+ic("car", 20, 1.9)+'<span class="pl">'+plateTxt(p)+'</span>'+ic("chevD", 18, 2.3)+'</button>'
+              : '<button class="hsel" data-a="sheet" data-v="addplate">'+ic("car", 20, 1.9)+'Add your plate'+ic("chevD", 18, 2.3)+'</button>';
+  function card(inner){ return '<div class="hcard"><img class="scene" src="assets/img/art/hero-scene.webp" alt="">'+sel+inner+'</div>'; }
+  function cta(a, label, v){ return '<button class="cta" data-a="'+a+'"'+(v ? ' data-v="'+v+'"' : "")+'>'+label+ic("arrow", 20, 2.3)+'</button>'; }
+  function dot(t, c){ return '<span class="dot"><i class="'+(c || "")+'"></i>'+t+'</span>'; }
+  if(!p) return card('<span class="big">Add your car</span><span class="sub">It takes ten seconds</span>'+dot("No plate yet", "yel")+cta("addplate", "Add plate"));
   var st = state(p), r = PLATES[p] || {};
+  if(st === "MONTHLY"){
+    var dl = daysBetween(B.date, r.monthly.to), from = addDays(r.monthly.to, -30), used = Math.min(1, Math.max(0, daysBetween(from, B.date) / 30));
+    return card('<span class="lb">Monthly pass</span><span class="big">'+dl+(dl === 1 ? " day" : " days")+'</span>'
+      + dot("Active until "+fmtD(r.monthly.to), dl <= 3 ? "yel" : "")
+      + '<div class="prog"><div class="bar"><i style="width:'+Math.round((1 - used) * 100)+'%"></i></div><div class="ends"><span>Started '+fmtD(from)+'</span><span>Ends '+fmtD(r.monthly.to)+'</span></div></div>'
+      + (dl <= 3 ? cta("renew", "Renew monthly pass", p) : cta("receipts", "View monthly pass")));
+  }
   if(st === "DAILY"){
     var left = Math.max(0, 19*60 - B.min);
-    return h("Paid today · valid until 7:00 pm", Math.floor(left/60)+'<small>h</small> '+pad(left%60)+'<small>m</small>', '<span class="chip ok">'+ic("check", 15, 2.6)+'Ticket '+r.daily.ticket+'</span>');
+    return card('<span class="lb">Paid today</span><span class="big">'+Math.floor(left/60)+'<small>h</small> '+pad(left%60)+'<small>m</small></span>'
+      + dot("Valid until 7:00 pm · "+r.daily.ticket)+cta("receipts", "View receipt"));
   }
-  if(st === "MONTHLY"){
-    var dl = daysBetween(B.date, r.monthly.to);
-    return h("Monthly pass", dl+'<small>'+(dl === 1 ? " day" : " days")+'</small>',
-      dl <= 3 ? '<button class="chip bad" data-a="renew" data-v="'+p+'">'+ic("clock", 15, 2.4)+'Ends '+fmtD(r.monthly.to)+' · renew now'+ic("chevR", 14, 2.4)+'</button>'
-              : '<span class="chip lime">'+ic("cal", 15, 2.3)+'Until '+fmtD(r.monthly.to)+'</span>');
-  }
-  if(st === "ORG"){ var o = orgOf(p); return h("Covered by "+esc(o.name), "Covered", '<span class="chip org">'+ic("shield", 15, 2.3)+'Organisation plate · until '+fmtD(orgCoverEnd(o))+'</span>'); }
-  if(!paidHours()) return h(UI.greet(B.min)+", "+first, "Free now", '<span class="chip">'+ic("clock", 15, 2.3)+'Paid hours 7am–7pm, Mon–Sat</span>');
-  return h("Parking today · "+plateTxt(p), "Not paid", '<button class="chip bad" data-a="pay">'+ic("pay", 15, 2.3)+gmd(T.daily)+' GMD · valid till 7 pm'+ic("chevR", 14, 2.4)+'</button>');
+  if(st === "ORG"){ var o = orgOf(p); return card('<span class="big">Covered</span><span class="sub">'+esc(o.name)+'</span>'+dot("Organisation plate until "+fmtD(orgCoverEnd(o)))+cta("tab", "View plates", "plates")); }
+  if(!paidHours()) return card('<span class="big">Free now</span><span class="sub">Paid hours 7am–7pm, Mon–Sat</span>'+dot("No active parking")+cta("pay", "Pay for Parking"));
+  return card('<span class="big">Not paid</span><span class="sub">'+gmd(T.daily)+' GMD for today, valid till 7pm</span>'+dot("No pass today", "red")+cta("pay", "Pay for Parking"));
 }
 function announcements(){
   var list = typeof ANN !== "undefined" && ANN ? liveAnnouncements() : [];
   if(!list.length) return "";
   var on = Math.min(V.annI || 0, list.length - 1);
-  return '<div class="sh"><h2>From the Council</h2><button data-a="sheet" data-v="news">View all'+ic("chevR", 16, 2.2)+'</button></div>'
+  return '<div class="sh"><h2>From the Council</h2><button data-a="sheet" data-v="news">View all'+ic("arrow", 18, 2.2)+'</button></div>'
     + '<div class="promos" data-scroll="ann">'+list.map(promo).join("")+'</div>'
-    + (list.length > 1 ? '<div class="dots">'+list.map(function(_, k){ return '<i class="'+(k === on ? "on" : "")+'"></i>'; }).join("")+'</div>' : "");
+    + '<div class="dots">'+list.map(function(_, k){ return '<i class="'+(k === on ? "on" : "")+'"></i>'; }).join("")+'</div>';
 }
 function promo(x){
-  return '<div class="promo t-'+esc(x.theme)+'"><div class="tx"><span class="k">'+esc(x.kind)+'</span><b>'+esc(x.title)+'</b>'
-    + (x.text ? '<p>'+esc(x.text)+'</p>' : "") + (x.when ? '<span class="when">'+ic("cal", 14, 2.2)+esc(x.when)+'</span>' : "")
+  var tag = x.theme === "red" ? " red" : x.kind === "Notice" ? " blue" : "";
+  return '<div class="promo"><span class="art"></span><div class="tx"><span class="tag'+tag+'">'+esc(x.kind)+'</span><b>'+esc(x.title)+'</b>'
+    + (x.text ? '<p>'+esc(x.text)+'</p>' : "") + (x.when ? '<span class="when">'+ic("cal", 18, 1.9)+esc(x.when)+'</span>' : "")
     + (x.link ? '<a class="go" href="'+esc(x.link)+'" target="_blank" rel="noopener">Learn more'+ic("arrow", 14, 2.4)+'</a>' : "")
-    + '</div><span class="ill">'+(UI.ILL[x.kind] || UI.ILL.Announcement)+'</span></div>';
+    + '</div></div>';
 }
 
 /* activity: payments and attendant checks on my plates, newest first */
@@ -145,7 +151,7 @@ function feed(u){
 function evRow(e){
   if(e.k === "pay"){
     var rc = e.rc;
-    return '<div class="row"><span class="av ic-pay">'+ic(rc.kind === "monthly" ? "cal" : "pay", 21, 2.1)+'</span><span class="t"><b>'+(rc.kind === "monthly" ? "Monthly pass" : "Daily pass")+' · '+plateTxt(rc.plate)+'</b><small>'+esc(rc.prov)+' · '+rc.t+'</small></span>'
+    return '<div class="row"><span class="av">'+ic("doc", 22, 1.9)+'</span><span class="t"><b>'+(rc.kind === "monthly" ? "Monthly pass" : "Daily pass")+' · '+plateTxt(rc.plate)+'</b><small>'+esc(rc.prov)+' · '+rc.t+'</small></span>'
       + '<span class="r"><b>−'+gmd(rc.amount)+'</b><small>GMD · '+rc.ticket+'</small></span></div>';
   }
   var c = e.c, un = c.st === "UNPAID";
@@ -159,7 +165,7 @@ function grouped(list){
 }
 function recent(u){
   var list = feed(u).slice(0, 6);
-  return '<div class="sh"><h2>Recent activity</h2><button data-a="tab" data-v="activity">View all'+ic("chevR", 16, 2.2)+'</button></div>'
+  return '<div class="sh"><h2>Recent activity</h2><button data-a="tab" data-v="activity">View all'+ic("arrow", 18, 2.2)+'</button></div>'
     + '<div class="card tight">'+(list.length ? '<div class="rows">'+grouped(list)+'</div>' : '<div class="empty">Payments and attendant checks on your plates will show here.</div>')+'</div>';
 }
 
@@ -178,7 +184,7 @@ function activityView(){
   var ch = chart(u), pays = feed(u).filter(function(e){ return e.k === "pay"; });
   h += '<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start"><div><div style="font-size:14.5px;color:var(--ink2)">'+ch.label+'</div>'
     + '<div class="num" style="font-size:36px;font-weight:800;letter-spacing:-.03em;margin-top:4px">'+gmd(ch.total)+' <span style="font-size:18px;color:var(--ink2);font-weight:700">GMD</span></div></div>'
-    + '<span class="cb flat" style="background:var(--fill)">'+ic("up", 22, 2.2)+'</span></div>'
+    + '<span class="cb">'+ic("up", 22, 2.2)+'</span></div>'
     + '<div class="rng" style="margin-top:16px">'+["D","W","M","Y"].map(function(k){ return '<button class="'+(V.range === k ? "on" : "")+'" data-a="range" data-v="'+k+'">'+k+'</button>'; }).join("")+'</div>'
     + ch.html + '</div>'
     + '<div class="tip"><span class="ti">'+ic("cal", 24, 2)+'</span><span><b>Save 15% with a monthly pass</b><small>'+gmd(T.monthly)+' GMD for 30 days, any ParkNa bay.</small></span><button class="go" data-a="monthly">Get pass</button></div>'
@@ -223,7 +229,7 @@ function platesView(){
     return '<div class="card" style="display:flex;flex-direction:column;gap:12px"><div style="display:flex;justify-content:space-between;align-items:center"><span class="plate">'+plateTxt(p)+'</span>'+chip+'</div>'
       + '<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><small style="color:var(--mute);font-size:13.5px">'+sub+'</small>'
       + '<span style="display:flex;gap:8px;align-items:center">'+btn.replace('class="go"', 'class="btn" style="height:40px;width:auto;padding:0 16px;font-size:14px"')
-      + '<button class="cb flat" style="width:40px;height:40px;background:var(--fill)" data-a="rmplate" data-v="'+p+'" aria-label="Remove '+p+'">'+ic("trash", 18, 2)+'</button></span></div></div>';
+      + '<button class="cb" style="width:40px;height:40px" data-a="rmplate" data-v="'+p+'" aria-label="Remove '+p+'">'+ic("trash", 18, 2)+'</button></span></div></div>';
   }).join("");
   return '<div class="scr">'+topbar("My plates", '<button class="cb" data-a="sheet" data-v="addplate" aria-label="Add a plate">'+ic("plus", 22, 2.4)+'</button>')
     + (cards || '<div class="card"><div class="empty">No plates yet. Add your car to see if it is paid and to pay in one tap.</div></div>')
@@ -260,8 +266,8 @@ function paySheet(){
   if(st && st.plate === normPlate(S.plate)){
     if(st.err) { note = '<div class="err">'+esc(st.err)+'</div>'; blocked = true; }
     else if(st.st === "ORG"){ note = '<div class="note">'+ic("shield", 18, 2)+'<span>'+plateTxt(st.plate)+' is covered by <b>'+esc(st.org)+'</b>. Nothing to pay.</span></div>'; blocked = true; }
-    else if(st.st === "DAILY" && S.kind === "daily"){ note = '<div class="note lime">'+ic("check", 18, 2.4)+'<span>'+plateTxt(st.plate)+' is already paid until 7:00 pm today.</span></div>'; blocked = true; }
-    else if(st.st === "MONTHLY"){ var dl = daysBetween(B.date, st.to); note = '<div class="note lime">'+ic("check", 18, 2.4)+'<span>'+plateTxt(st.plate)+' has a monthly pass to <b>'+fmtD(st.to)+'</b>.'+(S.kind === "monthly" && dl <= 3 ? " You can renew it now, with no gap." : " Nothing to pay.")+'</span></div>'; blocked = !(S.kind === "monthly" && dl <= 3); }
+    else if(st.st === "DAILY" && S.kind === "daily"){ note = '<div class="note yel">'+ic("check", 18, 2.4)+'<span>'+plateTxt(st.plate)+' is already paid until 7:00 pm today.</span></div>'; blocked = true; }
+    else if(st.st === "MONTHLY"){ var dl = daysBetween(B.date, st.to); note = '<div class="note yel">'+ic("check", 18, 2.4)+'<span>'+plateTxt(st.plate)+' has a monthly pass to <b>'+fmtD(st.to)+'</b>.'+(S.kind === "monthly" && dl <= 3 ? " You can renew it now, with no gap." : " Nothing to pay.")+'</span></div>'; blocked = !(S.kind === "monthly" && dl <= 3); }
     else if(S.kind === "daily" && !st.paidHours){ note = '<div class="note">'+ic("clock", 18, 2)+'<span>Parking is free now. Paid hours are 7am to 7pm, Monday to Saturday.</span></div>'; blocked = true; }
   }
   return head(S.kind === "monthly" ? "Monthly pass" : "Pay for parking")
@@ -269,17 +275,17 @@ function paySheet(){
     + (u.plates.length ? '<div class="demo" style="margin-top:-6px">'+u.plates.map(function(p){ return '<button data-a="payfill" data-v="'+p+'" style="font-family:PlateMono,monospace;letter-spacing:.06em">'+plateTxt(p)+'</button>'; }).join("")+'</div>' : "")
     + '<div class="seg"><button class="'+(S.kind === "daily" ? "on" : "")+'" data-a="kind" data-v="daily">Daily · '+gmd(T.daily)+'</button><button class="'+(S.kind === "monthly" ? "on" : "")+'" data-a="kind" data-v="monthly">Monthly · '+gmd(T.monthly)+'</button></div>'
     + note
-    + '<div class="fld">Pay with<div class="provs">'+PROVIDERS.map(function(n){ return '<button class="prov'+(on && n === prov ? " on" : "")+'" data-a="prov" data-v="'+n+'"'+(on ? "" : " disabled")+'><span class="lg">'+logo(n)+'</span>'+n+(on ? "" : '<span class="soon">Soon</span>')+'</button>'; }).join("")+'</div></div>'
-    + (on ? "" : '<div class="note lime">'+ic("info", 18, 2)+'<span>Paying by mobile money opens soon. We will send you an SMS when you can pay in the app.</span></div>')
+    + '<div class="fld">Pay with<div class="provs">'+PROVIDERS.map(function(n){ return '<button class="prov'+(on && n === prov ? " on" : "")+'" data-a="prov" data-v="'+n+'"'+(on ? "" : " disabled")+'>'+logo(n)+(on ? "" : '<span class="soon">Soon</span>')+'</button>'; }).join("")+'</div></div>'
+    + (on ? "" : '<div class="note yel">'+ic("info", 18, 2)+'<span>Paying by mobile money opens soon. We will send you an SMS when you can pay in the app.</span></div>')
     + (S.err ? '<div class="err">'+esc(S.err)+'</div>' : "")
-    + '<button class="btn'+(on ? "" : " dark")+'" data-a="dopay"'+(!on || S.busy || !plateOk || blocked ? " disabled" : "")+'>'
+    + '<button class="btn" data-a="dopay"'+(!on || S.busy || !plateOk || blocked ? " disabled" : "")+'>'
     + (!on ? "Payments open soon" : S.busy ? "Paying…" : "Pay "+gmd(amount)+" GMD with "+prov)+'</button>'
     + (S.kind === "daily" ? '<p style="font-size:12.5px;color:var(--mute);text-align:center">Valid until 7:00 pm today in any marked ParkNa bay.</p>' : '<p style="font-size:12.5px;color:var(--mute);text-align:center">30 days in any marked ParkNa bay. We remind you 3 days before it ends.</p>');
 }
 function platesSheet(){
   var u = me(), p = focusPlate(u);
   return head("Your plates") + '<div class="rows">'+u.plates.map(function(x){ var st = state(x);
-      return '<button class="row" data-a="focus" data-v="'+x+'"><span class="av '+(x === p ? "ic-pay" : "ic-soft")+'">'+ic("car", 21, 2)+'</span><span class="t"><b style="font-family:PlateMono,monospace;letter-spacing:.06em">'+plateTxt(x)+'</b><small>'+({ DAILY: "Paid today", MONTHLY: "Monthly pass", ORG: "Organisation", UNPAID: paidHours() ? "Not paid today" : "Free now" })[st]+'</small></span><span class="r">'+(x === p ? ic("check", 20, 2.6) : "")+'</span></button>'; }).join("")+'</div>'
+      return '<button class="row" data-a="focus" data-v="'+x+'"><span class="av '+(x === p ? "ic-yel" : "")+'">'+ic("car", 21, 2)+'</span><span class="t"><b style="font-family:PlateMono,monospace;letter-spacing:.06em">'+plateTxt(x)+'</b><small>'+({ DAILY: "Paid today", MONTHLY: "Monthly pass", ORG: "Organisation", UNPAID: paidHours() ? "Not paid today" : "Free now" })[st]+'</small></span><span class="r">'+(x === p ? ic("check", 20, 2.6) : "")+'</span></button>'; }).join("")+'</div>'
     + '<button class="btn ghost" data-a="sheet" data-v="addplate">'+ic("plus", 20, 2.4)+'Add a plate</button>';
 }
 function addSheet(){
@@ -293,7 +299,7 @@ function inboxSheet(){
   var u = me(), list = inbox(u).slice().reverse();
   PN.ls(seenKey(), String(inbox(u).length));
   return head("Messages") + (list.length ? '<div class="rows">'+list.slice(0, 60).map(function(m){
-      return '<div class="row" style="align-items:flex-start"><span class="av ic-ink">'+ic(m.tag === "Receipt" ? "receipt" : m.tag === "Reminder" ? "clock" : "sms", 20, 2)+'</span><span class="t"><b style="white-space:normal;font-size:14.5px;font-weight:500;line-height:1.45">'+esc(m.i)+'</b><small>'+(m.tag ? esc(m.tag)+" · " : "")+m.t+'</small></span><span></span></div>'; }).join("")+'</div>'
+      return '<div class="row" style="align-items:flex-start"><span class="av ic-navy">'+ic(m.tag === "Receipt" ? "receipt" : m.tag === "Reminder" ? "clock" : "sms", 20, 2)+'</span><span class="t"><b style="white-space:normal;font-size:14.5px;font-weight:500;line-height:1.45">'+esc(m.i)+'</b><small>'+(m.tag ? esc(m.tag)+" · " : "")+m.t+'</small></span><span></span></div>'; }).join("")+'</div>'
     : '<div class="empty">No messages yet. Receipts and reminders arrive here and by SMS.</div>');
 }
 function newsSheet(){
@@ -309,7 +315,7 @@ function helpSheet(){
        ["shield", "Attendants", "Attendants never take cash. If a car is not paid they leave a Park & Pay card; there are no fines in the pilot."],
        ["sms", "No data?", "Text your plate to " + ((PN.mode && PN.mode.shortcode) || SC) + " to check it, the same pass and price."]]
       .concat(PN.mode && (PN.mode.supportPhone || PN.mode.supportEmail) ? [["help", "Need help?", "ParkNa support: " + [PN.mode.supportPhone, PN.mode.supportEmail].filter(Boolean).join(" · ")]] : []).map(function(r){
-        return '<div class="row" style="align-items:flex-start"><span class="av ic-soft">'+ic(r[0], 20, 2)+'</span><span class="t"><b>'+r[1]+'</b><small style="line-height:1.5">'+esc(r[2])+'</small></span><span></span></div>'; }).join("")+'</div>';
+        return '<div class="row" style="align-items:flex-start"><span class="av">'+ic(r[0], 20, 2)+'</span><span class="t"><b>'+r[1]+'</b><small style="line-height:1.5">'+esc(r[2])+'</small></span><span></span></div>'; }).join("")+'</div>';
 }
 function doneView(){
   var D = V.done;

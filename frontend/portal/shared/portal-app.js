@@ -3,7 +3,7 @@
      sees follow their role (PAGES below); the server checks every action again.
    org.html (data-role="org"): an organisation's billing contact signs in with a code sent to their phone by SMS. */
 const $ = id => document.getElementById(id);
-const IC = { checkD: '<svg width="14" height="14" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="#0B2540" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' };
+const IC = { checkD: '<svg width="14" height="14" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="#0B2E63" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' };
 const ROLE = document.body.dataset.role;            /* "org" or "back" */
 const STAGE = ROLE === "org" ? "stOrg" : "stBack", WEB = ROLE === "org" ? "orgWeb" : "backWeb";
 PN.init({ as: ROLE === "org" ? "org" : "staff" });

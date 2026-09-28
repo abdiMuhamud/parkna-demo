@@ -10,9 +10,7 @@ PN.init({ as: "officer" });
 var V = { tab: "home", sheet: null, toast: null, seg: "today", setup: { url: "", err: "", busy: false }, check: { plate: "", busy: false, res: null }, busy: false };
 
 var SI = UI.SignIn({
-  as: "officer", app: "ParkNa Officer", version: VERSION, ill: UI.ILL.officer,
-  title: "Check plates,<br><em>not cash</em>",
-  lead: "Start your shift, check plates on your road and end your shift. For ParkNa attendants of Banjul City Council.",
+  as: "officer",
   demo: function(){ return OFFSEED.filter(function(o){ return !o.bg; }).map(function(o){ return { num: o.num, name: o.name, note: "Attendant " + o.id }; }); },
   render: render, onDone: function(){ start(); }
 });
@@ -49,17 +47,19 @@ function paint(h){
 }
 function loadingView(){
   var off = PN.ready && PN.me && !me();
-  return '<div class="auth"><div class="grow"></div>'+(off ? '<h2>Account<br><em>switched off</em></h2><p class="lead">This number is no longer an active ParkNa attendant. Ask your supervisor.</p><button class="btn ghost" data-a="signout">Sign out</button>'
-    : '<div class="spin" style="align-self:center"></div><p class="lead" style="text-align:center">'+(V.slow ? "Can’t reach ParkNa yet. Check your internet connection. The SMS line still works: text START to " + shortcode() + "." : "Loading your shift…")+'</p>'
-      + (V.slow ? '<button class="btn ghost" data-a="signout">Sign out</button>' : ""))+'<div class="grow"></div></div>';
+  if(off) return '<div class="center">'+UI.crest()+'<h2 style="font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.02em">Account switched off</h2><p>This number is no longer an active ParkNa attendant. Ask your supervisor.</p><button class="btn ghost" style="max-width:260px" data-a="signout">Sign out</button></div>';
+  return '<div class="center">'+UI.crest()+'<div class="spin"></div><p>'+(V.slow ? "Can’t reach ParkNa yet. Check your internet connection. The SMS line still works: text START to " + shortcode() + "." : "Loading your shift…")+'</p>'
+    + (V.slow ? '<button class="btn ghost" style="max-width:260px" data-a="signout">Sign out</button>' : "") + '</div>';
 }
 function setupView(){
   var S = V.setup;
-  return '<div class="auth"><div class="brand"><img src="assets/img/crest.png" alt=""><span>ParkNa Officer<small>Banjul City Council</small></span></div>'
-    + '<h2>Connect to<br><em>ParkNa</em></h2><p class="lead">Enter the ParkNa server address your supervisor gave you.</p>'
-    + '<label class="fld">Server address<input class="inp" id="srv" inputmode="url" autocapitalize="off" placeholder="https://parkna.gm" value="'+esc(S.url)+'"></label>'
+  return '<div class="auth"><div class="ahead">'+UI.crest()+UI.bname()+'</div><div class="aform">'
+    + '<div class="atitle"><span class="i">'+ic("wifi", 22, 2)+'</span><div><div class="eyebrow">FIRST START</div><h1>Connect to ParkNa</h1></div></div>'
+    + '<p class="alead">Enter the ParkNa server address your supervisor gave you, for example <b>https://parkna.gm</b>.</p>'
+    + '<label class="fld">Server address<div class="box solo"><input id="srv" inputmode="url" autocapitalize="off" placeholder="https://parkna.gm" value="'+esc(S.url)+'"></div></label>'
     + (S.err ? '<div class="err">'+esc(S.err)+'</div>' : "")
-    + '<button class="btn" data-a="connect"'+(S.busy ? " disabled" : "")+'>'+(S.busy ? "Connecting…" : "Connect")+'</button><div class="grow"></div></div>';
+    + '<button class="btn" data-a="connect"'+(S.busy ? " disabled" : "")+'>'+(S.busy ? "Connecting…" : "Connect")+'<span class="ar">'+ic("arrow", 20, 2.3)+'</span></button>'
+    + '<div class="secure">A secure service by Banjul City Council</div></div></div>';
 }
 function mainView(){
   var h = ({ home: homeView, checks: checksView, msgs: msgsView, profile: profileView })[V.tab]();
@@ -69,48 +69,65 @@ function mainView(){
   return h;
 }
 function tabbar(){
-  function t(k, l, i, badge){ return '<button class="'+(V.tab === k ? "on" : "")+'" data-a="tab" data-v="'+k+'">'+ic(i, 23, V.tab === k ? 2.2 : 1.8)+l+'</button>'; }
+  function t(k, l, i){ var on = V.tab === k; return '<button class="'+(on ? "on" : "")+'" data-a="tab" data-v="'+k+'">'+ic(on && k === "home" ? "homef" : i, 26, 1.8)+l+'</button>'; }
   return '<nav class="tabs">'+t("home", "Home", "home")+t("checks", "Checks", "shield")
-    + '<button class="fab" data-a="check" aria-label="Check a plate">'+ic("scan", 28, 2.2)+'</button>'
+    + '<button class="fab" data-a="check" aria-label="Check a plate">'+ic("scan", 28, 2)+'Check</button>'
     + t("msgs", "Messages", "sms")+t("profile", "Profile", "user")+'</nav>';
 }
 function topbar(title, left){
   var o = me(), n = unread();
   return '<div class="top">'+(left || '<button class="cb" data-a="tab" data-v="profile" aria-label="Profile"><span class="av">'+o.id+'</span></button>')
-    + '<h1>'+title+'</h1><button class="cb" data-a="tab" data-v="msgs" aria-label="Messages">'+ic("bell", 22, 2)+(n ? '<span class="bd">'+n+'</span>' : "")+'</button></div>'
+    + '<h1>'+title+'</h1><button class="cb" data-a="tab" data-v="msgs" aria-label="Messages">'+ic("bell", 22, 2)+(n ? '<span class="bd">'+(n > 9 ? "9+" : n)+'</span>' : "")+'</button></div>'
     + (PN.online ? "" : '<span class="offl">'+ic("wifi", 14, 2.2)+'Reconnecting… The SMS line still works.</span>');
 }
+function back(){ return '<button class="cb" data-a="tab" data-v="home" aria-label="Back">'+ic("back", 22, 2.2)+'</button>'; }
 
 /* ---------- home ---------- */
 function homeView(){
-  var o = me(), road = roadOf(o), moved = road !== o.road, s = offStats(o), on = onShift(o), sh = SHIFTS[o.shift];
-  var hero;
+  var o = me(), road = roadOf(o), moved = road !== o.road, s = offStats(o), on = onShift(o), sh = SHIFTS[o.shift], n = unread();
+  var head = '<div class="hdr">'+UI.crest()+UI.bname()+'<button class="bell" data-a="tab" data-v="msgs" aria-label="Messages">'+ic("bell", 30, 1.9)+(n ? '<span class="bd">'+(n > 9 ? "9+" : n)+'</span>' : "")+'</button></div>'
+    + (PN.online ? "" : '<span class="offl">'+ic("wifi", 14, 2.2)+'Reconnecting… The SMS line still works.</span>')
+    + '<p class="greet">'+UI.greet(B.min)+', <b>'+esc(o.name.split(" ")[0])+'</b></p>';
+  var sel = '<span class="hsel">'+ic("pin", 18, 2)+esc(ROADS[road].name)+' · '+ROADS[road].bays.replace("-", "–")+'</span>';
+  function dot(t, c){ return '<span class="dot"><i class="'+(c || "")+'"></i>'+t+'</span>'; }
+  function cta(a, label, v){ return '<button class="cta" data-a="'+a+'"'+(v ? ' data-v="'+v+'"' : "")+(V.busy ? " disabled" : "")+'>'+label+ic("arrow", 20, 2.3)+'</button>'; }
+  var inner;
   if(on){
     var el = Math.max(0, B.min - o.start);
-    hero = '<div class="hero"><span class="lb">On shift since '+hm(o.start)+'</span><span class="big">'+Math.floor(el/60)+'<small>h</small> '+pad(el%60)+'<small>m</small></span><span class="chip lime">'+ic("clock", 15, 2.3)+sh.label+(moved ? " · moved today" : "")+'</span></div>';
+    inner = '<span class="lb">On shift since '+hm(o.start)+'</span><span class="big">'+Math.floor(el/60)+'<small>h</small> '+pad(el%60)+'<small>m</small></span>'
+      + dot(sh.label+(moved ? " · moved today" : ""))+cta("check", "Check a plate");
   } else if(o.summary && o.summary.day === dkey(B.date)){
-    hero = '<div class="hero"><span class="lb">Shift ended '+hm(o.summary.end)+'</span><span class="big">Done</span><span class="chip ok">'+ic("check", 15, 2.6)+(o.summary.checked || 0)+' checked · '+(o.summary.unpaid || 0)+' not paid</span></div>';
+    inner = '<span class="lb">Shift ended '+hm(o.summary.end)+'</span><span class="big">Done</span>'
+      + dot((o.summary.checked || 0)+' checked · '+(o.summary.unpaid || 0)+' not paid')+cta("tab", "View checks", "checks");
   } else {
-    hero = '<div class="hero"><span class="lb">'+UI.greet(B.min)+', '+esc(o.name.split(" ")[0])+'</span><span class="big">Off shift</span><span class="chip">'+ic("clock", 15, 2.3)+'Your shift: '+sh.label+'</span></div>';
+    inner = '<span class="lb">Attendant '+o.id+'</span><span class="big">Off shift</span>'
+      + dot("Your shift: "+sh.label, "yel")+cta("start", V.busy ? "Starting…" : "Start shift");
   }
-  var acts = '<div class="acts">'
-    + (on ? act("end", "End shift", "stop", true) : act("start", "Start shift", "play", true))
-    + act("check", "Check", "scan") + act("checks", "Checks", "shield") + act("help", "Help", "help") + '</div>';
+  var hero = '<div class="hcard"><img class="scene" src="assets/img/art/hero-scene.webp" alt="">'+sel+inner+'</div>';
+  var tiles = '<div class="tiles">'
+    + (on ? tile("end", "End shift", "stop", false, V.busy) : tile("start", "Start shift", "play", true, V.busy))
+    + tile("check", "Check", "scan", on) + tile("checks", "Checks", "shield") + tile("help", "Help", "help") + '</div>';
   var unp = s.checked ? Math.round(s.unpaid * 100 / s.checked) : 0;
   var stats = '<div class="two"><div class="stat"><small>Checked today</small><b>'+s.checked+'</b></div><div class="stat"><small>Not paid'+(s.checked ? '<i class="down">'+unp+'%</i>' : "")+'</small><b>'+s.unpaid+'</b></div></div>';
   var recent = myChecks(o).filter(function(c){ return c.day === dkey(B.date); }).slice(-5).reverse();
-  return '<div class="scr">'+topbar("Attendant "+o.id)
-    + '<span class="sel"><span class="ch">'+ic("pin", 13, 2.4)+'</span>'+esc(ROADS[road].name)+'<small style="color:var(--mute);font-weight:600">'+ROADS[road].bays.replace("-", "–")+'</small></span>'
-    + hero + acts + stats
-    + '<div class="sh"><h2>Recent checks</h2><button data-a="tab" data-v="checks">View all'+ic("chevR", 16, 2.2)+'</button></div>'
-    + '<div class="card tight">'+(recent.length ? '<div class="rows">'+recent.map(checkRow).join("")+'</div>' : '<div class="empty">'+(on ? "Tap the green button to check your first plate." : "Start your shift, then check plates on your road.")+'</div>')+'</div></div>';
+  return '<div class="scr">'+head+hero+tiles+stats
+    + '<div class="sh"><h2>Recent checks</h2><button data-a="tab" data-v="checks">View all'+ic("arrow", 18, 2.2)+'</button></div>'
+    + '<div class="card tight">'+(recent.length ? '<div class="rows">'+recent.map(checkRow).join("")+'</div>' : '<div class="empty">'+(on ? "Tap the yellow Check button to check your first plate." : "Start your shift, then check plates on your road.")+'</div>')+'</div></div>';
 }
-function act(a, label, icon, pri){ return '<button class="'+(pri ? "pri" : "")+'" data-a="'+a+'"'+(V.busy && pri ? " disabled" : "")+'><span class="ico">'+ic(icon, 22, 2.1)+'</span>'+label+'</button>'; }
+function tile(a, label, icon, on, off){ return '<button class="'+(on ? "on" : "")+'" data-a="'+a+'"'+(off ? " disabled" : "")+'>'+ic(icon, 30, 1.8)+label+'</button>'; }
 function checkRow(c){
-  var st = PLATES[c.plate] ? state(c.plate) : null, un = c.st === "UNPAID", paidNow = un && st && st !== "UNPAID";
-  return '<div class="row"><span class="av '+(un ? "ic-bad" : c.st === "ORG" ? "ic-org" : "ic-ok")+'">'+ic("car", 20, 2)+'</span>'
+  var st = PLATES[c.plate] ? state(c.plate) : null, un = c.st === "UNPAID", org = c.st === "ORG", paidNow = un && st && st !== "UNPAID";
+  return '<div class="row"><span class="av'+(un ? " ic-bad" : org ? "" : " ic-ok")+'">'+ic(org ? "shield" : "car", 20, 2)+'</span>'
     + '<span class="t"><b style="font-family:PlateMono,monospace;letter-spacing:.06em">'+plateTxt(c.plate)+'</b><small>'+hm(c.t)+(c.road !== roadOf(me()) ? ' · '+esc(ROADS[c.road].name) : "")+(paidNow ? " · paid since" : "")+'</small></span>'
-    + '<span class="r"><span class="st '+(un ? "unpaid" : c.st === "ORG" ? "org" : "paid")+'">'+(un ? "Not paid" : c.st === "ORG" ? "Organisation" : c.st === "MONTHLY" ? "Monthly" : "Paid")+'</span></span></div>';
+    + '<span class="r"><span class="st '+(un ? "unpaid" : org ? "org" : c.st === "MONTHLY" ? "month" : "paid")+'">'+(un ? "Not paid" : org ? "Organisation" : c.st === "MONTHLY" ? "Monthly" : "Paid")+'</span></span></div>';
+}
+
+function promo(x){
+  var tag = x.theme === "red" ? " red" : x.kind === "Notice" ? " blue" : "";
+  return '<div class="promo"><span class="art"></span><div class="tx"><span class="tag'+tag+'">'+esc(x.kind)+'</span><b>'+esc(x.title)+'</b>'
+    + (x.text ? '<p>'+esc(x.text)+'</p>' : "") + (x.when ? '<span class="when">'+ic("cal", 18, 1.9)+esc(x.when)+'</span>' : "")
+    + (x.link ? '<a class="go" href="'+esc(x.link)+'" target="_blank" rel="noopener">Learn more'+ic("arrow", 14, 2.4)+'</a>' : "")
+    + '</div></div>';
 }
 
 /* ---------- checks ---------- */
@@ -120,7 +137,7 @@ function checksView(){
   var paid = list.filter(function(c){ return c.st !== "UNPAID"; }).length, unp = list.length - paid;
   var body = "", last = null;
   list.forEach(function(c){ if(c.day !== last){ body += '<div class="day">'+dayLabel(fromKey(c.day))+'</div>'; last = c.day; } body += checkRow(c); });
-  return '<div class="scr">'+topbar("Checks", '<button class="cb" data-a="tab" data-v="home" aria-label="Back">'+ic("back", 22, 2.2)+'</button>')
+  return '<div class="scr">'+topbar("Checks", back())
     + '<div class="seg"><button class="'+(V.seg === "today" ? "on" : "")+'" data-a="seg" data-v="today">Today</button><button class="'+(V.seg === "week" ? "on" : "")+'" data-a="seg" data-v="week">Last 14 days</button></div>'
     + '<div class="two"><div class="stat"><small>Paid</small><b>'+paid+'</b></div><div class="stat"><small>Not paid'+(list.length ? '<i class="down">'+Math.round(unp*100/list.length)+'%</i>' : "")+'</small><b>'+unp+'</b></div></div>'
     + '<div class="card tight">'+(list.length ? '<div class="rows">'+body+'</div>' : '<div class="empty">No checks yet.</div>')+'</div></div>';
@@ -130,20 +147,20 @@ function checksView(){
 function msgsView(){
   var list = notices().slice().reverse();
   PN.ls(seenKey(), String(notices().length));
-  return '<div class="scr">'+topbar("Messages", '<button class="cb" data-a="tab" data-v="home" aria-label="Back">'+ic("back", 22, 2.2)+'</button>')
-    + (typeof ANN !== "undefined" && ANN && ANN.length ? '<div class="promos">'+liveAnnouncements().map(function(x){ return '<div class="promo t-'+esc(x.theme)+'"><div class="tx"><span class="k">'+esc(x.kind)+'</span><b>'+esc(x.title)+'</b>'+(x.text ? '<p>'+esc(x.text)+'</p>' : "")+'</div><span class="ill">'+(UI.ILL[x.kind] || UI.ILL.Announcement)+'</span></div>'; }).join("")+'</div>' : "")
+  return '<div class="scr">'+topbar("Messages", back())
+    + (typeof ANN !== "undefined" && ANN && ANN.length ? '<div class="sh"><h2>From the Council</h2><span></span></div><div class="promos">'+liveAnnouncements().map(promo).join("")+'</div>' : "")
     + '<div class="card tight">'+(list.length ? '<div class="rows">'+list.map(function(m){
-        return '<div class="row" style="align-items:flex-start"><span class="av '+(m.tag === "Reassigned" ? "ic-bad" : "ic-ink")+'">'+ic(m.tag === "Shift" ? "clock" : m.tag === "Reassigned" ? "road" : "sms", 20, 2)+'</span><span class="t"><b style="white-space:normal;font-size:14.5px;font-weight:500;line-height:1.45">'+esc(m.i)+'</b><small>'+esc(m.tag)+' · '+m.t+'</small></span><span></span></div>'; }).join("")+'</div>'
+        return '<div class="row" style="align-items:flex-start"><span class="av '+(m.tag === "Reassigned" ? "ic-bad" : "")+'">'+ic(m.tag === "Shift" ? "clock" : m.tag === "Reassigned" ? "pin" : "sms", 20, 2)+'</span><span class="t"><b style="white-space:normal;font-size:14.5px;font-weight:500;line-height:1.45">'+esc(m.i)+'</b><small>'+esc(m.tag)+' · '+m.t+'</small></span><span></span></div>'; }).join("")+'</div>'
       : '<div class="empty">Messages from your supervisor and the back office appear here.</div>')+'</div></div>';
 }
 
 /* ---------- profile ---------- */
 function profileView(){
   var o = me();
-  function kv(icon, k, v){ return '<div class="row"><span class="av ic-soft">'+ic(icon, 20, 2)+'</span><span class="t"><small>'+k+'</small><b>'+v+'</b></span><span></span></div>'; }
-  return '<div class="scr">'+topbar("Profile", '<button class="cb" data-a="tab" data-v="home" aria-label="Back">'+ic("back", 22, 2.2)+'</button>')
+  function kv(icon, k, v){ return '<div class="row"><span class="av">'+ic(icon, 20, 2)+'</span><span class="t"><small>'+k+'</small><b>'+v+'</b></span><span></span></div>'; }
+  return '<div class="scr">'+topbar("Profile", back())
     + '<div class="prof"><span class="av">'+o.id+'</span><b>'+esc(o.name)+'</b><small>Attendant '+o.id+' · '+UI.phone(o.num)+'</small></div>'
-    + '<div class="card tight"><div class="rows">'+kv("road", "Road", esc(ROADS[o.road].name)+" "+ROADS[o.road].bays.replace("-", "–"))+kv("clock", "Shift", SHIFTS[o.shift].label)
+    + '<div class="card tight"><div class="rows">'+kv("pin", "Road", esc(ROADS[o.road].name)+" "+ROADS[o.road].bays.replace("-", "–"))+kv("clock", "Shift", SHIFTS[o.shift].label)
     + kv("doc", "Staff number", esc(o.staff))+kv("user", "Supervisor", esc(o.super || "—"))+'</div></div>'
     + '<div class="card tight"><div class="menu">'
     + '<button data-a="help"><span class="mi">'+ic("help", 20, 2)+'</span><span>How checks work<small>Paid, not paid, organisation plates</small></span>'+ic("chevR", 18, 2)+'</button>'
@@ -174,22 +191,20 @@ function result(txt){
   var m = /^([A-Z0-9]+): (PAID|UNPAID)\.\s*([\s\S]*)$/.exec(txt);
   if(!m) return '<div class="note">'+ic("info", 18, 2)+'<span>'+esc(txt)+'</span></div>';
   var paid = m[2] === "PAID", org = paid && /Organisation/.test(m[3]);
-  var bg = paid ? (org ? "var(--ink)" : "var(--lime)") : "var(--bad)", fg = paid && !org ? "var(--limeink)" : "#fff";
   var lines = m[3].split("\n").filter(Boolean);
-  return '<div style="background:'+bg+';color:'+fg+';border-radius:26px;padding:20px;display:flex;flex-direction:column;gap:8px">'
-    + '<div style="display:flex;justify-content:space-between;align-items:center"><span class="plate" style="border-color:'+(paid && !org ? "var(--ink)" : "#fff")+'">'+plateTxt(m[1])+'</span>'+ic(paid ? "check" : "x", 30, 3)+'</div>'
-    + '<div style="font-size:34px;font-weight:800;letter-spacing:-.02em">'+(paid ? (org ? "PAID · Organisation" : "PAID") : "NOT PAID")+'</div>'
-    + lines.map(function(l){ return '<div style="font-size:14.5px;font-weight:600;line-height:1.45;opacity:.95">'+esc(l)+'</div>'; }).join("")+'</div>';
+  return '<div class="res '+(paid ? (org ? "org" : "paid") : "unpaid")+'"><div class="rt"><span class="plate">'+plateTxt(m[1])+'</span>'+ic(paid ? "check" : "x", 30, 3)+'</div>'
+    + '<h2>'+(paid ? (org ? "PAID · Organisation" : "PAID") : "NOT PAID")+'</h2>'
+    + lines.map(function(l){ return '<p>'+esc(l)+'</p>'; }).join("")+'</div>';
 }
 function helpSheet(){
   return head("How checks work") + '<div class="rows">'
     + [["play", "Start your shift", "Tap Start shift when you arrive on your road. Checks only count during your shift."],
-       ["scan", "Check each car", "Tap the green button and enter the plate. ParkNa answers PAID or NOT PAID at once."],
+       ["scan", "Check each car", "Tap the yellow Check button and enter the plate. ParkNa answers PAID or NOT PAID at once."],
        ["x", "Not paid?", "If the driver is there, show the Park & Pay card. If not, leave a card on the windscreen. Never take money."],
        ["shield", "Organisation plates", "Company cars are covered by their organisation. Nothing to do."],
        ["stop", "End your shift", "Tap End shift when you leave. Your supervisor sees your checks live."],
        ["sms", "No data?", "The SMS line does the same: text START, a plate, or END to " + shortcode() + " from your registered number."]].map(function(r){
-        return '<div class="row" style="align-items:flex-start"><span class="av ic-soft">'+ic(r[0], 20, 2)+'</span><span class="t"><b>'+r[1]+'</b><small style="line-height:1.5">'+esc(r[2])+'</small></span><span></span></div>'; }).join("")+'</div>';
+        return '<div class="row" style="align-items:flex-start"><span class="av">'+ic(r[0], 20, 2)+'</span><span class="t"><b>'+r[1]+'</b><small style="line-height:1.5">'+esc(r[2])+'</small></span><span></span></div>'; }).join("")+'</div>';
 }
 
 /* ---------- actions ---------- */

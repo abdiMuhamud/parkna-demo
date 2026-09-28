@@ -2,7 +2,7 @@
   "appId": "com.innovii.parkna.officer",
   "appName": "ParkNa Officer",
   "webDir": "www",
-  "backgroundColor": "#EDEFF2",
+  "backgroundColor": "#F6FBFE",
   "server": {
     "androidScheme": "http",
     "cleartext": true

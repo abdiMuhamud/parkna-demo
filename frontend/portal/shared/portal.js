@@ -1,6 +1,6 @@
 /* ParkNa portals: the organisation portal and back office screens. portal-app.js signs people in and connects
    these screens to the ParkNa server.
-   Look: grey canvas, white panels, lime highlight card, navy text and insight cards (the same brand as the apps). */
+   Look: pale blue canvas, white panels, yellow highlight card, navy text and insight cards (the same design as the apps). */
 let OS, BS;
 const freshOS = () => ({ org: null, view: "overview", seg: "plates", dept: null, q: "", sheet: null, bell: false, why: false, user: false,
   add: { open: false, plate: "", dept: "", driver: "", err: "" }, upload: null, inv: null, pay: { method: "transfer" } });
@@ -86,7 +86,7 @@ const dstr = d => DOW[d.getDay()] + " " + fmtD(d);
 const pct = (u, c) => c ? Math.round(100 * (c - u) / c) : 0;
 
 function topbar(ph, q, bellOn, user, sub, initials, kind){
-  return `<header class="etop"><div class="elogo"><i>P</i><span>ParkNa<small>${kind}</small></span></div>
+  return `<header class="etop"><div class="elogo"><i><img src="shared/img/crest.png" alt=""></i><span><span class="bc">BANJUL CITY COUNCIL</span><b>ParkNa</b><small>${kind}</small></span></div>
    <label class="esrch">${ic("search", 17, 2)}<input id="${kind === "Back office" || kind === "Council view" ? "bSearch" : "oSearch"}" data-f="${kind === "Organisation portal" ? "OS" : "BS"}.q" value="${esc(q)}" placeholder="${ph}" autocomplete="off"><kbd>⌘K</kbd></label>
    <div class="etr"><span class="epill">${ic("cal", 16, 2)}${dstr(B.date)} · ${hm(B.min)} · ${paidHours() ? "Paid hours" : "Free now"}</span>
     <button class="eic" ${A("help")} aria-label="Help">${ic("help", 19, 1.9)}</button>
@@ -121,11 +121,11 @@ function bellSheet(items){
    ${items.length ? items.map(it => `<button class="erow" style="grid-template-columns:1fr 32px;text-align:left;border:none;width:100%" ${A(it.a, it.v)}><div class="tt"><b>${esc(it.t)}</b><small>${esc(it.s)}</small></div><span class="ech">${ic("chevR", 14, 2.4)}</span></button>`).join("") : `<div class="eban vio">All clear. Nothing needs you right now.</div>`}</div></div>`;
 }
 function helpSheet(text){
-  return `<div class="esheet" ${A("helpx")}><div class="card"><div class="eh"><h2>About this screen</h2><button class="x" ${A("helpx")} aria-label="Close">${ic("x", 15, 2.2)}</button></div><div style="font-size:12.8px;line-height:1.55;color:#3A3D4A">${text}</div></div></div>`;
+  return `<div class="esheet" ${A("helpx")}><div class="card"><div class="eh"><h2>About this screen</h2><button class="x" ${A("helpx")} aria-label="Close">${ic("x", 15, 2.2)}</button></div><div style="font-size:12.8px;line-height:1.55;color:#4D5A80">${text}</div></div></div>`;
 }
 
 /* ================= account: sign-in, password, user menu ================= */
-const brand = sub => `<div class="elogo" style="padding:0"><i>P</i><span>ParkNa<small>${sub}</small></span></div>`;
+const brand = sub => `<div class="elogo" style="padding:0"><i><img src="shared/img/crest.png" alt=""></i><span><span class="bc">BANJUL CITY COUNCIL</span><b>ParkNa</b><small>${sub}</small></span></div>`;
 const testBanner = () => PN.info && PN.info.otpInApp ? `<div class="etest">${ic("info", 15, 2.2)}<span>Test server: sign-in codes are shown here instead of being sent by SMS.</span></div>` : "";
 function signInFrame(left, box){
   return `<div class="elog"><div class="l">${left}</div><div class="r"><div class="box">${box}</div></div></div>`;
@@ -557,7 +557,7 @@ function backPay(proofs){
    <div class="ep"><div class="eh"><h2>Bank transfers to match</h2></div><div class="erows">${proofs.map(([o, i]) => row({ lead: fmtD(i.proofOn), cls: "sel", title: i.no, sub: esc(o.name) + " · says it has paid", mid: "Reference " + i.no, dur: "GMD " + gmd(i.amount), chip: eChip("vio", "Awaiting"), btn: can("money") ? `<button class="eb sm pri" ${A("match", o.id + "|" + i.no)}>Match</button>` : "<span></span>" })).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">Nothing to match.</small></div>`}</div></div>
    <div class="ep"><div class="eh"><h2>Wallet payments today</h2>${wallets ? `<span class="ec ok">${ic("check", 12, 2.8)}matched by callback</span>` : `<span class="ec grey">not switched on yet</span>`}</div><div class="erows">${wal.slice(0, 8).map(l => row({ lead: l.t, title: l.plate, sub: l.ticket + " · " + N(l.num).name, mid: l.prov + " · " + (l.src === "monthly" ? "monthly" : "daily"), dur: "GMD " + gmd(l.amount), chip: eChip("ok", "Matched", "check"), a: "plate", v: l.plate })).join("")
      || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">${wallets ? "No wallet payments yet today." : "Mobile money payments (Wave, Afrimoney, APS, QMoney) are added when the provider agreements are in place. Until then drivers see “opens soon”."}</small></div>`}</div></div>`;
-  const right = insight({ tag: "Revenue share", title: `<span class="big">GMD ${gmd(rv.total)}</span><div style="font-size:12px;color:#CFC8FF;margin-top:6px;font-weight:500">collected today</div>`,
+  const right = insight({ tag: "Revenue share", title: `<span class="big">GMD ${gmd(rv.total)}</span><div style="font-size:12px;color:#D6DFEE;margin-top:6px;font-weight:500">collected today</div>`,
       body: `<div class="br2"><span>Council 60%</span><i style="width:100%"></i><span>${gmd(rv.total * .6)}</span></div><div class="br2"><span>Operator 40%</span><i class="l" style="width:66%"></i><span>${gmd(rv.total * .4)}</span></div>` })
     + queue({ title: "Exceptions", pill: openExc ? openExc + " open" : "clear", pillCls: openExc ? "" : "ok", items: EXC.map((e, i) => ({ t: e.type + " · " + e.plate, s: e.detail, btn: e.status === "open" ? (can("money") ? `<button class="eb gh sm" ${A("refer", i)}>Refer</button>` : `<span class="ec warn">Open</span>`) : `<span class="ec grey">With Finance</span>` })), empty: "No exceptions." });
   return [main, right];
@@ -578,12 +578,13 @@ function backTariff(){
 /* Council events and announcements: shown as a banner on the driver app's home screen */
 const dayInput = d => d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
 const ANN_ICON = { Event: "cal", Announcement: "mega", Notice: "info" };
-const annCard = x => `<div class="annc ${esc(x.theme)}"><span class="annk">${ic(ANN_ICON[x.kind] || "mega", 13, 2.2)}${esc(x.kind)} · Banjul City Council</span><b>${esc(x.title || "Your title")}</b>${x.text ? `<p>${esc(x.text)}</p>` : ""}${x.when || x.link ? `<div class="annf">${x.when ? `<span>${ic("cal", 13, 2.2)}${esc(x.when)}</span>` : "<span></span>"}${x.link ? `<a>Learn more${ic("arrow", 13, 2.4)}</a>` : ""}</div>` : ""}</div>`;
+/* the same card as the driver app ("From the Council"): kind tag, title, text, date line, link, Banjul scene on the right */
+const annCard = x => `<div class="annc"><span class="art"></span><div class="tx"><span class="annk${x.theme === "red" ? " red" : x.kind === "Notice" ? " blue" : ""}">${esc(x.kind)}</span><b>${esc(x.title || "Your title")}</b>${x.text ? `<p>${esc(x.text)}</p>` : ""}${x.when || x.link ? `<div class="annf">${x.when ? `<span>${ic("cal", 16, 1.9)}${esc(x.when)}</span>` : ""}${x.link ? `<a>Learn more${ic("arrow", 13, 2.4)}</a>` : ""}</div>` : ""}</div></div>`;
 function backAnn(){
   const F = BS.ann, list = typeof ANN !== "undefined" && ANN ? ANN : [], live = list.filter(annLive), t = today();
   const status = x => annLive(x) ? eChip("ok", "Live", "check") : x.status === "hidden" ? eChip("grey", "Hidden") : x.to < t ? eChip("grey", "Ended") : eChip("vio", "Scheduled");
   const main = `<div class="ep"><div class="eh"><div><h1>Announcements</h1><p>Council events and notices for the banner on the driver app’s home screen. Drivers see the ones live today.</p></div><div class="btns">${eChip(live.length ? "ok" : "grey", plural(live.length, "live today", "live today"), live.length ? "check" : undefined)}</div></div>
-    <div class="efg" style="margin-top:18px"><label class="ef">Type${sel("aKind", "BS.ann.kind", F.kind, [["Event", "Event"], ["Announcement", "Announcement"], ["Notice", "Notice"]])}</label><label class="ef">Colour${sel("aTheme", "BS.ann.theme", F.theme, [["blue", "Blue"], ["green", "Green"], ["yellow", "Yellow"], ["red", "Red (urgent)"]])}</label></div>
+    <div class="efg" style="margin-top:18px"><label class="ef">Type${sel("aKind", "BS.ann.kind", F.kind, [["Event", "Event"], ["Announcement", "Announcement"], ["Notice", "Notice"]])}</label><label class="ef">Tag${sel("aTheme", "BS.ann.theme", F.theme === "red" ? "red" : "blue", [["blue", "Normal"], ["red", "Urgent (red tag)"]])}</label></div>
     <label class="ef" style="margin-top:12px">Title${inp("aTitle", "BS.ann.title", F.title, "e.g. Banjul Day clean-up", "text", 'maxlength="60" data-rr="1"')}</label>
     <label class="ef" style="margin-top:12px">Text${inp("aText", "BS.ann.text", F.text, "One or two short sentences (up to 180 characters)", "text", 'maxlength="180" data-rr="1"')}</label>
     <div class="efg" style="margin-top:12px"><label class="ef">Date line (optional)${inp("aWhen", "BS.ann.when", F.when, "Sat 7 Nov · 8am at Arch 22", "text", 'maxlength="40" data-rr="1"')}</label><label class="ef">Link (optional)${inp("aLink", "BS.ann.link", F.link, "https://", "url", 'maxlength="200" data-rr="1"')}</label></div>

@@ -135,7 +135,7 @@ A suggested order:
 ```
 frontend/portal/      landing page, back office (admin.html), organisation portal (org.html)
 frontend/shared/      engine.js (read-side rules the screens use), client.js, fonts, images
-frontend/shared/      also ui.css / ui.js: the apps' design system (Plus Jakarta Sans, lime, grey, navy)
+frontend/shared/      also ui.css / ui.js: the apps' design system (Plus Jakarta Sans, pale blue, ParkNa navy, sun yellow; Banjul art in img/art)
 apps/driver/          driver app (Capacitor): www/ is the app, res/ the icon and splash
 apps/officer/         attendant app (Capacitor)
 store/                Google Play graphics: icons, feature graphics, phone screenshots
