@@ -1,25 +1,126 @@
-/* ParkNa portals: wiring the portal screens to the ParkNa server */
+/* ParkNa portals: sign-in, live data from the ParkNa server, and the actions that change it.
+   admin.html (data-role="back"): ParkNa and Council staff sign in with a username and password. The pages each person
+     sees follow their role (PAGES below); the server checks every action again.
+   org.html (data-role="org"): an organisation's billing contact signs in with a code sent to their phone by SMS. */
 const $ = id => document.getElementById(id);
-const IC = { checkD: '<svg width="14" height="14" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="#0E0F14" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' };
+const IC = { checkD: '<svg width="14" height="14" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="#0B2540" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' };
 const ROLE = document.body.dataset.role;            /* "org" or "back" */
-const STAGE = ROLE === "org" ? "stOrg" : "stBack";
+const STAGE = ROLE === "org" ? "stOrg" : "stBack", WEB = ROLE === "org" ? "orgWeb" : "backWeb";
+PN.init({ as: ROLE === "org" ? "org" : "staff" });
+PN.server = location.origin;                        /* the portals are always served by the ParkNa server itself */
 OS = freshOS(); BS = freshBS();
-let SESSION = PN.ls("parkna.org") || null;
 let seenOut = null;
 
-function renderAll(){ if(!PN.ready) return; if(ROLE === "org") renderOrg(); else { renderBack(); renderDemo(); } }
+/* ---------- who is signed in, and what they may do ---------- */
+const ME = () => PN.me || {};
+const myRole = () => ME().role || "";
+const isDemo = () => !!(PN.mode && PN.mode.demo);
+const STAFF_ROLES = { admin: "Administrator", supervisor: "Supervisor", finance: "Finance", council: "Council · read-only" };
+const PAGES = { admin: ["dash", "attendants", "orgs", "payments", "tariff", "ann", "council", "staff"], supervisor: ["dash", "attendants", "council"],
+  finance: ["dash", "orgs", "payments", "council"], council: ["council"] };
+const pageOf = v => v === "register" ? "attendants" : v === "neworg" ? "orgs" : v;
+const canSee = v => (PAGES[myRole()] || []).includes(pageOf(v));
+const can = what => ({ officers: ["admin", "supervisor"], orgs: ["admin"], money: ["admin", "finance"], payers: ["admin", "finance", "supervisor"] }[what] || []).includes(myRole());
+const initialsOf = s => String(s || "?").trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+const firstName = s => String(s || "").trim().split(/\s+/)[0];
+
+/* ---------- sign-in and password forms (their inputs use data-f="AU.x" / "PW.x", see setF in portal.js) ---------- */
+const freshAuth = () => ({ phone: "", code: "", sent: false, user: "", pass: "", err: "", note: "", busy: false, test: null });
+const freshPW = () => ({ cur: "", next: "", again: "", err: "", busy: false });
+const freshStaff = () => ({ list: null, audit: null, me: "", sel: null, add: { name: "", username: "", role: "supervisor", err: "" }, role: "", shown: null, err: "", busy: false });
+let AUTH = freshAuth(), PW = freshPW(), STAFF = freshStaff();
+
+function renderAll(){
+  const el = $(WEB);
+  if(!PN.signedIn()){ renderDemo(); el.className = "ed"; return paint(el, ROLE === "org" ? orgSignIn() : staffSignIn()); }
+  if(!PN.ready){ el.className = "ed"; return paint(el, `<div class="ewait"><span class="spin"></span>Connecting to the ParkNa server…</div>`); }
+  if(ROLE === "back" && ME().mustChangePassword){ renderDemo(); el.className = "ed"; return paint(el, choosePassword()); }
+  if(ROLE === "org") renderOrg(); else renderBack();
+  renderDemo();
+}
 function afterState(){
-  if(ROLE === "org"){
-    for(const k in ORGA) ORGA[k].session = false;
-    if(SESSION && ORGA[SESSION]){ ORGA[SESSION].session = true; OS.org = SESSION; }
-    else if(!ORGA[OS.org]) OS.org = "ORG-014";
-  }
+  if(ROLE === "org") OS.org = ME().org || null;
+  else if(!canSee(BS.view)) BS.view = (PAGES[myRole()] || ["council"])[0];
   notesFromOut();
   renderAll();
 }
+function start(){
+  seenOut = null;
+  PN.connect(afterState, on => { $("conn").hidden = on || !PN.signedIn(); renderAll(); });
+  renderAll();
+}
+PN.onSignOut = expired => {
+  OS = freshOS(); BS = freshBS(); PW = freshPW(); STAFF = freshStaff(); AUTH = freshAuth();
+  if(expired) AUTH.note = "You were signed out. Please sign in again.";
+  $("conn").hidden = true;
+  renderAll();
+};
+
+async function signInAct(a){
+  const F = AUTH;
+  if(F.busy) return;
+  const busy = on => { F.busy = on; if(on) F.err = ""; renderAll(); };
+  if(a === "staffin"){
+    if(!F.user.trim() || !F.pass){ F.err = "Enter your username and password."; return renderAll(); }
+    busy(true);
+    const r = await PN.staffLogin(F.user.trim().toLowerCase(), F.pass);
+    F.pass = ""; F.busy = false;
+    if(!r.ok){ F.err = r.err || "Could not sign in."; return renderAll(); }
+    AUTH = freshAuth(); return start();
+  }
+  if(a === "sendcode" || a === "resend"){
+    if(F.phone.replace(/\D/g, "").length < 7){ F.err = "Enter the contact’s 7-digit phone number."; return renderAll(); }
+    busy(true);
+    const r = await PN.requestCode(F.phone);
+    F.busy = false;
+    if(!r.ok){ F.err = r.err || "Could not send the code."; return renderAll(); }
+    F.sent = true; F.code = ""; F.test = r.code || null; F.note = a === "resend" ? "A new code is on its way." : "";
+    renderAll(); const c = $("auCode"); if(c) c.focus(); return;
+  }
+  if(a === "verify"){
+    if(F.code.replace(/\D/g, "").length !== 6){ F.err = "Enter the 6-digit code from the SMS."; return renderAll(); }
+    busy(true);
+    const r = await PN.verifyCode(F.phone, F.code.replace(/\D/g, ""));
+    F.busy = false;
+    if(!r.ok){ F.err = r.err || "That code did not work."; return renderAll(); }
+    AUTH = freshAuth(); return start();
+  }
+  if(a === "otherphone"){ const p = F.phone; AUTH = freshAuth(); AUTH.phone = p; renderAll(); const i = $("auPhone"); if(i) i.focus(); }
+}
+async function savePassword(){
+  if(PW.busy) return;
+  if(PW.next.length < 10){ PW.err = "Use at least 10 characters for the new password."; return renderAll(); }
+  if(PW.next !== PW.again){ PW.err = "The two new passwords are not the same."; return renderAll(); }
+  PW.busy = true; PW.err = ""; renderAll();
+  const r = await PN.changePassword(PW.cur, PW.next);
+  PW.busy = false;
+  if(!r.ok){ PW.err = r.err || "Could not change the password."; PW.cur = ""; return renderAll(); }
+  PW = freshPW(); BS.pw = false; BS.user = false;
+  if(PN.me) PN.me.mustChangePassword = false;
+  PN.connect();                       /* the live stream picks up the updated account */
+  renderAll();
+  wtoast(STAGE, "Password changed · any other browser was signed out");
+}
+async function signOut(){
+  if(!confirm(ROLE === "org" ? "Sign out of the organisation portal?" : "Sign out of the back office?")) return;
+  await PN.logout();
+}
+/* actions every signed-in screen shares; returns true when handled */
+async function commonAct(a){
+  const S = ROLE === "org" ? OS : BS;
+  if(a === "user"){ S.user = !S.user; S.bell = false; S.help = false; S.pw = false; renderAll(); return true; }
+  if(a === "userx"){ S.user = false; S.pw = false; PW = freshPW(); renderAll(); return true; }
+  if(a === "pwopen"){ S.user = false; S.pw = true; PW = freshPW(); renderAll(); const i = $("pwCur"); if(i) i.focus(); return true; }
+  if(a === "savepw"){ await savePassword(); return true; }
+  if(a === "signout"){ await signOut(); return true; }
+  if(a === "print"){ S.user = false; renderAll(); setTimeout(() => window.print(), 50); return true; }
+  return false;
+}
+
+/* ---------- SMS notes (demo only: on a real service the SMS reach real phones) ---------- */
 function notesFromOut(){
   const ids = OUT.map(m => m.id);
-  if(seenOut === null){ seenOut = new Set(ids); return; }
+  if(seenOut === null || !isDemo()){ seenOut = new Set(ids); return; }
   const fresh = OUT.filter(m => !seenOut.has(m.id)).reverse();
   ids.forEach(i => seenOut.add(i));
   fresh.forEach(m => {
@@ -37,41 +138,78 @@ async function call(a){ const r = await PN.act(a); return r || { err: "No answer
 
 /* ---------- organisation portal actions ---------- */
 async function orgAct(a, v){
+  if(!PN.signedIn()) return signInAct(a, v);
+  if(await commonAct(a)) return;
   const o = ORGA[OS.org];
+  if(!o) return;
   switch(a){
-    case "sendcode": {
-      const r = await call({ type: "org.sendCode", phone: OS.login.phone });
-      if(r.err){ OS.login.err = r.err; return renderOrg(); }
-      OS.login.err = ""; OS.login.sent = true; OS.org = r.org; renderOrg();
-      return wtoast(STAGE, "Code sent by SMS to the contact’s phone");
-    }
-    case "signin": {
-      const r = await call({ type: "org.login", phone: OS.login.phone, code: OS.login.code });
-      if(r.err){ OS.login.err = r.err; return renderOrg(); }
-      SESSION = r.org; PN.ls("parkna.org", r.org); OS.org = r.org; OS.login = freshOS().login; OS.view = "overview";
-      afterState(); return wtoast(STAGE, "Signed in as " + ORGA[r.org].contact.name);
-    }
-    case "user": if(confirm("Sign out of the organisation portal?")){ SESSION = null; PN.ls("parkna.org", null); OS = freshOS(); afterState(); } return;
     case "addplate": {
       const r = await call({ type: "org.addPlate", org: o.id, plate: OS.add.plate, dept: OS.add.dept, driver: OS.add.driver });
       if(r.err){ OS.add.err = r.err; return renderOrg(); }
       OS.add = freshOS().add; renderOrg();
       return wtoast(STAGE, `${r.plate} covered from today · pro-rata GMD ${gmd(r.proRata)} on the next invoice`);
     }
+    case "upload": { const f = $("csvFile"); if(f){ f.value = ""; f.click(); } return; }
     case "confirmup": {
       const rows = OS.upload.rows.filter(r => r.ok === "ready").map(r => ({ p: r.p, dept: r.dept, driver: r.driver }));
-      await call({ type: "org.addPlates", org: o.id, rows }); OS.upload = null; renderOrg();
-      return wtoast(STAGE, `${rows.length} plates added · covered from today`);
+      const r = await call({ type: "org.addPlates", org: o.id, rows });
+      if(r.err) return wtoast(STAGE, r.err);
+      OS.upload = null; renderOrg();
+      return wtoast(STAGE, `${plural(rows.length, "plate")} added · covered from today`);
     }
-    case "remove": await call({ type: "org.removePlate", org: o.id, plate: v }); return wtoast(STAGE, `${v}: cover stops at midnight`);
-    case "uploadproof": await call({ type: "org.uploadProof", org: o.id, inv: OS.inv }); return wtoast(STAGE, "Proof uploaded · ParkNa Admin will match it");
+    case "remove":
+      if(!confirm(`Remove ${v} from the fleet? Cover stops at midnight.`)) return;
+      await call({ type: "org.removePlate", org: o.id, plate: v }); return wtoast(STAGE, `${v}: cover stops at midnight`);
+    case "uploadproof": {
+      const r = await call({ type: "org.uploadProof", org: o.id, inv: OS.inv });
+      return wtoast(STAGE, r.err || "Thank you · ParkNa Finance will match your transfer and confirm by SMS");
+    }
     case "paywallet": { const r = await call({ type: "org.payWallet", org: o.id, inv: OS.inv }); if(r.err) return wtoast(STAGE, r.err); return wtoast(STAGE, "Paid · receipt sent by SMS"); }
+    case "download": { OS.inv = v; OS.view = "invoices"; OS.sheet = null; renderOrg(); setTimeout(() => window.print(), 50); return; }
     default: return orgActUI(a, v);
   }
 }
+/* fleet list upload: a CSV file with plate, department, driver (a header row is fine) */
+function parseCsv(text){
+  const rows = [];
+  for(const line of String(text).replace(/^﻿/, "").split(/\r?\n/)){
+    if(!line.trim()) continue;
+    const sep = line.includes(";") && !line.includes(",") ? ";" : line.includes("\t") && !line.includes(",") ? "\t" : ",";
+    const cells = []; let cur = "", q = false;
+    for(let i = 0; i < line.length; i++){
+      const ch = line[i];
+      if(q){ if(ch === '"' && line[i + 1] === '"'){ cur += '"'; i++; } else if(ch === '"') q = false; else cur += ch; }
+      else if(ch === '"') q = true; else if(ch === sep){ cells.push(cur.trim()); cur = ""; } else cur += ch;
+    }
+    cells.push(cur.trim());
+    rows.push(cells);
+  }
+  if(rows.length && !normPlate(rows[0][0]) && /plate|reg/i.test(rows[0][0] || "")) rows.shift();
+  return rows.slice(0, 500).map(c => [c[0] || "", c[1] || "", c[2] || ""]);
+}
+async function readCsv(f){
+  const o = ORGA[OS.org]; if(!o || !f) return;
+  if(f.size > 512 * 1024) return wtoast(STAGE, "That file is too big. Use a CSV of up to 500 plates.");
+  if(!/\.(csv|txt)$/i.test(f.name) && !/csv|text/.test(f.type)) return wtoast(STAGE, "Choose a CSV file (plate, department, driver). Save Excel sheets as CSV first.");
+  const rows = parseCsv(await f.text());
+  if(!rows.length) return wtoast(STAGE, "No rows found. Use one plate a line: plate, department, driver.");
+  OS.view = "fleet"; OS.inv = null; OS.upload = { name: f.name, rows: uploadRows(o, rows) }; renderOrg();
+}
+document.addEventListener("change", e => { const t = e.target; if(t.id === "csvFile" && t.files && t.files[0]) readCsv(t.files[0]); });
+document.addEventListener("dragover", e => { const z = e.target.closest && e.target.closest(".edrop"); if(!z) return; e.preventDefault(); z.classList.add("over"); });
+document.addEventListener("dragleave", e => { const z = e.target.closest && e.target.closest(".edrop"); if(z) z.classList.remove("over"); });
+document.addEventListener("drop", e => { const z = e.target.closest && e.target.closest(".edrop"); if(!z) return; e.preventDefault(); z.classList.remove("over"); readCsv(e.dataTransfer.files[0]); });
+
 /* ---------- back office actions ---------- */
 async function backAct(a, v){
+  if(!PN.signedIn()) return signInAct(a, v);
+  if(await commonAct(a)) return;
+  if(ME().mustChangePassword) return;
   switch(a){
+    case "nav":
+      if(!canSee(v)) return;
+      if(v === "staff" && BS.view !== "staff"){ BS.view = "staff"; BS.sheet = null; BS.bell = false; renderBack(); return loadStaff(); }
+      return backActUI(a, v);
     case "register": {
       const F = BS.reg, r = await call({ type: "back.register", name: F.name, staff: F.staff, phone: F.phone, road: F.road, shift: F.shift });
       if(r.err){ F.err = r.err; return renderBack(); }
@@ -87,10 +225,15 @@ async function backAct(a, v){
       const F = BS.no, r = await call({ type: "back.createOrg", name: F.name, plates: F.plates, disc: F.disc, contact: F.contact, phone: F.phone, signed: F.signed });
       if(r.err){ F.err = r.err; return renderBack(); }
       BS.no = freshBS().no; BS.view = "orgs"; renderBack();
-      return wtoast(STAGE, `${r.id} created · login SMS sent`);
+      return wtoast(STAGE, `${r.id} created · welcome SMS sent to the contact`);
     }
-    case "match": { const [org, inv] = v.split("|"); await call({ type: "back.match", org, inv }); return wtoast(STAGE, `${inv} matched · the organisation is notified by SMS`); }
-    case "refer": await call({ type: "back.refer", i: v }); return wtoast(STAGE, "Referred to Finance for the refund decision");
+    case "match": {
+      const [org, inv] = v.split("|");
+      if(!confirm(`Match the bank transfer to ${inv}? Only do this once the money is in the ParkNa account.`)) return;
+      const r = await call({ type: "back.match", org, inv });
+      return wtoast(STAGE, r.err || `${inv} matched · the organisation is told by SMS`);
+    }
+    case "refer": { const r = await call({ type: "back.refer", i: v }); return wtoast(STAGE, r.err || "Referred to Finance for the refund decision"); }
     case "publish": {
       const F = BS.tar, r = await call({ type: "back.publish", daily: F.daily === "" ? T.daily : F.daily, auth: F.auth });
       if(r.err){ F.err = r.err; return renderBack(); }
@@ -114,15 +257,66 @@ async function backAct(a, v){
       const r = await call({ type: "back.announceDelete", id: v });
       return wtoast(STAGE, r.err || "Announcement deleted");
     }
-    case "user": return;
+    case "staffsel": { const u = (STAFF.list || []).find(x => x.username === v); STAFF.sel = v; STAFF.role = u ? u.role : ""; STAFF.shown = null; STAFF.err = ""; return renderBack(); }
+    case "staffnew": STAFF.sel = null; STAFF.shown = null; STAFF.err = ""; renderBack(); { const i = $("stName"); if(i) i.focus(); } return;
+    case "staffadd": {
+      const F = STAFF.add;
+      if(STAFF.busy) return;
+      STAFF.busy = true;
+      const r = await PN.call("POST", "/api/staff", { username: F.username.trim().toLowerCase(), name: F.name.trim(), role: F.role });
+      STAFF.busy = false;
+      if(!r.ok){ F.err = r.err || "Could not create the account."; return renderBack(); }
+      STAFF.shown = { username: r.username, name: F.name.trim(), password: r.password, fresh: true };
+      STAFF.add = freshStaff().add; STAFF.sel = null;
+      return loadStaff();
+    }
+    case "staffrole": return staffUpdate({ role: STAFF.role }, "Role changed · they sign in again to use it");
+    case "staffreset": {
+      const u = (STAFF.list || []).find(x => x.username === STAFF.sel);
+      if(!u || !confirm(`Give ${u.name} a new temporary password? They are signed out and must choose a new password when they next sign in.`)) return;
+      return staffUpdate({ resetPassword: true });
+    }
+    case "staffoff": {
+      const u = (STAFF.list || []).find(x => x.username === STAFF.sel);
+      if(!u || !confirm(`Switch off ${u.name}’s account? They are signed out at once and cannot sign in until it is switched on again.`)) return;
+      return staffUpdate({ active: false }, "Account switched off");
+    }
+    case "staffon": return staffUpdate({ active: true }, "Account switched on");
+    case "shownx": STAFF.shown = null; return renderBack();
+    case "auditmore": return loadStaff(Math.min(500, (STAFF.limit || 60) * 3));
+    case "auditall": STAFF.auditAll = v === "all"; return renderBack();
     default: return backActUI(a, v);
   }
 }
+async function loadStaff(limit){
+  if(limit) STAFF.limit = limit;
+  const [s, a] = await Promise.all([PN.call("GET", "/api/staff"), PN.call("GET", "/api/audit?limit=" + (STAFF.limit || 60))]);
+  if(s.ok){ STAFF.list = s.staff; STAFF.me = s.me; STAFF.err = ""; } else STAFF.err = s.err || "Could not load the staff list.";
+  if(a.ok) STAFF.audit = a.entries;
+  if(BS.view === "staff") renderBack();
+}
+async function staffUpdate(change, done){
+  const u = (STAFF.list || []).find(x => x.username === STAFF.sel);
+  if(!u || STAFF.busy) return;
+  STAFF.busy = true;
+  const r = await PN.call("POST", "/api/staff/update", Object.assign({ username: u.username }, change));
+  STAFF.busy = false;
+  if(!r.ok){ STAFF.err = r.err || "Could not change the account."; return renderBack(); }
+  STAFF.err = "";
+  if(r.password) STAFF.shown = { username: u.username, name: u.name, password: r.password, fresh: false };
+  if(u.username === STAFF.me && change.role) return;          /* changing your own role signs you out */
+  await loadStaff();
+  if(done) wtoast(STAGE, done);
+}
 
-/* ---------- demo controls (back office) ---------- */
+/* ---------- demo controls (back office, demo servers only) ---------- */
 let demoMin = PN.ls("parkna.demo.min") === "1";
 function renderDemo(){
   const el = $("demo"); if(!el) return;
+  const on = PN.signedIn() && PN.ready && PN.mode && PN.mode.demoControls && myRole() === "admin" && !ME().mustChangePassword;
+  el.hidden = !on;
+  document.body.classList.toggle("hasdemo", !!on);
+  if(!on) return;
   el.className = "demo" + (demoMin ? " min" : "");
   el.innerHTML = `<span class="dot${PN.online ? "" : " off"}"></span><span><small>Demo clock</small><b>${DOW[B.date.getDay()]} ${fmtD(B.date)} · ${hm(B.min)}</b></span>
     <span class="x" style="display:${demoMin ? "none" : "flex"};gap:6px">
@@ -150,6 +344,6 @@ document.addEventListener("click", async e => {
 });
 
 /* ---------- start ---------- */
-bindWeb(ROLE === "org" ? "orgWeb" : "backWeb", ROLE === "org" ? orgAct : backAct, ROLE === "org" ? renderOrg : renderBack);
-if(!PN.server) PN.setServer(location.origin);
-PN.connect(afterState, on => { $("conn").hidden = on; renderAll(); });
+bindWeb(WEB, ROLE === "org" ? orgAct : backAct, renderAll);
+PN.ping().then(() => { if(!PN.signedIn()) renderAll(); });       /* server version and test-server hints */
+if(PN.signedIn()) start(); else renderAll();

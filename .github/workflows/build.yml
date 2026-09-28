@@ -1,8 +1,15 @@
 # ParkNa: builds and tests everything on every push.
 #   Back end   Maven WAR for Tomcat, tested against the JS engine (parity) and a real MariaDB
 #   Front end  the Nginx document root
-#   Apps       driver and officer APKs
-# On main, a GitHub Release gets the server package (parkna-<version>.tar.gz) and both APKs.
+#   Apps       driver and officer apps for Android
+# On main, a GitHub Release gets the server package (parkna-<version>.tar.gz) and both apps.
+#
+# Google Play (docs/PLAY_STORE.md). Repository settings > Secrets and variables > Actions:
+#   variable  PARKNA_SERVER_URL          e.g. https://parkna.gm, built into the apps (https:// makes them HTTPS-only)
+#   secrets   ANDROID_KEYSTORE_BASE64    the upload key (base64 of the .jks file)
+#             ANDROID_KEYSTORE_PASSWORD  ANDROID_KEY_ALIAS  ANDROID_KEY_PASSWORD
+# With the secrets set, each app is built as a signed .aab (upload this to Play) and a signed .apk.
+# Without them, a test .apk signed with the shared debug key.
 name: Build ParkNa
 
 on:
@@ -13,7 +20,7 @@ permissions:
   contents: write
 
 env:
-  APP_VERSION: "0.2"
+  APP_VERSION: "1.0"
 
 jobs:
   backend:
@@ -61,8 +68,11 @@ jobs:
           if-no-files-found: error
 
   apk:
-    name: ${{ matrix.label }} APK
+    name: ${{ matrix.label }} app
     runs-on: ubuntu-latest
+    env:
+      PARKNA_SERVER_URL: ${{ vars.PARKNA_SERVER_URL }}
+      HAS_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
     strategy:
       fail-fast: false
       matrix:
@@ -87,10 +97,18 @@ jobs:
         with:
           packages: platform-tools
 
-      - name: Use the shared signing key (so new builds install over old ones)
+      - name: Use the shared debug key (so test builds install over each other)
         run: |
           mkdir -p ~/.android
           cp build/debug.keystore ~/.android/debug.keystore
+
+      - name: Unpack the Google Play upload key
+        if: env.HAS_KEYSTORE == 'true'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/parkna-upload.jks"
+          echo "PARKNA_KEYSTORE=$RUNNER_TEMP/parkna-upload.jks" >> "$GITHUB_ENV"
 
       - name: Copy the shared engine and assets into the app
         run: node scripts/build-frontend.js
@@ -100,21 +118,45 @@ jobs:
         run: |
           npm install --no-audit --no-fund
           npx cap add android
-          node ../../scripts/prepare-android.js "$APP_VERSION" "${{ github.run_number }}"
           npx cap sync android
+          node ../../scripts/prepare-android.js "$APP_VERSION" "${{ github.run_number }}"
 
-      - name: Build the APK
+      - name: Build
         working-directory: apps/${{ matrix.app }}/android
+        env:
+          PARKNA_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          PARKNA_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          PARKNA_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
           mkdir -p "$GITHUB_WORKSPACE/out"
-          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/out/ParkNa-${{ matrix.label }}-v$APP_VERSION.apk"
+          N="ParkNa-${{ matrix.label }}-v$APP_VERSION"
+          if [ "$HAS_KEYSTORE" = "true" ]; then
+            ./gradlew bundleRelease assembleRelease --no-daemon --stacktrace
+            cp app/build/outputs/bundle/release/app-release.aab "$GITHUB_WORKSPACE/out/$N.aab"
+            cp app/build/outputs/apk/release/app-release.apk "$GITHUB_WORKSPACE/out/$N.apk"
+          else
+            echo "::notice::No Google Play upload key in the repository secrets: building a test APK only (docs/PLAY_STORE.md)"
+            ./gradlew assembleDebug --no-daemon --stacktrace
+            cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/out/$N-test.apk"
+          fi
+
+      - name: Check the Google Play build still works (throwaway key, nothing is kept)
+        if: env.HAS_KEYSTORE != 'true'
+        working-directory: apps/${{ matrix.app }}/android
+        run: |
+          keytool -genkeypair -noprompt -keystore "$RUNNER_TEMP/check.jks" -alias check -keyalg RSA -keysize 2048 -validity 2 \
+            -storepass check-pass -keypass check-pass -dname "CN=ParkNa build check"
+          PARKNA_KEYSTORE="$RUNNER_TEMP/check.jks" PARKNA_KEYSTORE_PASSWORD=check-pass PARKNA_KEY_ALIAS=check PARKNA_KEY_PASSWORD=check-pass \
+            ./gradlew bundleRelease --no-daemon
+          jarsigner -verify app/build/outputs/bundle/release/app-release.aab | grep -q "jar verified"
+          rm -f "$RUNNER_TEMP/check.jks" app/build/outputs/bundle/release/app-release.aab
+          echo "Signed release bundle builds"
 
       - uses: actions/upload-artifact@v4
         with:
           name: ParkNa-${{ matrix.label }}-v${{ env.APP_VERSION }}
-          path: out/*.apk
+          path: out/*
           if-no-files-found: error
 
   release:
@@ -137,8 +179,8 @@ jobs:
             ParkNa v${{ env.APP_VERSION }}, built from ${{ github.sha }}.
 
             - **parkna-${{ env.APP_VERSION }}.0-b${{ github.run_number }}.tar.gz**: the server package (Tomcat WAR, Nginx front end, config templates, deploy scripts, SQL). Install it with deploy/scripts/deploy.sh; see docs/DEPLOYMENT.md.
-            - **ParkNa-Driver-v${{ env.APP_VERSION }}.apk**: the driver app
-            - **ParkNa-Officer-v${{ env.APP_VERSION }}.apk**: the parking attendant line
+            - **ParkNa-Driver-v${{ env.APP_VERSION }}**: the driver app. The `.aab` is for Google Play (docs/PLAY_STORE.md); the `.apk` installs directly on a phone.
+            - **ParkNa-Officer-v${{ env.APP_VERSION }}**: the parking attendant app, the same way.
 
-            Open an app and enter the server address, e.g. https://parkna.example.gm.
+            Files ending in `-test.apk` are test builds (no Play upload key in the repository secrets yet). Apps built without PARKNA_SERVER_URL ask for the server address when first opened.
           files: out/*

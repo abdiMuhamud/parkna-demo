@@ -1,15 +1,28 @@
-# ParkNa v0.2
+# ParkNa 1.0
 
 ParkNa, the road-side parking service for Banjul City Council, built by INNOVII.
 
 | Part | What it is | Where it runs |
 |---|---|---|
-| **Driver app** | Pay for a plate (daily or monthly) with Wave, Afrimoney, APS or QMoney; Council announcements on the home screen | Android APK `ParkNa-Driver-v0.2.apk` |
-| **Officer app** | The parking attendant's SMS line: START, a plate, END | Android APK `ParkNa-Officer-v0.2.apk` |
-| **Organisation portal** | Fleet plates, invoices and checks for a business | Browser: `https://<server>/org` |
-| **Back office** | Attendants, roads, organisations, payments, tariffs, announcements | Browser: `https://<server>/admin` |
+| **ParkNa** (driver app) | Sign in with a phone number, add plates, see if a plate is covered, receipts, Council announcements. Paying by mobile money opens when the providers are connected | Android, Google Play (`com.innovii.parkna.driver`) |
+| **ParkNa Officer** | The parking attendant's app: start and end a shift, check a plate (PAID / NOT PAID), messages | Android, Google Play (`com.innovii.parkna.officer`) |
+| **Organisation portal** | Fleet plates, monthly invoices, attendant checks for a business | Browser: `https://<server>/org` |
+| **Back office** | Attendants, roads, organisations, payments, tariffs, announcements, staff accounts and the audit log | Browser: `https://<server>/admin` |
 
-A payment in the driver app shows up on the attendant's line, in the organisation portal and in the back office straight away.
+An attendant's check, an organisation's new plate or a Council announcement reaches every screen straight away.
+
+**Sign-in.** Drivers, attendants and organisation contacts sign in with their mobile number and a 6-digit code sent by
+SMS. ParkNa and Council staff have their own username and password, and see what their role allows:
+
+| Role | Sees and does |
+|---|---|
+| Administrator | Everything, including staff accounts, tariffs, announcements and organisations |
+| Supervisor | Dashboard, attendants and roads (register, reassign), revenue report |
+| Finance | Dashboard, organisations, payments (match bank transfers, refer exceptions), revenue report |
+| Council | The revenue report, read-only |
+
+Every sign-in and every change in the back office is written to the audit log with the person's name. Phones only ever
+receive their own data: a driver sees their plates and receipts, an attendant their shift and checks, an organisation its fleet.
 
 ## How it is built
 
@@ -23,7 +36,8 @@ Phones and browsers ──HTTPS──► Nginx ── front end (static files)
 - **Back end on Tomcat**: `parkna.war`, which holds the business rules and writes to Tomcat's logs (`catalina.out`, `parkna.log`, `parkna-sms.log`).
 - **MariaDB** stores everything. The back end creates and upgrades its tables itself.
 - **Two property files** outside the WAR: `database.properties` (MariaDB connection) and `config.properties`
-  (public address, clock, SMS through Kannel, later the payment providers). Templates are in `config/`.
+  (production or demo mode, public address, SMS through Kannel, sign-in, support contacts, bank details for
+  organisation invoices, later the payment providers). Templates are in `config/`.
 
 Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Server installation on Rocky Linux: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
@@ -32,10 +46,10 @@ Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Server installation on Ro
 Every push builds and tests everything on GitHub (**Actions → Build ParkNa**). Each push to `main` also publishes a
 release (**Releases**) with:
 
-- `parkna-0.2.0-b<build>.tar.gz`: the server package (WAR, front end, config templates, deploy scripts, SQL)
-- `ParkNa-Driver-v0.2.apk` and `ParkNa-Officer-v0.2.apk`
-
-On each Android phone, open the APK and allow **Install unknown apps**. New builds install over old ones.
+- `parkna-1.0.0-b<build>.tar.gz`: the server package (WAR, front end, config templates, deploy scripts, SQL)
+- `ParkNa-Driver-v1.0.aab` and `ParkNa-Officer-v1.0.aab`: for Google Play, and `.apk` files of the same builds to
+  install directly on a phone. Until the Play upload key is added to the repository secrets, the build makes
+  `...-test.apk` files instead (signed with the shared test key; they install over each other).
 
 ## Installing on a server
 
@@ -46,17 +60,23 @@ the two property files, then run:
 deploy/scripts/deploy.sh /home/sdf/deliverables/parkna-<version>.tar.gz
 ```
 
-It backs up the database, keeps the running version for `rollback.sh`, puts the new front end and WAR live, and waits until the server answers.
+It backs up the database, keeps the running version for `rollback.sh`, puts the new front end and WAR live, and waits
+until the server answers. A production server starts empty; the first administrator's password is written once to
+`parkna.log`. The go-live checklist is section 11 of the runbook.
 
-## Connecting the apps
+## Google Play
 
-The first time each app opens, it asks for the **server address**. Enter the address with `https://`, e.g.
-`https://parkna.example.gm`, and tap **Connect**. To change it later: **Account → Change server** in the driver app, or
-**menu → Change server** on the officer line.
+[docs/PLAY_STORE.md](docs/PLAY_STORE.md): the upload key and repository secrets, the server address built into the
+apps, the store listings (texts, icons, feature graphics and screenshots are in `store/`), Data safety answers and
+sign-in details for Google's reviewers. The privacy policy is served at `https://<server>/privacy.html`.
 
-## Demo logins
+## Demo servers
 
-**Drivers** (tap a name on the driver app sign-in screen, or type the number). Any 4 digits work as the wallet PIN.
+A server with `app.mode=demo` loads the demo story: sample drivers, attendants and Demo Bank, a movable clock and
+pretend wallets (no money moves). Sign-in codes are shown on screen instead of being sent by SMS. Use it for training
+and presentations, never for real data.
+
+**Drivers** (tap a name under *Demo accounts* on the driver app sign-in screen):
 
 | Number | Name | Story |
 |---|---|---|
@@ -68,22 +88,23 @@ The first time each app opens, it asks for the **server address**. Enter the add
 | 7045678 | Ebrima | BJL3030, low Wave balance (shows a failed payment) |
 | 7089012 | Kebba | BJL7001, a Demo Bank work car |
 
-**Parking officers** (pick one on the officer app sign-in screen):
+**Parking attendants** (tap one on the ParkNa Officer sign-in screen):
 
 | Attendant | Name | Number | Road and shift |
 |---|---|---|---|
 | 07 | Modou Jallow | 7300007 | Wellington Road, 7am to 1pm |
 | 12 | Awa Sarr | 7300012 | Wellington Road, 1pm to 7pm |
 
-On the line, send `START`, then plates such as `BJL1234` (paid), `BJL9191` (unpaid) or `BJL7001` (organisation), then `END`.
+Start the shift, then check plates such as `BJL1234` (paid), `BJL9191` (unpaid) or `BJL7001` (organisation).
 
-**Organisation portal:** contact phone `7101234` (Mariama S., Demo Bank), code `482913`.
+**Organisation portal:** contact phone `7101234` (Mariama S., Demo Bank); the code appears on screen.
 
-**Back office:** opens signed in as Aisha K., ParkNa Admin.
+**Back office:** `admin` and the password written to `parkna.log` at the first start; add staff accounts for the
+other roles in **Staff & audit**.
 
 ## Running the demo
 
-The back office has a **Demo clock** bar at the bottom:
+On a demo server, administrators get a **Demo clock** bar at the bottom of the back office:
 
 - `−1h`, `+1h`, `07:00`, `10:00`, `19:20`: move the time of day (paid hours are 7am to 7pm, Monday to Saturday).
 - `Next day`: moves to the next day and resets the day's shifts.
@@ -94,7 +115,7 @@ The back office has a **Demo clock** bar at the bottom:
 A suggested order:
 
 1. **Driver** Musa pays BJL8080 with Afrimoney.
-2. **Officer** Modou sends START, then BJL8080 (PAID), BJL9191 (UNPAID) and BJL7001 (organisation).
+2. **Attendant** Modou starts his shift, then checks BJL8080 (PAID), BJL9191 (NOT PAID) and BJL7001 (organisation).
 3. **Organisation portal**: Demo Bank sees BJL7001 checked at that time.
 4. **Back office**: the payment, the checks and the attendant's shift are live; reassign Modou to another road and his line gets the SMS.
 5. **Driver** Ebrima tries Wave with a low balance, then pays with another provider.
@@ -107,21 +128,24 @@ A suggested order:
 - No fines and no clamping during the pilot.
 - Organisations are invoiced on the 25th, due on the 1st, with 5 days' grace; after that their plates revert to normal pricing.
 - Revenue share: 60% Council, 40% operator.
-- Shortcode 7275 is a placeholder.
+- SMS shortcode: `sms.shortcode` in `config.properties` (7275 until the operator confirms the number).
 
 ## Repository layout
 
 ```
 frontend/portal/      landing page, back office (admin.html), organisation portal (org.html)
 frontend/shared/      engine.js (read-side rules the screens use), client.js, fonts, images
+frontend/shared/      also ui.css / ui.js: the apps' design system (Plus Jakarta Sans, lime, grey, navy)
 apps/driver/          driver app (Capacitor): www/ is the app, res/ the icon and splash
-apps/officer/         officer app (Capacitor)
+apps/officer/         attendant app (Capacitor)
+store/                Google Play graphics: icons, feature graphics, phone screenshots
 backend/              Java back end (Maven, WAR for Tomcat 10.1): rules engine, MariaDB, API, SMS gateway
 config/               database.properties and config.properties templates
 deploy/               Nginx, Tomcat and Kannel files; deploy, rollback and backup scripts
-docs/                 ARCHITECTURE.md, DEPLOYMENT.md
-scripts/              build-frontend.js, prepare-android.js, package-release.sh, parity/ (engine parity tests)
-build/                the shared signing key used by the APK builds
+docs/                 ARCHITECTURE.md, DEPLOYMENT.md, PLAY_STORE.md
+scripts/              build-frontend.js, prepare-android.js, package-release.sh, parity/ (engine parity tests),
+                      art/make-art.js (draws the icons, splash screens and Play graphics)
+build/                the shared test signing key (test builds only; Play builds use the upload key from the secrets)
 .github/workflows/    the build
 ```
 
@@ -146,18 +170,18 @@ A business rule lives in the Java engine (`backend/.../engine/ParkingEngine.java
 `scripts/parity/generate.js`, and the parity tests check that they agree. A database change is a new
 `backend/src/main/resources/db/migration/V<n>__name.sql`, added to `index.txt`.
 
-### Building the APKs on your own computer
+### Building the apps on your own computer
 
 Needs Node.js 22, Java 21 and the Android SDK.
 
 ```bash
-node scripts/build-frontend.js
+PARKNA_SERVER_URL=https://parkna.example.gm node scripts/build-frontend.js   # leave it out to ask on first start
 cd apps/driver                                         # or apps/officer
 npm install
 npx cap add android
-node ../../scripts/prepare-android.js 0.2 1            # icons, version, text size cap
 npx cap sync android
-cd android && ./gradlew assembleDebug
+PARKNA_SERVER_URL=https://parkna.example.gm node ../../scripts/prepare-android.js 1.0 1   # after every sync
+cd android && ./gradlew assembleDebug                  # or bundleRelease with the PARKNA_KEY* variables, see docs/PLAY_STORE.md
 ```
 
 The apps follow the phone's font size setting only up to 100%, because the screens are laid out for that size.
@@ -165,4 +189,4 @@ To allow bigger text, raise `MAX_TEXT_ZOOM` in `scripts/prepare-android.js`.
 
 ---
 
-INNOVII · ParkNa v0.2
+INNOVII · ParkNa 1.0

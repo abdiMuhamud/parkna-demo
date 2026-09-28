@@ -151,7 +151,12 @@ chown sdf:vivacom *.properties && chmod 640 *.properties
 | File | Key settings |
 |---|---|
 | `database.properties` | `db.url=jdbc:mariadb://127.0.0.1:3306/parkna`, `db.username`, `db.password`, pool size, `db.migrate` |
-| `config.properties` | `server.publicUrl` (the address people type into the apps), `api.allowedOrigins`, `clock.mode` (`demo` or `real`), `demo.controls.enabled`, `sms.gateway` (`simulated` or `kannel`) and the `sms.kannel.*` settings |
+| `config.properties` | `app.mode` (`production` or `demo`), `server.publicUrl`, `support.phone` / `support.email`, `api.allowedOrigins`, `sms.gateway` (`simulated` or `kannel`) and the `sms.kannel.*` settings, sign-in (`auth.*`), `payments.mode`, the bank account for organisation invoices (`billing.bank.*`) |
+
+`app.mode=production` is a real service: it starts with an **empty** database, follows the real time in Banjul, has no
+demo controls, keeps payments off (`payments.mode=off`) until a mobile-money provider is connected, and sends sign-in
+codes by SMS. `app.mode=demo` loads the demo story (sample drivers, attendants and Demo Bank) with a movable clock and
+pretend wallets, for training and sales demos. Never point a demo server and a production server at the same database.
 
 Any change needs `systemctl restart tomcat`. A missing or wrong setting stops the deployment with the reason in
 `catalina.out` and `parkna.log` (e.g. `ParkNa failed to start: database.properties: db.url is required`).
@@ -192,24 +197,47 @@ No domain yet? Use `parkna-http.conf` instead (plain HTTP by IP address) and rem
 ```
 The script stages the release, backs up the database, keeps the running WAR and front end as the rollback point, puts
 the front end live, swaps the WAR (Tomcat stop/start) and waits until ParkNa answers `/api/health`. On the first
-deployment ParkNa creates the tables and loads the pilot's starting data.
+deployment ParkNa creates the tables. In production mode it starts empty and creates the first back-office account:
+
+```bash
+grep -A2 "First start" /opt/tomcat/logs/parkna.log
+#  First start: created the back-office account 'admin'
+#  Password: xxxxxxxxxxxxxx   (shown only this once)
+```
+Sign in at `https://<your-domain>/admin` with `admin` and that password; ParkNa asks you to choose your own password
+straight away. Then, in **Staff & audit**, add an account for each person (administrator, supervisor, finance or Council)
+and give each their temporary password in person. Nobody should share the `admin` account.
 
 **Verification (post-deployment checklist, manual 2.5.3):**
 - `grep ParkNa /opt/tomcat/logs/catalina.out | tail` ends with `ParkNa is running`, and no stack traces.
 - `curl -s https://<your-domain>/api/health` → `{"ok":true,"database":"up",...}` (through Nginx, not only on 8080).
 - `https://<your-domain>/admin` shows the back office, and `/org` the organisation portal.
-- A test payment in the driver app appears in the back office within a second or two (proves the live updates work through Nginx).
+- Register a test attendant in the back office, sign in to the ParkNa Officer app with that number and send START: the
+  attendant shows as on shift in the back office within a second or two (proves SMS codes and live updates work
+  through Nginx). Switch the test attendant off afterwards.
 - `/home/sdf/deliverables/parkna-prev.war` exists (rollback point), and the rollback steps are in the change record.
 
 ## 7. Connect the apps
 
-Install the APKs from the GitHub release. On first start each app asks for the server address: enter
-`https://<your-domain>` **including `https://`** and tap Connect. To change it later: **Account → Change server**
-(driver) or **menu → Change server** (officer line).
+The apps published on Google Play have the server address built in (repository variable `PARKNA_SERVER_URL`, see
+`docs/PLAY_STORE.md`): people install, enter their phone number and the code from the SMS, and are in.
 
-## 8. SMS through Kannel (optional, manual 2.1)
+Test builds (`*-test.apk` in the GitHub release, or apps built without `PARKNA_SERVER_URL`) ask for the server address
+on first start: enter `https://<your-domain>` **including `https://`** and tap Connect.
 
-With `sms.gateway=simulated` the SMS only appear in the apps and portals. To send and receive real SMS on the short code:
+Who signs in how:
+
+| Who | Where | How |
+|---|---|---|
+| Drivers | ParkNa app | their mobile number, then the 6-digit code sent by SMS |
+| Parking attendants | ParkNa Officer app | the number registered for them in the back office (Attendants → Register officer), then the SMS code |
+| Organisations | `https://<your-domain>/org` | the billing contact's number set when the organisation was created, then the SMS code |
+| ParkNa and Council staff | `https://<your-domain>/admin` | their own username and password (Staff & audit) |
+
+## 8. SMS through Kannel (manual 2.1)
+
+A real service needs this: sign-in codes, receipts and attendant replies are SMS. With `sms.gateway=simulated` (test
+servers) the SMS only appear in the apps and portals. To send and receive real SMS on the short code:
 1. Install Kannel as in manual 2.1 (same server or the SMS gateway node).
 2. Add the two groups from `deploy/kannel/parkna-sms.conf` to `kannel.conf` and set the password. Restart Kannel.
 3. In `config.properties`: `sms.gateway=kannel` and the same `sms.kannel.username` / `sms.kannel.password`, the sender ID the operator approved (`sms.kannel.from`), and on a separate gateway node, `sms.kannel.sendsmsUrl=http://sms-gw:13013/cgi-bin/sendsms` and its address in `sms.mo.allowedIps`. On a separate node, also open 8080 to that node only (`firewall-cmd --permanent --add-rich-rule='rule family=ipv4 source address=<gw-ip> port port=8080 protocol=tcp accept'`) and bind the Tomcat connector to the HeartBeat address instead of 127.0.0.1.
@@ -262,11 +290,50 @@ deploy/scripts/rollback.sh
 
 ## 11. Before real use (go-live checklist)
 
-- `demo.controls.enabled=false` (the demo clock bar and **Reset demo**, which deletes everything, stop working).
-- `clock.mode=real` so the service follows the real date and time in Banjul.
-- HTTPS only (`parkna.conf`), `api.allowedOrigins=https://<domain>,http://localhost`.
+**Start clean.** A production server starts from an empty database. If this database ever ran the demo, empty it first
+(after a backup), then deploy or restart Tomcat:
+```bash
+systemctl stop tomcat
+mysqldump parkna | gzip > /backup/parkna/before-go-live-$(date +%F).sql.gz
+mysql -e "DROP DATABASE parkna; CREATE DATABASE parkna CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+systemctl start tomcat          # creates the tables and the first 'admin' account (password in parkna.log)
+```
+(The `parkna` user keeps its grants: they are per database name.)
+
+**config.properties**
+- `app.mode=production`, and no `clock.mode`, `demo.controls.enabled` or `payments.mode=simulated` lines.
+- `sms.gateway=kannel` with working Kannel settings (step 8): sign-in codes are SMS, so nobody can sign in without it.
+- `auth.otp.showCodeInApp=false` (the default in production; it only works with the simulated gateway anyway).
+- `support.phone` and `support.email`: shown in the apps' help, on the home page and in the privacy policy.
+- `billing.bank.name`, `billing.bank.accountName`, `billing.bank.accountNumber`: the account organisations pay into.
+- `server.publicUrl=https://<domain>` and `api.allowedOrigins=https://<domain>,https://localhost,http://localhost`
+  (the apps load from `https://localhost`, or `http://localhost` in test builds).
+- No `auth.reviewNumbers` line once Google Play has approved the apps.
+
+**Server**
+- HTTPS only (`parkna.conf` with a certificate). The Play Store apps built for `https://` refuse plain HTTP.
 - Strong, unique passwords in `database.properties` and Kannel; property files `chmod 640`.
-- **Sign-in for the back office is not built yet.** In this version anyone who can reach the server can open
-  `/admin` and act as an administrator. Until accounts are added, keep the server private: restrict 443 to known
-  addresses in firewalld or Nginx (`allow`/`deny`), or put the back office behind the office VPN.
-- Payments are simulated (every number starts with 5,000 GMD per provider). Real Wave, Afrimoney, APS and QMoney integrations are still to be built.
+- Nightly database backup in cron (step 9) and one restore tried on a test machine.
+- `https://<domain>/privacy.html` opens: Google Play needs this address.
+
+**People and data**
+- Your own administrator password chosen; a named account for everyone in Staff & audit.
+- Tariff confirmed in Tariffs & rules, with the Council's authority reference.
+- Attendants registered with their real numbers, roads and shifts; organisations created with their billing contacts.
+- Mobile-money payments stay off (`payments.mode=off`, the default): the apps say "opens soon" and organisations pay
+  invoices by bank transfer, which Finance matches in Payments. Wave, Afrimoney, APS and QMoney are connected in a
+  later release, when the provider agreements and API access are in place.
+
+## 12. Beside another Tomcat on a shared server
+
+When the server already runs another application's Tomcat (for example SDF on Tomcat 8.5 as the `tomcat` service),
+give ParkNa its own Tomcat 10.1 and leave the other one untouched:
+- Install it in its own folder (e.g. `/opt/tomcat-parkna`), with its own systemd unit (e.g. `tomcat-parkna.service`).
+- In its `conf/server.xml` use free ports: shutdown `8006` instead of `8005`, HTTP connector `127.0.0.1:8081` instead of 8080.
+- In the Nginx files change `server 127.0.0.1:8080;` in `upstream parkna_tomcat` to `127.0.0.1:8081`.
+- Deploy and roll back with the matching settings:
+```bash
+TOMCAT=/opt/tomcat-parkna HEALTH_URL=http://127.0.0.1:8081/parkna/api/health \
+TOMCAT_STOP="systemctl stop tomcat-parkna" TOMCAT_START="systemctl start tomcat-parkna" \
+  /home/sdf/deliverables/parkna-<version>/deploy/scripts/deploy.sh /home/sdf/deliverables/parkna-<version>.tar.gz
+```

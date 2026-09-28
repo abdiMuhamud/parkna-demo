@@ -1,5 +1,6 @@
 package com.innovii.parkna.web;
 
+import com.innovii.parkna.auth.AuthService;
 import com.innovii.parkna.config.AppConfig;
 import com.innovii.parkna.service.ParknaService;
 import com.innovii.parkna.sms.SmsGateway;
@@ -27,7 +28,7 @@ import java.util.Properties;
 public class AppListener implements ServletContextListener {
     private static final Logger log = LoggerFactory.getLogger(AppListener.class);
 
-    static final String SERVICE = "parkna.service", CONFIG = "parkna.config", EVENTS = "parkna.events";
+    static final String SERVICE = "parkna.service", CONFIG = "parkna.config", EVENTS = "parkna.events", AUTH = "parkna.auth";
     static final String VERSION = readVersion();
 
     private HikariDataSource ds;
@@ -50,13 +51,19 @@ public class AppListener implements ServletContextListener {
             hc.setMinimumIdle(cfg.db.minIdle());
             hc.setConnectionTimeout(cfg.db.connectionTimeoutMs());
             ds = new HikariDataSource(hc);
-            events = new EventHub();
-            service = new ParknaService(cfg, ds, SmsGateway.from(cfg.sms));
+            SmsGateway sms = SmsGateway.from(cfg.sms);
+            service = new ParknaService(cfg, ds, sms);
             service.start();
+            AuthService auth = new AuthService(cfg, ds, sms, service);
+            service.setAuth(auth);
+            auth.bootstrap();
+            service.every(60, auth::cleanup);
+            events = new EventHub(auth);
             service.addListener(events);
             ctx.setAttribute(CONFIG, cfg);
             ctx.setAttribute(SERVICE, service);
             ctx.setAttribute(EVENTS, events);
+            ctx.setAttribute(AUTH, auth);
             log.info("ParkNa is running");
         } catch (Exception e) {
             log.error("ParkNa failed to start: {}", e.getMessage(), e);

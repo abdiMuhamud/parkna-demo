@@ -1,8 +1,12 @@
 package com.innovii.parkna.service;
 
+import com.innovii.parkna.auth.AuthService;
+import com.innovii.parkna.auth.Role;
+import com.innovii.parkna.auth.Session;
 import com.innovii.parkna.config.AppConfig;
 import com.innovii.parkna.db.Migrator;
 import com.innovii.parkna.db.StateRepository;
+import com.innovii.parkna.engine.Cal;
 import com.innovii.parkna.engine.Changes;
 import com.innovii.parkna.engine.ParkingEngine;
 import com.innovii.parkna.json.Json;
@@ -16,32 +20,79 @@ import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.ZonedDateTime;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
+import java.util.function.Function;
+
+import static com.innovii.parkna.auth.Role.ADMIN;
+import static com.innovii.parkna.auth.Role.DRIVER;
+import static com.innovii.parkna.auth.Role.FINANCE;
+import static com.innovii.parkna.auth.Role.OFFICER;
+import static com.innovii.parkna.auth.Role.ORG;
+import static com.innovii.parkna.auth.Role.SUPERVISOR;
 
 /**
- * Runs the engine for the whole server: one action at a time, each saved to MariaDB in its own transaction
- * before anyone sees it. After a save, outgoing SMS go to the gateway and the new state is pushed to every
- * connected screen. If a save fails, the action is undone by reloading from the database.
+ * Runs the engine for the whole server: one action at a time, each checked against the signed-in person's role,
+ * saved to MariaDB in its own transaction before anyone sees it, then pushed to every open screen as that
+ * person's own view. If a save fails, the action is undone by reloading from the database.
  */
-public final class ParknaService implements AutoCloseable {
+public final class ParknaService implements AutoCloseable, AuthService.Directory {
     private static final Logger log = LoggerFactory.getLogger(ParknaService.class);
+
+    /** Which roles may run each action. Anything not listed is refused. */
+    private static final Map<String, Set<Role>> ALLOWED = Map.ofEntries(
+            Map.entry("driver.login", EnumSet.of(DRIVER)),
+            Map.entry("driver.addPlate", EnumSet.of(DRIVER)),
+            Map.entry("driver.removePlate", EnumSet.of(DRIVER)),
+            Map.entry("driver.focus", EnumSet.of(DRIVER)),
+            Map.entry("driver.pay", EnumSet.of(DRIVER)),
+            Map.entry("driver.status", EnumSet.of(DRIVER)),
+            Map.entry("sms", EnumSet.of(OFFICER)),
+            Map.entry("org.addPlate", EnumSet.of(ORG)),
+            Map.entry("org.addPlates", EnumSet.of(ORG)),
+            Map.entry("org.removePlate", EnumSet.of(ORG)),
+            Map.entry("org.uploadProof", EnumSet.of(ORG)),
+            Map.entry("org.payWallet", EnumSet.of(ORG)),
+            Map.entry("back.register", EnumSet.of(ADMIN, SUPERVISOR)),
+            Map.entry("back.reassign", EnumSet.of(ADMIN, SUPERVISOR)),
+            Map.entry("back.createOrg", EnumSet.of(ADMIN)),
+            Map.entry("back.match", EnumSet.of(ADMIN, FINANCE)),
+            Map.entry("back.refer", EnumSet.of(ADMIN, FINANCE)),
+            Map.entry("back.exception", EnumSet.of(ADMIN, FINANCE, SUPERVISOR)),
+            Map.entry("back.publish", EnumSet.of(ADMIN)),
+            Map.entry("back.announce", EnumSet.of(ADMIN)),
+            Map.entry("back.announceStatus", EnumSet.of(ADMIN)),
+            Map.entry("back.announceDelete", EnumSet.of(ADMIN)),
+            Map.entry("clock.set", EnumSet.of(ADMIN)),
+            Map.entry("clock.add", EnumSet.of(ADMIN)),
+            Map.entry("clock.nextDay", EnumSet.of(ADMIN)),
+            Map.entry("clock.run", EnumSet.of(ADMIN)),
+            Map.entry("demo.reset", EnumSet.of(ADMIN)));
+
+    /** Something that shows the state to people (the live-update stream). Called under the lock; must only queue work. */
+    public interface Listener {
+        void changed(Function<Session, String> viewFor);
+    }
 
     private final AppConfig cfg;
     private final DataSource ds;
     private final SmsGateway sms;
+    private final Views views;
     private final StateRepository repo = new StateRepository();
     private final ReentrantLock lock = new ReentrantLock();
-    private final List<Consumer<String>> listeners = new CopyOnWriteArrayList<>();
+    private final List<Listener> listeners = new CopyOnWriteArrayList<>();
     private final ScheduledExecutorService clock = Executors.newSingleThreadScheduledExecutor(r -> { Thread t = new Thread(r, "parkna-clock"); t.setDaemon(true); return t; });
+    private AuthService auth;
     private ParkingEngine engine;
+    /** The full state as JSON, rebuilt after every change and shared by all staff views. */
     private volatile String snapshot;
     /** Held while this server runs, with a MariaDB lock that stops a second ParkNa from using the same database. */
     private Connection instanceLock;
@@ -50,7 +101,11 @@ public final class ParknaService implements AutoCloseable {
         this.cfg = cfg;
         this.ds = ds;
         this.sms = sms;
+        this.views = new Views(cfg);
     }
+
+    /** Used to write the audit log. */
+    public void setAuth(AuthService auth) { this.auth = auth; }
 
     public void start() throws SQLException {
         takeInstanceLock();
@@ -58,18 +113,28 @@ public final class ParknaService implements AutoCloseable {
         try (Connection c = ds.getConnection()) {
             State s = repo.load(c);
             if (s == null) {
-                engine = ParkingEngine.seeded();
-                if (cfg.clockMode == AppConfig.ClockMode.REAL) startAtToday(engine.state());
+                if (cfg.mode == AppConfig.Mode.DEMO) {
+                    engine = ParkingEngine.seeded();
+                    if (cfg.clockMode == AppConfig.ClockMode.REAL) startAtToday(engine.state());
+                    log.info("Database was empty: loaded the demo story (app.mode=demo)");
+                } else {
+                    ZonedDateTime now = ZonedDateTime.now(cfg.timezone);
+                    engine = ParkingEngine.empty(now.toLocalDate(), now.getHour() * 60 + now.getMinute());
+                    log.info("Database was empty: started a new ParkNa service with no data (app.mode=production)");
+                }
                 c.setAutoCommit(false);
                 repo.save(c, engine.state(), engine.takeChanges());
                 c.commit();
-                log.info("Database was empty: loaded the ParkNa pilot starting data");
             } else {
                 engine = new ParkingEngine(s);
                 log.info("Loaded ParkNa data from the database: {} phone numbers, {} plates, {} attendants, {} organisations, clock {} {}",
-                        s.nums.size(), s.plates.size(), s.off.size(), s.orga.size(), s.clock.date, com.innovii.parkna.engine.Cal.hm(s.clock.min));
+                        s.nums.size(), s.plates.size(), s.off.size(), s.orga.size(), s.clock.date, Cal.hm(s.clock.min));
+                if (cfg.mode == AppConfig.Mode.PRODUCTION && s.off.values().stream().anyMatch(o -> o.bg != null))
+                    log.warn("app.mode=production, but this database holds the DEMO story (sample drivers, attendants, Demo Bank). "
+                            + "Empty the database before real use (docs/DEPLOYMENT.md, section 11), or set app.mode=demo for a demo server.");
             }
         }
+        engine.setPaymentsEnabled(cfg.payments == AppConfig.PaymentsMode.SIMULATED);
         snapshot = Json.snapshot(engine.state());
         if (cfg.clockMode == AppConfig.ClockMode.REAL) {
             syncRealClock();
@@ -77,6 +142,13 @@ public final class ParknaService implements AutoCloseable {
         } else {
             clock.scheduleAtFixedRate(this::tick, 60, 60, TimeUnit.SECONDS);
         }
+    }
+
+    /** Runs a housekeeping job on the service's scheduler. */
+    public void every(long minutes, Runnable job) {
+        clock.scheduleAtFixedRate(() -> {
+            try { job.run(); } catch (RuntimeException e) { log.warn("Housekeeping failed: {}", e.getMessage()); }
+        }, minutes, minutes, TimeUnit.MINUTES);
     }
 
     private void takeInstanceLock() throws SQLException {
@@ -94,19 +166,102 @@ public final class ParknaService implements AutoCloseable {
         s.clock.min = now.getHour() * 60 + now.getMinute();
     }
 
-    /** The state as the screens receive it. */
-    public String snapshot() { return snapshot; }
+    // ================================================================== views
 
-    public void addListener(Consumer<String> l) { listeners.add(l); }
-    public void removeListener(Consumer<String> l) { listeners.remove(l); }
+    /** What this person may see, as JSON. */
+    public String viewFor(Session s) {
+        lock.lock();
+        try { return views.forSession(engine, s, snapshot); }
+        finally { lock.unlock(); }
+    }
 
-    /** Runs one action from a screen and returns its answer. */
-    public Map<String, Object> act(Map<String, Object> a) {
+    /** What this server offers (for /api/ping, before sign-in). */
+    public Map<String, Object> mode() {
+        lock.lock();
+        try { return views.mode(engine); }
+        finally { lock.unlock(); }
+    }
+
+    public void addListener(Listener l) { listeners.add(l); }
+    public void removeListener(Listener l) { listeners.remove(l); }
+
+    // ================================================================== sign-in directory
+
+    @Override public String refuse(String num, Role role) {
+        lock.lock();
+        try {
+            return switch (role) {
+                case OFFICER -> engine.isOfficer(num) ? null : "This number is not a registered ParkNa attendant. Ask your supervisor to register it in the back office.";
+                case ORG -> engine.orgForContact(num) != null ? null : "This number is not the contact on a ParkNa organisation account.";
+                case DRIVER -> engine.isOfficer(num) ? "This number belongs to a ParkNa attendant. Use the ParkNa Officer app." : null;
+                default -> "Staff sign in with a username and password.";
+            };
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    @Override public String orgFor(String num) {
+        lock.lock();
+        try { return engine.orgForContact(num); }
+        finally { lock.unlock(); }
+    }
+
+    // ================================================================== actions
+
+    /** Runs one action for a signed-in person, after checking they may. */
+    public Map<String, Object> act(Session s, Map<String, Object> a, String ip) {
         String type = String.valueOf(a.get("type"));
-        if (!cfg.demoControls && (type.startsWith("clock.") || type.equals("demo.reset")))
-            return error("Demo controls are switched off on this server.");
-        if (cfg.clockMode == AppConfig.ClockMode.REAL && type.startsWith("clock."))
-            return error("The clock follows real time on this server.");
+        a.remove("_actor");
+        Set<Role> allowed = ALLOWED.get(type);
+        if (allowed == null || !allowed.contains(s.role())) {
+            if (s.staff() && auth != null) auth.audit(s.name(), s.role(), type, null, "refused", "not allowed for this role", ip);
+            return error(s.role() == Role.COUNCIL ? "The Council view is read-only." : "You are not allowed to do that.");
+        }
+        if (s.staff() && s.mustChangePassword()) return error("Choose a new password first.");
+        if (type.startsWith("clock.") || type.equals("demo.reset")) {
+            if (!cfg.demoControls) return error("Demo controls are switched off on this server.");
+            if (cfg.clockMode == AppConfig.ClockMode.REAL && type.startsWith("clock.")) return error("The clock follows real time on this server.");
+        }
+        switch (s.role()) {
+            case DRIVER -> a.put("num", s.subject());
+            case OFFICER -> {
+                a.put("num", s.subject());
+                if (!isOfficer(s.subject())) return error("Your attendant account is switched off. Ask your supervisor.");
+            }
+            case ORG -> {
+                a.put("org", s.orgId());
+                if (!s.orgId().equals(orgFor(s.subject()))) return error("This number is no longer the contact for " + s.orgId() + ".");
+            }
+            default -> a.put("_actor", s.name());
+        }
+        if (type.equals("driver.status")) {
+            lock.lock();
+            try { return engine.plateStatus(a.get("plate")); }
+            finally { lock.unlock(); }
+        }
+        Map<String, Object> r = run(a, s.who());
+        if (s.staff() && auth != null) auth.audit(s.name(), s.role(), type, target(a), r.containsKey("err") ? "refused" : "ok", r.containsKey("err") ? String.valueOf(r.get("err")) : null, ip);
+        return r;
+    }
+
+    private boolean isOfficer(String num) {
+        lock.lock();
+        try { return engine.isOfficer(num); }
+        finally { lock.unlock(); }
+    }
+
+    /** An SMS that arrived from a real phone through Kannel (the phone network vouches for the number). */
+    public Map<String, Object> incomingSms(String from, String text) {
+        Map<String, Object> a = new LinkedHashMap<>();
+        a.put("type", "sms");
+        a.put("num", from);
+        a.put("text", text);
+        return run(a, "sms from +" + from.replaceAll("[^0-9]", ""));
+    }
+
+    private Map<String, Object> run(Map<String, Object> a, String who) {
+        String type = String.valueOf(a.get("type"));
         long t0 = System.nanoTime();
         Map<String, Object> r;
         lock.lock();
@@ -116,27 +271,25 @@ public final class ParknaService implements AutoCloseable {
             Changes ch = engine.takeChanges();
             if (!persist(ch)) return error("Could not save that. Please try again.");
             snapshot = Json.snapshot(engine.state());
-            publish(ch.outgoing(), snapshot);
+            publish(ch.outgoing());
         } catch (RuntimeException e) {
             log.error("Action {} failed; reloading from the database", type, e);
             reloadQuietly();
-            return error("Server error: " + e.getMessage());
+            return error("Something went wrong on the server. Please try again.");
         } finally {
             lock.unlock();
         }
         long ms = (System.nanoTime() - t0) / 1_000_000;
-        if (r.containsKey("err")) log.info("{} {} -> refused: {} ({} ms)", type, who(a), r.get("err"), ms);
-        else log.info("{} {} -> ok ({} ms)", type, who(a), ms);
+        if (r.containsKey("err")) log.info("{} by {} -> refused: {} ({} ms)", type, who, r.get("err"), ms);
+        else log.info("{} by {} -> ok ({} ms)", type, who, ms);
         return r;
     }
 
-    /** An SMS that arrived from a real phone through Kannel. */
-    public Map<String, Object> incomingSms(String from, String text) {
-        Map<String, Object> a = new LinkedHashMap<>();
-        a.put("type", "sms");
-        a.put("num", from);
-        a.put("text", text);
-        return act(a);
+    private static String target(Map<String, Object> a) {
+        StringBuilder b = new StringBuilder();
+        for (String k : new String[]{"off", "org", "inv", "plate", "phone", "name", "road", "id", "daily", "title"})
+            if (a.get(k) != null) { if (b.length() > 0) b.append(' '); b.append(k).append('=').append(a.get(k)); }
+        return b.toString();
     }
 
     /** Demo clock: one minute passes. */
@@ -145,7 +298,7 @@ public final class ParknaService implements AutoCloseable {
         try {
             if (engine.tickMinute()) {
                 engine.bump();
-                if (persist(engine.takeChanges())) { snapshot = Json.snapshot(engine.state()); publish(List.of(), snapshot); }
+                if (persist(engine.takeChanges())) { snapshot = Json.snapshot(engine.state()); publish(List.of()); }
             }
         } catch (RuntimeException e) {
             log.error("Clock tick failed", e);
@@ -166,7 +319,7 @@ public final class ParknaService implements AutoCloseable {
             if (engine.syncTo(now.toLocalDate(), now.getHour() * 60 + now.getMinute())) {
                 engine.bump();
                 Changes ch = engine.takeChanges();
-                if (persist(ch)) { snapshot = Json.snapshot(engine.state()); publish(ch.outgoing(), snapshot); }
+                if (persist(ch)) { snapshot = Json.snapshot(engine.state()); publish(ch.outgoing()); }
             }
         } catch (RuntimeException e) {
             log.error("Clock update failed", e);
@@ -196,19 +349,25 @@ public final class ParknaService implements AutoCloseable {
     private void reloadQuietly() {
         try (Connection c = ds.getConnection()) {
             State s = repo.load(c);
-            if (s != null) { engine = new ParkingEngine(s); snapshot = Json.snapshot(s); }
+            if (s != null) {
+                boolean pay = engine != null && engine.paymentsEnabled();
+                engine = new ParkingEngine(s);
+                engine.setPaymentsEnabled(pay);
+                snapshot = Json.snapshot(s);
+            }
         } catch (SQLException e) {
             log.error("Could not reload from MariaDB either; the server keeps the unsaved data in memory until the database is back", e);
         }
     }
 
-    /** Hands new SMS to the gateway and the new state to the screens. Both only queue work, so this runs under the lock and keeps the order. */
-    private void publish(List<OutMessage> outgoing, String snap) {
+    /** Hands new SMS to the gateway and tells the screens. Both only queue work, so this runs under the lock and keeps the order. */
+    private void publish(List<OutMessage> outgoing) {
         for (OutMessage m : outgoing) {
             try { sms.send(m); } catch (RuntimeException e) { log.error("SMS gateway error", e); }
         }
-        for (Consumer<String> l : listeners) {
-            try { l.accept(snap); } catch (RuntimeException e) { log.warn("Could not push the state to a screen", e); }
+        Function<Session, String> viewFor = s -> views.forSession(engine, s, snapshot);
+        for (Listener l : listeners) {
+            try { l.changed(viewFor); } catch (RuntimeException e) { log.warn("Could not push the state to the screens", e); }
         }
     }
 
@@ -219,11 +378,6 @@ public final class ParknaService implements AutoCloseable {
     }
 
     private static Map<String, Object> error(String m) { Map<String, Object> r = new LinkedHashMap<>(); r.put("err", m); return r; }
-
-    private static String who(Map<String, Object> a) {
-        for (String k : new String[]{"num", "phone", "org", "off"}) if (a.get(k) != null) return k + "=" + a.get(k);
-        return "";
-    }
 
     @Override public void close() {
         clock.shutdownNow();
