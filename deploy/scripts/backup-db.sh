@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Nightly ParkNa database backup to /backup (SI/QA manual 1.5.5). Credentials come from /root/.my.cnf.
-# crontab -e (as root):   0 2 * * *  /home/sdf/applications/parkna/deploy/scripts/backup-db.sh
+# Copy it once:  install -m 750 deploy/scripts/backup-db.sh /home/sdf/parkna/backup-db.sh
+# crontab -e (as root):   0 2 * * *  /home/sdf/parkna/backup-db.sh >> /backup/parkna/backup.log 2>&1
 set -euo pipefail
 DB=${DB:-parkna}
 BACKUP_DIR=${BACKUP_DIR:-/backup/parkna}
