@@ -75,7 +75,7 @@ if (System.getenv("PARKNA_KEYSTORE")) {
 /* splash background (Android 12 and later show the icon on this colour) */
 edit(path.join(main, "res", "values", "styles.xml"), /<item name="android:background">@drawable\/splash<\/item>/, s => {
   s = s.replace(/<item name="windowSplashScreenBackground">[^<]*<\/item>/g, "");
-  return s.replace('<item name="android:background">@drawable/splash</item>', '<item name="android:background">@drawable/splash</item><item name="windowSplashScreenBackground">#EDEFF2</item>');
+  return s.replace('<item name="android:background">@drawable/splash</item>', '<item name="android:background">@drawable/splash</item><item name="windowSplashScreenBackground">#F6FBFE</item>');
 });
 
 const activity = path.join(main, "java", ...appId.split("."), "MainActivity.java");

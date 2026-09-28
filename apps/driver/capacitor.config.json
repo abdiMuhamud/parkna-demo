@@ -2,7 +2,7 @@
   "appId": "com.innovii.parkna.driver",
   "appName": "ParkNa",
   "webDir": "www",
-  "backgroundColor": "#EDEFF2",
+  "backgroundColor": "#F6FBFE",
   "server": {
     "androidScheme": "http",
     "cleartext": true

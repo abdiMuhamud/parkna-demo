@@ -5,69 +5,84 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ParkNa · Banjul City Council parking</title>
 <meta name="description" content="ParkNa is Banjul City Council's parking service: daily and monthly passes on your phone, fleet cover for organisations.">
-<meta name="theme-color" content="#EDEFF2">
+<meta name="theme-color" content="#F6FBFE">
 <link rel="icon" href="shared/img/crest.png">
 <style>
+/* the look of the ParkNa apps ("ParkNa Final Designs"): pale blue, ParkNa navy, sun yellow, link blue, Banjul scenes */
 @font-face{font-family:Jakarta;font-weight:400;font-display:swap;src:url(shared/fonts/jakarta-400.woff2) format('woff2')}
-@font-face{font-family:Jakarta;font-weight:600;font-display:swap;src:url(shared/fonts/jakarta-600.woff2) format('woff2')}
+@font-face{font-family:Jakarta;font-weight:500;font-display:swap;src:url(shared/fonts/jakarta-500.woff2) format('woff2')}
+@font-face{font-family:Jakarta;font-weight:700;font-display:swap;src:url(shared/fonts/jakarta-700.woff2) format('woff2')}
 @font-face{font-family:Jakarta;font-weight:800;font-display:swap;src:url(shared/fonts/jakarta-800.woff2) format('woff2')}
-:root{--navy:#0B2540;--lime:#D5F56E;--grey:#EDEFF2;--muted:#5E6B7D;--card:#fff}
+:root{--bg:#F6FBFE;--ink:#0A1B4D;--navy:#0B2E63;--hero:#0D2F5D;--yellow:#FEDB46;--yellow2:#FEE166;--blue:#035BF0;--bluesoft:#DFF1FC;--mute:#63709E;--line:#E8EEF5;--green:#5FD98A}
 *{box-sizing:border-box;margin:0}
 [hidden]{display:none!important}
-body{min-height:100vh;font-family:Jakarta,system-ui,sans-serif;word-spacing:.07em;color:var(--navy);background:var(--grey);padding:28px 16px 40px}
-.w{max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+body{min-height:100vh;font-family:Jakarta,system-ui,sans-serif;word-spacing:.07em;color:var(--ink);background:var(--bg);padding:24px 16px 40px}
+a{color:var(--blue);text-decoration:none}
+.w{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
 header{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.brand{display:flex;align-items:center;gap:12px}
-.brand span{width:48px;height:48px;border-radius:15px;background:#fff;display:grid;place-items:center;box-shadow:0 1px 2px rgba(11,37,64,.08)}
-.brand img{width:36px}
-.brand small{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.brand b{font-size:21px;font-weight:800;letter-spacing:-.02em}
-.staff{color:var(--navy);font-weight:600;font-size:14px;text-decoration:none;background:#fff;border-radius:999px;padding:10px 16px}
-.hero{background:var(--navy);color:#fff;border-radius:28px;padding:34px 28px;display:grid;grid-template-columns:1.3fr 1fr;gap:24px;align-items:center;
-  background-image:radial-gradient(90% 90% at 100% 0,rgba(213,245,110,.18) 0,transparent 60%)}
-.hero h1{font-size:44px;font-weight:800;letter-spacing:-.035em;line-height:1.04}
-.hero h1 em{font-style:normal;color:var(--lime)}
-.hero p{color:#C3D1E0;line-height:1.55;margin-top:14px;font-size:16px;max-width:460px}
-.pass{background:var(--lime);color:var(--navy);border-radius:22px;padding:20px;transform:rotate(-3deg);box-shadow:0 18px 30px -18px rgba(0,0,0,.6)}
-.pass small{font-size:12px;font-weight:600;opacity:.75}
-.pass b{display:block;font-size:34px;font-weight:800;letter-spacing:-.03em;margin:4px 0}
-.pass .pl{display:inline-block;border:2.5px solid var(--navy);border-radius:9px;padding:3px 10px;font-weight:800;letter-spacing:.08em;margin-top:6px}
-.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
-.g a{background:var(--card);color:var(--navy);text-decoration:none;border-radius:22px;padding:20px;display:flex;flex-direction:column;gap:8px;min-height:150px;transition:transform .15s}
+.brand{display:flex;align-items:center;gap:12px;color:var(--ink)}
+.brand span{width:56px;height:56px;border-radius:15px;background:#fff;display:grid;place-items:center;box-shadow:0 6px 18px -8px rgba(10,27,77,.25)}
+.brand img{width:44px}
+.brand small{display:block;font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--navy);font-weight:700}
+.brand b{font-size:27px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.staff{color:var(--ink);font-weight:700;font-size:14px;background:#fff;border:1.5px solid var(--navy);border-radius:999px;padding:10px 18px;white-space:nowrap}
+.hero{position:relative;overflow:hidden;background:var(--hero);color:#fff;border-radius:26px;padding:40px 36px;min-height:360px;display:flex;flex-direction:column;justify-content:center;gap:14px;box-shadow:0 20px 40px -26px rgba(11,46,99,.8)}
+.hero .scene{position:absolute;right:-8px;top:-8px;height:calc(100% + 16px);width:60%;object-fit:cover;object-position:right top;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 34%);mask-image:linear-gradient(90deg,transparent 0,#000 34%)}
+.hero>*:not(.scene){position:relative;z-index:1;max-width:520px}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:#E6ECF6}
+.eyebrow em{font-style:normal;color:var(--yellow)}
+.hero h1{font-size:48px;font-weight:800;letter-spacing:-.04em;line-height:1.05}
+.hero p{color:#E6ECF6;line-height:1.55;font-size:16.5px;max-width:440px}
+.dot{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500}
+.dot i{width:10px;height:10px;border-radius:50%;background:var(--green)}
+.cta{align-self:flex-start;display:inline-flex;align-items:center;gap:18px;height:48px;padding:0 20px 0 24px;border-radius:999px;background:var(--yellow);color:var(--ink);font-size:15.5px;font-weight:700;margin-top:6px}
+.g{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.g a{background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:8px;min-height:170px;transition:transform .15s}
 .g a:hover{transform:translateY(-2px)}
-.g a i{width:40px;height:40px;border-radius:13px;background:var(--grey);display:grid;place-items:center;font-style:normal;font-size:20px}
-.g a.hi{background:var(--lime)}
-.g a.hi i{background:rgba(11,37,64,.1)}
+.g a i{width:48px;height:48px;border-radius:50%;background:var(--bluesoft);color:var(--navy);display:grid;place-items:center}
+.g a.hi{background:var(--yellow2);border-color:var(--yellow2)}
+.g a.hi i{background:#fff}
 .g a b{font-size:17px;font-weight:800;letter-spacing:-.01em;margin-top:auto}
-.g a span{font-size:13.5px;color:var(--muted);line-height:1.45}
-.g a.hi span{color:#33465C}
-.note{background:#FFF6D6;color:#6B4E00;border-radius:18px;padding:14px 16px;font-size:14px;line-height:1.5}
-.addr{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13.5px;color:var(--muted)}
-.addr b{font-family:ui-monospace,Consolas,monospace;color:var(--navy);background:#fff;border-radius:10px;padding:6px 10px}
-footer{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;color:var(--muted);font-size:13px}
-footer a{color:var(--navy);font-weight:600}
+.g a span{font-size:13.5px;color:var(--mute);line-height:1.45}
+.g a.hi span{color:#4D5A80}
+.pays{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px 18px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.pays b{font-size:15px;font-weight:700}
+.pays img{height:52px;max-width:100%;object-fit:contain}
+.note{background:#FFF3D6;color:#6B4E00;border-radius:16px;padding:14px 16px;font-size:14px;line-height:1.5}
+.note a{font-weight:700}
+.addr{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13.5px;color:var(--mute)}
+.addr b{font-family:ui-monospace,Consolas,monospace;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+footer{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:center;color:var(--mute);font-size:13px}
+footer a{font-weight:600}
 footer img{height:16px}
-@media (max-width:720px){.hero{grid-template-columns:1fr;padding:26px 20px}.hero h1{font-size:34px}.pass{transform:none}}
+.secure{align-self:center;background:#EBF0F6;border-radius:12px;padding:9px 22px;font-size:12.5px;color:var(--mute)}
+@media (max-width:860px){.g{grid-template-columns:1fr 1fr}}
+@media (max-width:640px){.hero{padding:26px 20px;min-height:0}.hero h1{font-size:34px}.hero .scene{width:100%;opacity:.2}.brand b{font-size:22px}.brand small{letter-spacing:.14em;white-space:nowrap}.brand span{width:48px;height:48px}.brand img{width:38px}.staff{padding:9px 14px;font-size:13px}.g{grid-template-columns:1fr}.g a{min-height:0}}
 </style>
 </head>
 <body><div class="w">
 <header>
-  <div class="brand"><span><img src="shared/img/crest.png" alt="Banjul City Council crest"></span><div><small>Banjul City Council</small><b>ParkNa</b></div></div>
+  <a class="brand" href="/"><span><img src="shared/img/crest.png" alt="Banjul City Council crest"></span><div><small>Banjul City Council</small><b>ParkNa</b></div></a>
   <a class="staff" href="/admin">Staff sign-in</a>
 </header>
 <section class="hero">
-  <div><h1>Park in Banjul.<br><em>Pay on your phone.</em></h1>
-  <p>Daily and monthly parking passes for every marked ParkNa bay, from the ParkNa app or by SMS. Attendants check plates, never cash.</p></div>
-  <div class="pass" aria-hidden="true"><small>Daily pass · till 7pm</small><b id="price">200 GMD</b><span class="pl">BJL 1234</span></div>
+  <img class="scene" src="shared/img/art/hero-scene.webp" alt="">
+  <div class="eyebrow"><em>01 —</em> Easy parking</div>
+  <h1>Park smarter in Banjul</h1>
+  <p>Find, pay and manage parking from your phone—without cash or queues. Daily and monthly passes for every marked ParkNa bay, in the ParkNa app or by SMS.</p>
+  <span class="dot"><i></i>Daily pass&nbsp;<b id="price">200 GMD</b>&nbsp;· valid till 7pm</span>
+  <a class="cta" id="getDriverCta" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.driver">Get the ParkNa app<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
 </section>
 <div class="note" id="note" hidden></div>
 <div class="g">
-  <a class="hi" id="getDriver" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.driver"><i>🚗</i><b>ParkNa for drivers</b><span>Get the app on Google Play. Sign in with your phone number.</span></a>
-  <a href="/org"><i>🏢</i><b>Organisations</b><span>Fleet cover on one monthly invoice. The billing contact signs in with an SMS code.</span></a>
-  <a id="getOfficer" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.officer"><i>🦺</i><b>Parking attendants</b><span>The ParkNa Officer app, for attendants registered by their supervisor.</span></a>
-  <a href="/admin"><i>🔒</i><b>Back office</b><span>For ParkNa and Council staff.</span></a>
+  <a class="hi" id="getDriver" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.driver"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M5 17v-5l2-5h10l2 5v5M5 17v2M19 17v2M4 12h16"/><circle cx="8" cy="14.5" r=".6"/><circle cx="16" cy="14.5" r=".6"/></svg></i><b>ParkNa for drivers</b><span>Get the app on Google Play. Sign in with your phone number.</span></a>
+  <a href="/org"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5l8-3 8 3v16M4 21h16M9 21v-5h6v5M8 8h2M14 8h2M8 12h2M14 12h2"/></svg></i><b>Organisations</b><span>Fleet cover on one monthly invoice. The billing contact signs in with an SMS code.</span></a>
+  <a id="getOfficer" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.officer"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v6c0 4.5 3.2 7.8 7.5 9 4.3-1.2 7.5-4.5 7.5-9V6L12 3Z"/><path d="m8.8 12 2.2 2.2 4.2-4.4"/></svg></i><b>Parking attendants</b><span>The ParkNa Officer app, for attendants registered by their supervisor.</span></a>
+  <a href="/admin"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg></i><b>Back office</b><span>For ParkNa and Council staff.</span></a>
 </div>
+<div class="pays"><b>Payments supported</b><img src="shared/img/art/payments-strip.webp" alt="Wave, Afrimoney, QMoney, APS Wallet"></div>
 <div class="addr" id="addrRow" hidden><span>Server address for the apps:</span><b id="addr"></b></div>
+<div class="secure">A secure service by Banjul City Council</div>
 <footer><img src="shared/img/innovii-navy.png" alt="INNOVII"><span>ParkNa is run by INNOVII for Banjul City Council.</span><a href="/privacy.html">Privacy policy</a><span id="ver"></span></footer>
 </div>
 <script>
