@@ -9,11 +9,11 @@ when its verification passes. Commands run as root unless a step says otherwise.
                                         │  443 (80 redirects)
 ┌───────────────────────────────────────┼──────────────────────────────────────────┐
 │ Rocky 9 server                        ▼                                          │
-│   Nginx ── /, /admin, /org, /driver/, /officer/ ──► /var/www/parkna/current      │
+│   Nginx ── /, /admin, /org, /driver/, /officer/ ──► /usr/share/nginx/html/parkna-web│
 │     │                                               (front end, static files)    │
 │     └── /api/* ──► 127.0.0.1:8080 Tomcat 10.1 (JDK 17), context /parkna          │
-│                      parkna.war  (/home/sdf/applications/parkna/parkna.war)      │
-│                      reads  /home/sdf/applications/parkna/conf/*.properties      │
+│                      parkna.war  (/home/sdf/applications/parkna.war)             │
+│                      reads  /home/sdf/parkna/*.properties                        │
 │                      logs   /opt/tomcat/logs/{catalina.out,parkna.log,...}       │
 │                        │ JDBC 3306              │ HTTP 13013 (optional)          │
 │                        ▼                        ▼                                │
@@ -23,10 +23,10 @@ when its verification passes. Commands run as root unless a step says otherwise.
 
 | What | Where |
 |---|---|
-| Release packages as delivered | `/home/sdf/deliverables/parkna-<version>/` |
-| Running WAR | `/home/sdf/applications/parkna/parkna.war` |
-| Property files | `/home/sdf/applications/parkna/conf/database.properties`, `config.properties` |
-| Front end (Nginx root) | `/var/www/parkna/current` → `releases/<version>` |
+| Application home: property files, deploy history | `/home/sdf/parkna/` (`database.properties`, `config.properties`, `deploy-history`) |
+| Every delivered version | `/home/sdf/deliverables/parkna-<version>.war`, and the unpacked package `parkna-<version>/` |
+| Running WAR | `/home/sdf/applications/parkna.war` |
+| Front end (Nginx root) | `/usr/share/nginx/html/parkna-web` → `parkna-web-v<version>/` |
 | Tomcat | `/opt/tomcat/current` → `install/apache-tomcat-10.1.x` |
 | Logs | `/opt/tomcat/logs/` (Tomcat and ParkNa), `/var/log/nginx/`, `/var/log/mariadb/` |
 | Database backups | `/backup/parkna/` |
@@ -56,10 +56,10 @@ groupadd vivacom
 useradd -s /bin/bash -m -d /home/sdf -g vivacom sdf && passwd -d sdf
 usermod -a -G vivacom tomcat
 
-su - sdf -c "mkdir -p applications/parkna/conf deliverables logs"
+su - sdf -c "mkdir -p parkna applications deliverables logs"
 chmod 2710 /home/sdf
-chmod 2770 /home/sdf/applications /home/sdf/applications/parkna /home/sdf/applications/parkna/conf /home/sdf/logs
-mkdir -p /var/www/parkna/releases /backup/parkna && chmod 700 /backup/parkna
+chmod 2770 /home/sdf/applications /home/sdf/logs && chmod 750 /home/sdf/parkna
+mkdir -p /backup/parkna && chmod 700 /backup/parkna
 ```
 
 **Verification.** `df -h` matches the plan, `timedatectl` shows Africa/Banjul and *synchronized: yes*, `id tomcat` lists `vivacom`.
@@ -125,7 +125,7 @@ REL=/home/sdf/deliverables/parkna-<version>       # unpack the release there fir
 sed -i 's#<Connector port="8080" protocol="HTTP/1.1"#<Connector port="8080" address="127.0.0.1" protocol="HTTP/1.1"#' /opt/tomcat/current/conf/server.xml
 # startup options: where the property files are, memory
 install -o tomcat -g tomcat -m 750 $REL/deploy/tomcat/setenv.sh /opt/tomcat/current/bin/setenv.sh
-# the ParkNa context: runs the WAR from /home/sdf/applications/parkna
+# the ParkNa context: runs /home/sdf/applications/parkna.war (deploy.sh rewrites it on every deployment)
 install -d -o tomcat -g tomcat /opt/tomcat/current/conf/Catalina/localhost
 install -o tomcat -g tomcat -m 640 $REL/deploy/tomcat/parkna.xml /opt/tomcat/current/conf/Catalina/localhost/parkna.xml
 # systemd unit (check JAVA_HOME in it against the path noted above)
@@ -140,7 +140,7 @@ systemctl daemon-reload && systemctl enable tomcat
 Both files live outside the WAR, so one build runs everywhere. Tomcat finds them through `-Dparkna.config.dir` in `setenv.sh`.
 
 ```bash
-cd /home/sdf/applications/parkna/conf
+cd /home/sdf/parkna
 cp $REL/config/database.properties.example database.properties
 cp $REL/config/config.properties.example config.properties
 vi database.properties                         # db.password = the password from step 2
@@ -195,8 +195,11 @@ No domain yet? Use `parkna-http.conf` instead (plain HTTP by IP address) and rem
 ```bash
 /home/sdf/deliverables/parkna-<version>/deploy/scripts/deploy.sh /home/sdf/deliverables/parkna-<version>.tar.gz
 ```
-The script stages the release, backs up the database, keeps the running WAR and front end as the rollback point, puts
-the front end live, swaps the WAR (Tomcat stop/start) and waits until ParkNa answers `/api/health`. On the first
+The script copies the WAR to `deliverables/parkna-<version>.war`, backs up the database, puts the front end in
+`/usr/share/nginx/html/parkna-web-v<version>` and points `parkna-web` at it, puts the WAR in `applications/parkna.war`
+(Tomcat stop/start), records the version in `/home/sdf/parkna/deploy-history` and waits until ParkNa answers `/api/health`.
+The first time on a v0.2 server it also moves the property files from `applications/parkna/conf` to `/home/sdf/parkna`,
+points Nginx at the new front-end folder and moves the old `applications/parkna` folder to `deliverables/`. On the first
 deployment ParkNa creates the tables. In production mode it starts empty and creates the first back-office account:
 
 ```bash
@@ -215,7 +218,7 @@ and give each their temporary password in person. Nobody should share the `admin
 - Register a test attendant in the back office, sign in to the ParkNa Officer app with that number and send START: the
   attendant shows as on shift in the back office within a second or two (proves SMS codes and live updates work
   through Nginx). Switch the test attendant off afterwards.
-- `/home/sdf/deliverables/parkna-prev.war` exists (rollback point), and the rollback steps are in the change record.
+- `/home/sdf/parkna/deploy-history` lists the new version under the previous one (the rollback point).
 
 ## 7. Connect the apps
 
@@ -280,7 +283,8 @@ Upgrade: copy the new `parkna-<version>.tar.gz` to `/home/sdf/deliverables/` and
 come as numbered migrations inside the WAR (`db/V2__...sql`, ...) and run on start-up; the deploy script backs up the
 database first.
 
-Rollback: `deploy/scripts/rollback.sh` puts back the previous WAR and front end. If the new version changed the database
+Rollback: `deploy/scripts/rollback.sh` goes back one line in `/home/sdf/parkna/deploy-history`: the previous
+`deliverables/parkna-<version>.war` and its `parkna-web-v<version>` folder. Pass it the same variables as `deploy.sh`. If the new version changed the database
 (a new migration), also restore the pre-deploy dump before starting the old version:
 ```bash
 systemctl stop tomcat
@@ -331,6 +335,9 @@ give ParkNa its own Tomcat 10.1 and leave the other one untouched:
 - Install it in its own folder (e.g. `/opt/tomcat-parkna`), with its own systemd unit (e.g. `tomcat-parkna.service`).
 - In its `conf/server.xml` use free ports: shutdown `8006` instead of `8005`, HTTP connector `127.0.0.1:8081` instead of 8080.
 - In the Nginx files change `server 127.0.0.1:8080;` in `upstream parkna_tomcat` to `127.0.0.1:8081`.
+- If the other Tomcat's `<Host>` has `appBase="/home/sdf/applications"` (it deploys every WAR there), it would also try to
+  run `parkna.war`. Add `deployIgnore="^parkna.*"` to that `<Host>` element and restart it once, in a maintenance window.
+  `deploy.sh` checks this and stops before changing anything if it is missing.
 - Deploy and roll back with the matching settings:
 ```bash
 TOMCAT=/opt/tomcat-parkna HEALTH_URL=http://127.0.0.1:8081/parkna/api/health \

@@ -1,5 +1,5 @@
 # ParkNa: MariaDB connection
-# Copy to database.properties in the ParkNa config folder (default /home/sdf/applications/parkna/conf)
+# Copy to database.properties in the ParkNa config folder (default /home/sdf/parkna)
 # and restrict it:  chown tomcat:vivacom database.properties && chmod 640 database.properties
 # The database and user are created as in SI/QA manual 2.2.3 (see docs/DEPLOYMENT.md, step 4).
 
