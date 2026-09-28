@@ -98,9 +98,6 @@ else
   sed -i "s#-Dparkna.config.dir=[^ \"]*#-Dparkna.config.dir=$APP_HOME#" "$SETENV"
   echo "  installed $SETENV"
 fi
-mkdir -p "$TOMCAT/conf/Catalina/localhost"
-printf '<?xml version="1.0" encoding="UTF-8"?>\n<!-- ParkNa: written by deploy.sh. Runs the WAR in %s. -->\n<Context docBase="%s/parkna.war" unpackWAR="true" />\n' "$APPS" "$APPS" \
-  > "$TOMCAT/conf/Catalina/localhost/parkna.xml"
 echo "  $SETENV reads $APP_HOME; Tomcat runs $APPS/parkna.war"
 
 # Nginx serves $WEB_BASE/$WEB_NAME: fix ParkNa's own snippet if it still points at the v0.2 folder
@@ -151,6 +148,10 @@ $TOMCAT_STOP || echo "  (Tomcat was not running)"
 for i in $(seq 1 60); do curl -s -o /dev/null "$HEALTH_URL" || break; sleep 1; done   # wait until the old Tomcat has really stopped
 curl -s -o /dev/null "$HEALTH_URL" && fail "Tomcat is still answering on $HEALTH_URL after stopping; stop it first"
 install -m 640 "$WAR" "$APPS/parkna.war"
+# written only now, while Tomcat is stopped: a running Tomcat would redeploy at once and miss the WAR
+mkdir -p "$TOMCAT/conf/Catalina/localhost"
+printf '<?xml version="1.0" encoding="UTF-8"?>\n<!-- ParkNa: written by deploy.sh. Runs the WAR in %s. -->\n<Context docBase="%s/parkna.war" unpackWAR="true" />\n' "$APPS" "$APPS" \
+  > "$TOMCAT/conf/Catalina/localhost/parkna.xml"
 chown "$APP_OWNER" "$APPS/parkna.war" 2>/dev/null || true
 rm -rf "$TOMCAT/webapps/parkna" "$TOMCAT/work/Catalina/localhost/parkna"
 if [ -d "$LEGACY" ]; then                     # v0.2 folder: keep it out of applications/ (it held the property files)
