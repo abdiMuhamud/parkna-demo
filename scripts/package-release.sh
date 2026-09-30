@@ -6,16 +6,17 @@
 #   deploy/             Nginx, Tomcat, Kannel files and the deploy/rollback/backup scripts
 #   db/                 the SQL migrations (for a DBA who applies them by hand)
 #   docs/  VERSION
-# Usage: scripts/package-release.sh [build-number]     (needs Node.js, Java 17 and Maven)
+# Usage: scripts/package-release.sh [version]     (needs Node.js, Java 17 and Maven)
+#   version: the release number, e.g. 1.1.14 (the GitHub build uses the VERSION file + its build number);
+#   without it: <VERSION file>-local
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-BUILD=${1:-local}
 cd "$ROOT"
+VERSION=${1:-$(tr -d '[:space:]' < VERSION)-local}
+export PARKNA_VERSION="$VERSION"
 
 node scripts/build-frontend.js
-if [ "${SKIP_WAR_BUILD:-0}" != "1" ]; then (cd backend && mvn -q -B package -DskipTests); fi
-BASE=$(sed -n 's#^  <version>\(.*\)</version>#\1#p' backend/pom.xml | head -1)
-VERSION="$BASE-b$BUILD"
+if [ "${SKIP_WAR_BUILD:-0}" != "1" ]; then (cd backend && mvn -q -B package -DskipTests -Dparkna.version="$VERSION"); fi
 NAME="parkna-$VERSION"
 OUT="$ROOT/dist/$NAME"
 

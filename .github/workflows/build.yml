@@ -3,6 +3,9 @@
 #   Front end  the Nginx document root
 #   Apps       driver and officer apps for Android
 # On main, a GitHub Release gets the server package (parkna-<version>.tar.gz) and both apps.
+# Every build has one release number, <VERSION file>.<build number> (e.g. 1.1.23): the release tag, the server package,
+# /api/health, the Android version name and the version shown in the apps and on the web all use it. Raise the
+# VERSION file (1.1 -> 1.2) for a bigger change; the last part goes up by itself with every build.
 #
 # Google Play (docs/PLAY_STORE.md). Repository settings > Secrets and variables > Actions:
 #   variable  PARKNA_SERVER_URL          e.g. https://parkna.gm, built into the apps (https:// makes them HTTPS-only)
@@ -18,9 +21,6 @@ on:
 
 permissions:
   contents: write
-
-env:
-  APP_VERSION: "1.0"
 
 jobs:
   backend:
@@ -41,6 +41,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Release number
+        run: echo "PARKNA_VERSION=$(tr -d '[:space:]' < VERSION).${{ github.run_number }}" >> "$GITHUB_ENV"
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -56,10 +59,10 @@ jobs:
 
       - name: Build and test the back end (parity + MariaDB round trip)
         working-directory: backend
-        run: mvn -B verify -Dparity.dir=target/parity -Dtest.db.url=jdbc:mariadb://127.0.0.1:3306/parkna_test -Dtest.db.password=test-pass
+        run: mvn -B verify -Dparkna.version="$PARKNA_VERSION" -Dparity.dir=target/parity -Dtest.db.url=jdbc:mariadb://127.0.0.1:3306/parkna_test -Dtest.db.password=test-pass
 
       - name: Package the server release
-        run: SKIP_WAR_BUILD=1 scripts/package-release.sh ${{ github.run_number }}
+        run: SKIP_WAR_BUILD=1 scripts/package-release.sh "$PARKNA_VERSION"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -83,6 +86,9 @@ jobs:
             label: Officer
     steps:
       - uses: actions/checkout@v4
+
+      - name: Release number
+        run: echo "PARKNA_VERSION=$(tr -d '[:space:]' < VERSION).${{ github.run_number }}" >> "$GITHUB_ENV"
 
       - uses: actions/setup-node@v4
         with:
@@ -119,7 +125,7 @@ jobs:
           npm install --no-audit --no-fund
           npx cap add android
           npx cap sync android
-          node ../../scripts/prepare-android.js "$APP_VERSION" "${{ github.run_number }}"
+          node ../../scripts/prepare-android.js "$PARKNA_VERSION" "${{ github.run_number }}"
 
       - name: Build
         working-directory: apps/${{ matrix.app }}/android
@@ -130,7 +136,7 @@ jobs:
         run: |
           chmod +x gradlew
           mkdir -p "$GITHUB_WORKSPACE/out"
-          N="ParkNa-${{ matrix.label }}-v$APP_VERSION"
+          N="ParkNa-${{ matrix.label }}-$PARKNA_VERSION"
           if [ "$HAS_KEYSTORE" = "true" ]; then
             ./gradlew bundleRelease assembleRelease --no-daemon --stacktrace
             cp app/build/outputs/bundle/release/app-release.aab "$GITHUB_WORKSPACE/out/$N.aab"
@@ -155,7 +161,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ParkNa-${{ matrix.label }}-v${{ env.APP_VERSION }}
+          name: ParkNa-${{ matrix.label }}-${{ env.PARKNA_VERSION }}
           path: out/*
           if-no-files-found: error
 
@@ -165,6 +171,11 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Release number
+        run: echo "PARKNA_VERSION=$(tr -d '[:space:]' < VERSION).${{ github.run_number }}" >> "$GITHUB_ENV"
+
       - uses: actions/download-artifact@v4
         with:
           path: out
@@ -172,15 +183,15 @@ jobs:
 
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ env.APP_VERSION }}.${{ github.run_number }}
-          name: ParkNa v${{ env.APP_VERSION }} (build ${{ github.run_number }})
+          tag_name: v${{ env.PARKNA_VERSION }}
+          name: ParkNa ${{ env.PARKNA_VERSION }}
           make_latest: "true"
           body: |
-            ParkNa v${{ env.APP_VERSION }}, built from ${{ github.sha }}.
+            ParkNa ${{ env.PARKNA_VERSION }}, built from ${{ github.sha }}. The apps, the web pages and /api/health show this number.
 
-            - **parkna-${{ env.APP_VERSION }}.0-b${{ github.run_number }}.tar.gz**: the server package (Tomcat WAR, Nginx front end, config templates, deploy scripts, SQL). Install it with deploy/scripts/deploy.sh; see docs/DEPLOYMENT.md.
-            - **ParkNa-Driver-v${{ env.APP_VERSION }}**: the driver app. The `.aab` is for Google Play (docs/PLAY_STORE.md); the `.apk` installs directly on a phone.
-            - **ParkNa-Officer-v${{ env.APP_VERSION }}**: the parking attendant app, the same way.
+            - **parkna-${{ env.PARKNA_VERSION }}.tar.gz**: the server package (Tomcat WAR, Nginx front end, config templates, deploy scripts, SQL). Install it with deploy/scripts/deploy.sh; see docs/DEPLOYMENT.md.
+            - **ParkNa-Driver-${{ env.PARKNA_VERSION }}**: the driver app. The `.aab` is for Google Play (docs/PLAY_STORE.md); the `.apk` installs directly on a phone.
+            - **ParkNa-Officer-${{ env.PARKNA_VERSION }}**: the parking attendant app, the same way.
 
             Files ending in `-test.apk` are test builds (no Play upload key in the repository secrets yet). Apps built without PARKNA_SERVER_URL ask for the server address when first opened.
           files: out/*

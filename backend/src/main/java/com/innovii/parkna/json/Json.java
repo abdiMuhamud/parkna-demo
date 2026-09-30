@@ -79,6 +79,7 @@ public final class Json {
         m.put("PARK", s.park);
         m.put("EXC", s.exc);
         m.put("ANN", s.ann);
+        m.put("FINES", s.fines);
         m.put("T", s.tariff);
         m.put("seq", s.seq);
         return write(m);

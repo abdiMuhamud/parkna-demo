@@ -2,7 +2,7 @@
    Signs in with a one-time SMS code; the server sends this driver their own data only. */
 (function(){
 var APP = document.getElementById("app");
-var VERSION = "1.0";
+var VERSION = (window.PARKNA_CONFIG && window.PARKNA_CONFIG.version) || "1.1";
 var ic = UI.ic;
 PN.init({ as: "driver" });
 
@@ -30,6 +30,10 @@ function inbox(u){ return (u.sms || []).filter(function(m){ return m.i; }); }
 function seenKey(){ return "parkna.seen." + (PN.me ? PN.me.num : ""); }
 function unread(u){ return Math.max(0, inbox(u).length - (+PN.ls(seenKey()) || 0)); }
 function provOf(u){ return V.pay.prov || (u && u.prov) || "Wave"; }
+/* open warnings on a plate (the server sends this driver the warnings on their plates) */
+function warnings(p){ return typeof FINES !== "undefined" && FINES ? FINES.filter(function(f){ return f.plate === p && f.status === "open"; }) : []; }
+function owedOn(p){ return warnings(p).reduce(function(s, f){ return s + fineOwed(f); }, 0); }
+function warnLine(f){ return "Parked unpaid on "+esc(ROADS[f.road].name)+" at "+hm(f.t)+", "+fmtD(fromKey(f.day)); }
 function logo(n){ return '<img src="assets/img/art/pay-'+LOGO[n]+'.webp" alt="'+n+'">'; }
 
 /* ---------- render ---------- */
@@ -107,6 +111,12 @@ function hero(u, p){
   function cta(a, label, v){ return '<button class="cta" data-a="'+a+'"'+(v ? ' data-v="'+v+'"' : "")+'>'+label+ic("arrow", 20, 2.3)+'</button>'; }
   function dot(t, c){ return '<span class="dot"><i class="'+(c || "")+'"></i>'+t+'</span>'; }
   if(!p) return card('<span class="big">Add your car</span><span class="sub">It takes ten seconds</span>'+dot("No plate yet", "yel")+cta("addplate", "Add plate"));
+  var ws = warnings(p);
+  if(ws.length){
+    var w = ws[0], late = ws.some(fineLate);
+    return card('<span class="lb">Warning '+w.id+'</span><span class="big">'+gmd(owedOn(p))+'<small> GMD</small></span><span class="sub">'+warnLine(w)+'</span>'
+      + dot(late ? "Includes the "+gmd(w.fine)+" GMD fine" : "Pay by "+fineDue(w)+" to avoid the fine", "red")+cta("payplate", "Pay warning", p));
+  }
   var st = state(p), r = PLATES[p] || {};
   if(st === "MONTHLY"){
     var dl = daysBetween(B.date, r.monthly.to), from = addDays(r.monthly.to, -30), used = Math.min(1, Math.max(0, daysBetween(from, B.date) / 30));
@@ -151,7 +161,7 @@ function feed(u){
 function evRow(e){
   if(e.k === "pay"){
     var rc = e.rc;
-    return '<div class="row"><span class="av">'+ic("doc", 22, 1.9)+'</span><span class="t"><b>'+(rc.kind === "monthly" ? "Monthly pass" : "Daily pass")+' · '+plateTxt(rc.plate)+'</b><small>'+esc(rc.prov)+' · '+rc.t+'</small></span>'
+    return '<div class="row"><span class="av">'+ic("doc", 22, 1.9)+'</span><span class="t"><b>'+(rc.kind === "fine" ? "Warning paid" : rc.kind === "monthly" ? "Monthly pass" : "Daily pass")+' · '+plateTxt(rc.plate)+'</b><small>'+esc(rc.prov)+' · '+rc.t+'</small></span>'
       + '<span class="r"><b>−'+gmd(rc.amount)+'</b><small>GMD · '+rc.ticket+'</small></span></div>';
   }
   var c = e.c, un = c.st === "UNPAID";
@@ -177,7 +187,7 @@ function activityView(){
   if(V.act === "check"){
     var cs = feed(u).filter(function(e){ return e.k === "check"; }), unp = cs.filter(function(e){ return e.c.st === "UNPAID"; }).length;
     h += '<div class="two"><div class="stat"><small>Checks</small><b>'+cs.length+'</b></div><div class="stat"><small>Not paid'+(unp ? '<i class="down">'+Math.round(unp*100/Math.max(1, cs.length))+'%</i>' : "")+'</small><b>'+unp+'</b></div></div>'
-      + '<div class="note">'+ic("info", 18, 2)+'<span>Attendants check plates in ParkNa bays during paid hours. There are no fines in the pilot: an unpaid check means a Park &amp; Pay card was left.</span></div>'
+      + '<div class="note">'+ic("info", 18, 2)+'<span>Attendants check plates in ParkNa bays during paid hours. A car checked unpaid gets a warning: pay the daily fee within 24 hours, or it is charged with the fine.</span></div>'
       + '<div class="card tight">'+(cs.length ? '<div class="rows">'+grouped(cs)+'</div>' : '<div class="empty">No checks on your plates yet.</div>')+'</div>';
     return h + '</div>';
   }
@@ -204,7 +214,7 @@ function chart(u){
   buckets.forEach(function(b){ b.v = 0; });
   u.receipts.forEach(function(rc){
     var d = fromKey(rc.day);
-    buckets.forEach(function(b){ if(d >= b.s && d < b.e){ b.v += rc.amount; total += rc.amount; if(rc.kind === "monthly") monthly++; else daily++; } });
+    buckets.forEach(function(b){ if(d >= b.s && d < b.e){ b.v += rc.amount; total += rc.amount; if(rc.kind === "monthly") monthly++; else if(rc.kind === "daily") daily++; } });
   });
   var max = Math.max.apply(null, buckets.map(function(b){ return b.v; }).concat([1])), top = niceTop(max), cur = buckets.findIndex(function(b){ return today >= b.s && today < b.e; });
   var html = '<div class="chart"><div class="ya">'+[top, top*2/3, top/3, 0].map(function(v){ return '<span>'+kfmt(v)+'</span>'; }).join("")+'</div>'
@@ -220,8 +230,9 @@ function kfmt(v){ return v >= 1000 ? (Math.round(v / 100) / 10) + "k" : String(M
 function platesView(){
   var u = me();
   var cards = u.plates.map(function(p){
-    var st = state(p), r = PLATES[p] || {}, chip, sub, btn = "";
-    if(st === "DAILY"){ chip = '<span class="st paid">Paid today</span>'; sub = "Until 7:00 pm · ticket " + r.daily.ticket; }
+    var st = state(p), r = PLATES[p] || {}, chip, sub, btn = "", ws = warnings(p);
+    if(ws.length){ chip = '<span class="st unpaid">Warning</span>'; sub = "Pay " + gmd(owedOn(p)) + " GMD" + (ws.some(fineLate) ? " (with the fine)" : " by " + fineDue(ws[0])); btn = '<button class="go" data-a="payplate" data-v="'+p+'">Pay</button>'; }
+    else if(st === "DAILY"){ chip = '<span class="st paid">Paid today</span>'; sub = "Until 7:00 pm · ticket " + r.daily.ticket; }
     else if(st === "MONTHLY"){ var dl = daysBetween(B.date, r.monthly.to); chip = '<span class="st '+(dl <= 3 ? "due" : "month")+'">Monthly</span>'; sub = "Until " + fmtD(r.monthly.to) + (dl <= 3 ? " · renew now" : ""); if(dl <= 3) btn = '<button class="go" data-a="renew" data-v="'+p+'">Renew</button>'; }
     else if(st === "ORG"){ var o = orgOf(p); chip = '<span class="st org">Organisation</span>'; sub = "Covered by " + esc(o.name); }
     else if(paidHours()){ chip = '<span class="st unpaid">Not paid</span>'; sub = gmd(T.daily) + " GMD for today, valid till 7 pm"; btn = '<button class="go" data-a="payplate" data-v="'+p+'">Pay</button>'; }
@@ -262,30 +273,40 @@ function sheetView(){
 function head(t){ return '<div class="sht"><h3>'+t+'</h3><button class="x" data-a="close" aria-label="Close">'+ic("x", 18, 2.4)+'</button></div>'; }
 function paySheet(){
   var u = me(), S = V.pay, prov = provOf(u), on = payOn(), st = S.status;
-  var plateOk = !!normPlate(S.plate), amount = S.kind === "monthly" ? T.monthly : T.daily, blocked = false, note = "";
-  if(st && st.plate === normPlate(S.plate)){
+  var plateOk = !!normPlate(S.plate), amount = S.kind === "monthly" ? T.monthly : T.daily, blocked = false, note = "", fine = null;
+  /* an open warning is paid first: the server's answer for any plate, or the warnings already on this phone */
+  if(st && st.plate === normPlate(S.plate) && st.fines) fine = { owed: st.fineOwed, list: st.fines.map(function(f){ return { id: f.id, line: "Parked unpaid on "+esc(f.road)+" at "+hm(f.t)+", "+fmtD(fromKey(f.day)), due: f.due, late: f.late, fine: f.fine, base: f.base }; }) };
+  else if(plateOk && warnings(normPlate(S.plate)).length) fine = { owed: owedOn(normPlate(S.plate)), list: warnings(normPlate(S.plate)).map(function(f){ return { id: f.id, line: warnLine(f), due: fineDue(f), late: fineLate(f), fine: f.fine, base: f.base }; }) };
+  if(fine){
+    amount = fine.owed;
+    note = '<div class="note" style="background:var(--badbg);color:#7A1F18">'+ic("info", 18, 2)+'<span>'+fine.list.map(function(f){
+      return '<b>Warning '+f.id+'.</b> '+f.line+'. '+(f.late ? "Paid after 24 hours: "+gmd(f.base)+" GMD with the "+gmd(f.fine)+" GMD fine." : "Pay "+gmd(f.base)+" GMD by "+f.due+". After that it is "+gmd(f.base + f.fine)+" GMD with the fine.");
+    }).join("<br>")+'</span></div>';
+  }
+  else if(st && st.plate === normPlate(S.plate)){
     if(st.err) { note = '<div class="err">'+esc(st.err)+'</div>'; blocked = true; }
     else if(st.st === "ORG"){ note = '<div class="note">'+ic("shield", 18, 2)+'<span>'+plateTxt(st.plate)+' is covered by <b>'+esc(st.org)+'</b>. Nothing to pay.</span></div>'; blocked = true; }
     else if(st.st === "DAILY" && S.kind === "daily"){ note = '<div class="note yel">'+ic("check", 18, 2.4)+'<span>'+plateTxt(st.plate)+' is already paid until 7:00 pm today.</span></div>'; blocked = true; }
     else if(st.st === "MONTHLY"){ var dl = daysBetween(B.date, st.to); note = '<div class="note yel">'+ic("check", 18, 2.4)+'<span>'+plateTxt(st.plate)+' has a monthly pass to <b>'+fmtD(st.to)+'</b>.'+(S.kind === "monthly" && dl <= 3 ? " You can renew it now, with no gap." : " Nothing to pay.")+'</span></div>'; blocked = !(S.kind === "monthly" && dl <= 3); }
     else if(S.kind === "daily" && !st.paidHours){ note = '<div class="note">'+ic("clock", 18, 2)+'<span>Parking is free now. Paid hours are 7am to 7pm, Monday to Saturday.</span></div>'; blocked = true; }
   }
-  return head(S.kind === "monthly" ? "Monthly pass" : "Pay for parking")
+  return head(fine ? "Pay a warning" : S.kind === "monthly" ? "Monthly pass" : "Pay for parking")
     + '<label class="fld">Plate number<input class="inp pl" id="payPlate" autocapitalize="characters" autocomplete="off" placeholder="BJL 1234" value="'+esc(S.plate)+'"></label>'
     + (u.plates.length ? '<div class="demo" style="margin-top:-6px">'+u.plates.map(function(p){ return '<button data-a="payfill" data-v="'+p+'" style="font-family:PlateMono,monospace;letter-spacing:.06em">'+plateTxt(p)+'</button>'; }).join("")+'</div>' : "")
-    + '<div class="seg"><button class="'+(S.kind === "daily" ? "on" : "")+'" data-a="kind" data-v="daily">Daily · '+gmd(T.daily)+'</button><button class="'+(S.kind === "monthly" ? "on" : "")+'" data-a="kind" data-v="monthly">Monthly · '+gmd(T.monthly)+'</button></div>'
+    + (fine ? "" : '<div class="seg"><button class="'+(S.kind === "daily" ? "on" : "")+'" data-a="kind" data-v="daily">Daily · '+gmd(T.daily)+'</button><button class="'+(S.kind === "monthly" ? "on" : "")+'" data-a="kind" data-v="monthly">Monthly · '+gmd(T.monthly)+'</button></div>')
     + note
     + '<div class="fld">Pay with<div class="provs">'+PROVIDERS.map(function(n){ return '<button class="prov'+(on && n === prov ? " on" : "")+'" data-a="prov" data-v="'+n+'"'+(on ? "" : " disabled")+'>'+logo(n)+(on ? "" : '<span class="soon">Soon</span>')+'</button>'; }).join("")+'</div></div>'
-    + (on ? "" : '<div class="note yel">'+ic("info", 18, 2)+'<span>Paying by mobile money opens soon. We will send you an SMS when you can pay in the app.</span></div>')
+    + (on ? "" : '<div class="note yel">'+ic("info", 18, 2)+'<span>Paying by mobile money opens soon. We will send you an SMS when you can pay in the app.'+(fine ? " Until then, warnings can be paid at the Council office." : "")+'</span></div>')
     + (S.err ? '<div class="err">'+esc(S.err)+'</div>' : "")
     + '<button class="btn" data-a="dopay"'+(!on || S.busy || !plateOk || blocked ? " disabled" : "")+'>'
     + (!on ? "Payments open soon" : S.busy ? "Paying…" : "Pay "+gmd(amount)+" GMD with "+prov)+'</button>'
-    + (S.kind === "daily" ? '<p style="font-size:12.5px;color:var(--mute);text-align:center">Valid until 7:00 pm today in any marked ParkNa bay.</p>' : '<p style="font-size:12.5px;color:var(--mute);text-align:center">30 days in any marked ParkNa bay. We remind you 3 days before it ends.</p>');
+    + (fine ? '<p style="font-size:12.5px;color:var(--mute);text-align:center">Pay the warning first. A warning from today also makes the car PAID until 7:00 pm.</p>'
+       : S.kind === "daily" ? '<p style="font-size:12.5px;color:var(--mute);text-align:center">Valid until 7:00 pm today in any marked ParkNa bay.</p>' : '<p style="font-size:12.5px;color:var(--mute);text-align:center">30 days in any marked ParkNa bay. We remind you 3 days before it ends.</p>');
 }
 function platesSheet(){
   var u = me(), p = focusPlate(u);
   return head("Your plates") + '<div class="rows">'+u.plates.map(function(x){ var st = state(x);
-      return '<button class="row" data-a="focus" data-v="'+x+'"><span class="av '+(x === p ? "ic-yel" : "")+'">'+ic("car", 21, 2)+'</span><span class="t"><b style="font-family:PlateMono,monospace;letter-spacing:.06em">'+plateTxt(x)+'</b><small>'+({ DAILY: "Paid today", MONTHLY: "Monthly pass", ORG: "Organisation", UNPAID: paidHours() ? "Not paid today" : "Free now" })[st]+'</small></span><span class="r">'+(x === p ? ic("check", 20, 2.6) : "")+'</span></button>'; }).join("")+'</div>'
+      return '<button class="row" data-a="focus" data-v="'+x+'"><span class="av '+(x === p ? "ic-yel" : "")+'">'+ic("car", 21, 2)+'</span><span class="t"><b style="font-family:PlateMono,monospace;letter-spacing:.06em">'+plateTxt(x)+'</b><small>'+(warnings(x).length ? "Warning to pay" : ({ DAILY: "Paid today", MONTHLY: "Monthly pass", ORG: "Organisation", UNPAID: paidHours() ? "Not paid today" : "Free now" })[st])+'</small></span><span class="r">'+(x === p ? ic("check", 20, 2.6) : "")+'</span></button>'; }).join("")+'</div>'
     + '<button class="btn ghost" data-a="sheet" data-v="addplate">'+ic("plus", 20, 2.4)+'Add a plate</button>';
 }
 function addSheet(){
@@ -299,7 +320,7 @@ function inboxSheet(){
   var u = me(), list = inbox(u).slice().reverse();
   PN.ls(seenKey(), String(inbox(u).length));
   return head("Messages") + (list.length ? '<div class="rows">'+list.slice(0, 60).map(function(m){
-      return '<div class="row" style="align-items:flex-start"><span class="av ic-navy">'+ic(m.tag === "Receipt" ? "receipt" : m.tag === "Reminder" ? "clock" : "sms", 20, 2)+'</span><span class="t"><b style="white-space:normal;font-size:14.5px;font-weight:500;line-height:1.45">'+esc(m.i)+'</b><small>'+(m.tag ? esc(m.tag)+" · " : "")+m.t+'</small></span><span></span></div>'; }).join("")+'</div>'
+      return '<div class="row" style="align-items:flex-start"><span class="av '+(m.tag === "Warning" ? "ic-bad" : "ic-navy")+'">'+ic(m.tag === "Receipt" ? "receipt" : m.tag === "Reminder" ? "clock" : m.tag === "Warning" ? "info" : "sms", 20, 2)+'</span><span class="t"><b style="white-space:normal;font-size:14.5px;font-weight:500;line-height:1.45">'+esc(m.i)+'</b><small>'+(m.tag ? esc(m.tag)+" · " : "")+m.t+'</small></span><span></span></div>'; }).join("")+'</div>'
     : '<div class="empty">No messages yet. Receipts and reminders arrive here and by SMS.</div>');
 }
 function newsSheet(){
@@ -312,14 +333,16 @@ function helpSheet(){
        ["pay", "Daily pass", gmd(T.daily) + " GMD, valid until 7pm the same day in any marked ParkNa bay."],
        ["cal", "Monthly pass", gmd(T.monthly) + " GMD for 30 days (26 paid days less 15%). Renew up to 3 days before it ends, with no gap."],
        ["car", "The pass follows the plate", "Pay for your own car or anyone else’s. Attendants check the plate, not the phone."],
-       ["shield", "Attendants", "Attendants never take cash. If a car is not paid they leave a Park & Pay card; there are no fines in the pilot."],
+       ["shield", "Attendants", "Attendants check plates and never take cash. They leave a Park & Pay card on a car that is not paid."],
+       ["info", "Warnings", "An unpaid car gets a warning by SMS and in the app. Pay the " + gmd(T.daily) + " GMD daily fee within 24 hours; after that it is " + gmd(T.daily + T.fine) + " GMD with the " + gmd(T.fine) + " GMD fine. A warning is paid before any new pass."],
        ["sms", "No data?", "Text your plate to " + ((PN.mode && PN.mode.shortcode) || SC) + " to check it, the same pass and price."]]
       .concat(PN.mode && (PN.mode.supportPhone || PN.mode.supportEmail) ? [["help", "Need help?", "ParkNa support: " + [PN.mode.supportPhone, PN.mode.supportEmail].filter(Boolean).join(" · ")]] : []).map(function(r){
         return '<div class="row" style="align-items:flex-start"><span class="av">'+ic(r[0], 20, 2)+'</span><span class="t"><b>'+r[1]+'</b><small style="line-height:1.5">'+esc(r[2])+'</small></span><span></span></div>'; }).join("")+'</div>';
 }
 function doneView(){
   var D = V.done;
-  return '<div class="done"><span class="ring">'+ic("check", 52, 3)+'</span><h2>Paid</h2><p><b>'+plateTxt(D.plate)+'</b> is covered '+(D.kind === "monthly" ? "until " + fmtD(D.to) : "until 7:00 pm today")+'. A receipt is on its way by SMS.</p>'
+  var what = D.kind === "fine" ? "is clear of its warning" + (state(D.plate) === "DAILY" ? " and PAID until 7:00 pm today" : "") : "is covered " + (D.kind === "monthly" ? "until " + fmtD(D.to) : "until 7:00 pm today");
+  return '<div class="done"><span class="ring">'+ic("check", 52, 3)+'</span><h2>Paid</h2><p><b>'+plateTxt(D.plate)+'</b> '+what+'. A receipt is on its way by SMS.</p>'
     + '<div class="tk"><span>Ticket <b>'+D.ticket+'</b></span><span>'+esc(D.prov)+' · <b>'+gmd(D.amount)+' GMD</b></span></div><button class="btn" data-a="donex">Done</button></div>';
 }
 
@@ -367,7 +390,7 @@ APP.addEventListener("click", function(e){
     case "tab": V.tab = v; V.sheet = null; if(v !== "home") nav(); return render();
     case "sheet": return openSheet(v);
     case "close": V.sheet = null; return render();
-    case "pay": return openPay(focusPlate(me()) && state(focusPlate(me())) === "UNPAID" ? focusPlate(me()) : "", "daily");
+    case "pay": { var fp = focusPlate(me()); return openPay(fp && (state(fp) === "UNPAID" || warnings(fp).length) ? fp : "", "daily"); }
     case "monthly": return openPay(focusPlate(me()) || "", "monthly");
     case "renew": return openPay(v, "monthly");
     case "payplate": return openPay(v, "daily");

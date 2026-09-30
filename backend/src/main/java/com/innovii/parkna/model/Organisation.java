@@ -15,6 +15,9 @@ public class Organisation {
     public double agreed;
     public String status;
     public LocalDate created;
+    /** The paid year: every covered car ends on {@link #coverTo}. Null until the first invoice is paid. */
+    public LocalDate coverFrom;
+    public LocalDate coverTo;
     public List<FleetPlate> plates = new ArrayList<>();
     public List<Topup> topups = new ArrayList<>();
     public List<Invoice> invoices = new ArrayList<>();
@@ -32,11 +35,12 @@ public class Organisation {
         public String plate;
         public String dept;
         public String driver;
+        /** The day its invoice was paid; null while the car waits on an unpaid invoice. */
         public LocalDate from;
         public LocalDate to;
     }
 
-    /** A pro-rata charge for a plate added mid-month, billed on the next invoice. */
+    /** Kept for old data; cars are now invoiced when they are added. */
     public static class Topup {
         public String t;
         public int a;
@@ -48,10 +52,15 @@ public class Organisation {
     @JsonInclude(JsonInclude.Include.NON_NULL)
     public static class Invoice {
         public String no;
+        /** annual (opening year, starts on payment), addon (cars added later, to the end of the year) or renewal. */
+        public String kind;
+        /** The period, e.g. "1 Oct 2026 – 30 Sep 2027". */
         public String month;
         public LocalDate issued;
         public LocalDate due;
         public LocalDate end;
+        /** The cars this invoice pays for. */
+        public List<String> plates = new ArrayList<>();
         public List<Line> lines = new ArrayList<>();
         @JsonInclude(JsonInclude.Include.ALWAYS) public int amount;
         public String status;

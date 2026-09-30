@@ -49,11 +49,12 @@ Repository **Settings → Secrets and variables → Actions**:
 | Variable | `PARKNA_SERVER_URL` | `https://<your-domain>`, e.g. `https://parkna.gm` |
 
 Then run **Actions → Build ParkNa → Run workflow** on `main` (or push to `main`). The release it publishes holds
-`ParkNa-Driver-v1.0.aab`, `ParkNa-Officer-v1.0.aab` and the matching `.apk` files.
+`ParkNa-Driver-1.1.<build>.aab`, `ParkNa-Officer-1.1.<build>.aab` and the matching `.apk` files.
 
 - The server address is built into the apps: people never type it. With `https://` the apps refuse plain HTTP.
-- Every build gets a higher version code (the build number), which Google Play needs for each upload. The version
-  name people see is `APP_VERSION` in `.github/workflows/build.yml`: change it to `1.1` and so on for new versions.
+- Every build gets a higher version code (the build number), which Google Play needs for each upload, and a release
+  number (version name) such as `1.1.23`: the `VERSION` file at the top of the repository plus the build number. The
+  apps show it on the sign-in screen and under Profile. Raise `VERSION` (e.g. to `1.2`) for a bigger change.
 - A `.apk` from a release is signed with the upload key, not Google's key. It installs directly for testing, but a
   phone that has it must uninstall it before installing the app from Google Play.
 

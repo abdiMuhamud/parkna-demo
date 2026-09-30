@@ -92,6 +92,28 @@ class ViewsTest {
     }
 
     @Test
+    void warningsGoOnlyToTheirPlatesAndNeverCarryThePayersNumber() throws Exception {
+        ParkingEngine e = ParkingEngine.seeded();
+        act(e, "type", "sms", "num", "7300007", "text", "START");
+        act(e, "type", "sms", "num", "7300007", "text", "W BJL2211");   // Isatou's car
+        act(e, "type", "sms", "num", "7300007", "text", "W BJL9191");   // nobody's
+        act(e, "type", "driver.pay", "num", "7023456", "plate", "BJL2211", "prov", "Wave");   // a friend pays Isatou's warning
+        JsonNode isatou = view(e, session(Role.DRIVER, "3034567", null));
+        assertEquals(1, isatou.get("FINES").size());
+        JsonNode w = isatou.get("FINES").get(0);
+        assertEquals("BJL2211", w.get("plate").asText());
+        assertEquals("paid", w.get("status").asText());
+        assertTrue(w.get("settled").get("num").isNull(), "the payer's number must not be sent");
+        assertFalse(isatou.toString().contains("7023456"), "the payer's number leaked into the view");
+        JsonNode musa = view(e, session(Role.DRIVER, "7055501", null));
+        assertEquals(0, musa.get("FINES").size());
+        JsonNode officer = view(e, session(Role.OFFICER, "7300007", null));
+        assertEquals(2, officer.get("FINES").size());
+        JsonNode anon = view(e, session(Role.ORG, "7101234", "ORG-014"));
+        assertEquals(0, anon.get("FINES").size());
+    }
+
+    @Test
     void officerSeesTheirRecordAndChecks() throws Exception {
         JsonNode v = view(busy(), session(Role.OFFICER, "7300007", null));
         assertEquals(List.of("7300007"), keys(v.get("OFF")));

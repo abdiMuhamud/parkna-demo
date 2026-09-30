@@ -6,7 +6,8 @@ const freshOS = () => ({ org: null, view: "overview", seg: "plates", dept: null,
   add: { open: false, plate: "", dept: "", driver: "", err: "" }, upload: null, inv: null, pay: { method: "transfer" } });
 const freshBS = () => ({ view: "dash", seg: "roads", aseg: "all", road: "WEL", q: "", sheet: null, bell: false, why: false, user: false, pw: false,
   reg: { name: "", staff: "", phone: "", road: "RUS", shift: "AM", err: "" }, re: { off: "", road: "LEM", err: "" },
-  no: { name: "", plates: "", disc: "0.15", contact: "", phone: "", signed: false, err: "" }, tar: { daily: "", auth: "", err: "" },
+  no: { name: "", plates: "", disc: "0.15", contact: "", phone: "", signed: false, err: "" }, tar: { daily: "", annual: "", fine: "", auth: "", err: "" },
+  fseg: "open", fsel: null, fref: "", freason: "", ferr: "",
   ann: { kind: "Event", theme: "blue", title: "", text: "", when: "", link: "", from: "", to: "", err: "" } });
 /* form fields name their state: data-f="OS.add.plate" (organisation), "BS.reg.name" (back office), "AU.phone" (sign-in),
    "PW.next" (password), "ST.add.name" (staff accounts) */
@@ -98,7 +99,7 @@ function sidebar(items, on, secT, secItems, secOn){
    ${items.map(it => `<button class="enav ${it.k === on ? "on" : ""}" ${A("nav", it.k)}><span class="ico">${ic(it.i, 17, 1.9)}</span>${it.l}${it.n !== "" && it.n != null ? `<span class="n ${it.hot ? "hot" : ""}">${it.n}</span>` : ""}</button>`).join("")}
    <div class="esep"></div><div class="sec"><span>${secT}</span><span>${secItems.length}</span></div>
    ${secItems.map(s => `<button class="emine ${s.k === secOn ? "on" : ""}" ${A(s.a, s.k)}><span class="cd">${s.code}</span><span><b>${esc(s.t)}</b><small>${esc(s.s)}</small></span></button>`).join("")}
-   <div class="foot"><button class="enav" ${A("help")}><span class="ico">${ic("help", 17, 1.9)}</span>Help</button><button class="enav" ${A("user")}><span class="ico">${ic("gear", 17, 1.9)}</span>Account</button></div></aside>`;
+   <div class="foot"><button class="enav" ${A("help")}><span class="ico">${ic("help", 17, 1.9)}</span>Help</button><button class="enav" ${A("user")}><span class="ico">${ic("gear", 17, 1.9)}</span>Account</button>${PN.info && PN.info.version ? `<small style="display:block;padding:6px 10px 0;color:var(--em);font-size:10.8px">ParkNa ${esc(PN.info.version)}</small>` : ""}</div></aside>`;
 }
 function frame(top, side, main, right, overlay){
   return top + `<div class="ebody">${side}<main class="emain ${right ? "two" : ""}"><div class="ecol">${main}</div>${right ? `<div class="ecol">${right}</div>` : ""}</main></div>${overlay || ""}`;
@@ -106,14 +107,15 @@ function frame(top, side, main, right, overlay){
 function plateSheet(p, scope){
   const st = state(p), r = PLATES[p], o = orgOf(p), d = dkey(B.date);
   const pays = LOG.filter(l => l.plate === p && !l.bad).slice(0, 4), chks = CHECKS.filter(c => c.plate === p && c.day === d).slice(-4).reverse();
-  const known = r || o || PARK.some(c => c.plate === p) || Object.values(ORGA).some(x => x.plates.some(y => y.plate === p));
+  const known = r || o || PARK.some(c => c.plate === p) || Object.values(ORGA).some(x => x.plates.some(y => y.plate === p)) || FINES.some(f => f.plate === p);
   const chipC = { UNPAID: "bad", DAILY: "ok", MONTHLY: "vio", ORG: "org" }[st];
   return `<div class="esheet" ${A("sheetx")}><div class="card"><div class="eh"><span class="eplate">${p}</span><button class="x" ${A("sheetx")} aria-label="Close">${ic("x", 15, 2.2)}</button></div>
    ${known ? `<div style="display:flex;gap:8px;align-items:center">${eChip(chipC, st === "DAILY" ? "PAID · DAILY" : st === "MONTHLY" ? "PAID · MONTHLY" : st === "ORG" ? "PAID · ORGANISATION" : "UNPAID")}<small style="color:var(--em)">${st === "UNPAID" ? "No pass today" : "Until " + untilOf(p)}</small></div>
    <div class="emini">${o ? `<div><span>Covered by</span><b>${esc(o.name)} · ${o.id}</b></div>` : ""}${r && r.monthly ? `<div><span>Monthly pass</span><b>to ${fmtD(r.monthly.to)}</b></div>` : ""}
     ${scope === "back" && can("payers") ? `<div><span>Drivers on ParkNa</span><b>${r && r.payers.length ? r.payers.map(n => esc(N(n).name)).join(", ") : "—"}</b></div>` : ""}
     <div><span>Payments</span><b>${pays.length ? pays.map(l => l.ticket || "invoice").join(", ") : "none recorded"}</b></div>
-    <div><span>Checks today</span><b>${chks.length ? chks.map(c => hm(c.t) + " " + (c.st === "UNPAID" ? "unpaid" : "paid")).join(" · ") : "none yet"}</b></div></div>`
+    <div><span>Checks today</span><b>${chks.length ? chks.map(c => hm(c.t) + " " + (c.st === "UNPAID" ? "unpaid" : "paid")).join(" · ") : "none yet"}</b></div>
+    ${openFines(p).length ? `<div><span>Open warning</span><b>${openFines(p).map(f => f.id + " · GMD " + gmd(fineOwed(f))).join(", ")}</b></div>` : ""}</div>`
    : `<div class="eban vio">No record for this plate yet. It shows here as soon as it is paid, checked or added to a fleet.</div>`}</div></div>`;
 }
 function bellSheet(items){
@@ -147,8 +149,8 @@ function staffSignIn(){
 function orgSignIn(){
   const F = AUTH;
   return signInFrame(`<div><span class="tag">${spark(11)}ParkNa for organisations</span>
-      <h2>One invoice.<br>Every plate covered.</h2><p>Banks, ministries, telcos and NGOs cover their fleets with one monthly pass per plate, paid on one invoice.</p></div>
-    <div class="chips"><span>${ic("check", 16, 2.4)}PAID for attendants, nothing to pay for drivers</span><span>${ic("check", 16, 2.4)}Add or remove plates any time</span><span>${ic("check", 16, 2.4)}Statements and attendant checks, monthly</span></div>`,
+      <h2>One invoice a year.<br>Every car covered.</h2><p>Banks, ministries, telcos and NGOs cover their fleets for a year per car, paid upfront on one invoice.</p></div>
+    <div class="chips"><span>${ic("check", 16, 2.4)}PAID for attendants, nothing to pay for drivers</span><span>${ic("check", 16, 2.4)}Add cars any time: pay the months left</span><span>${ic("check", 16, 2.4)}Statements and attendant checks</span></div>`,
     `${brand("Organisation portal · Banjul City Council")}
     <div><h1>Sign in</h1><p>${F.sent ? `We sent a 6-digit code by SMS to +220 ${esc(F.phone.replace(/\D/g, "").slice(-7))}. It expires in 5 minutes.` : "With the billing contact’s phone number. We send a code by SMS."}</p></div>
     ${F.note ? `<div class="eban vio">${esc(F.note)}</div>` : ""}${F.sent ? "" : testBanner()}
@@ -192,22 +194,29 @@ function pwSheet(){
 /* ================= organisation portal ================= */
 function orgChecks(o){ const plates = new Set(o.plates.map(x => x.plate)), ms = monthStart();
   return CHECKS.filter(c => plates.has(c.plate) && new Date(...c.day.split("-").map(Number)) >= ms); }
-function invChipE(inv){ if(inv.status === "paid") return eChip("ok", "Paid", "check"); if(inv.status === "proof") return eChip("vio", "Awaiting match"); return daysBetween(inv.due, B.date) >= 1 ? eChip("bad", "Overdue") : eChip("warn", "Open"); }
+const KIND = { annual: "First year", addon: "Cars added", renewal: "Renewal", monthly: "Monthly" };
+function invChipE(inv){
+  if(inv.status === "paid") return eChip("ok", "Paid", "check");
+  if(inv.status === "void") return eChip("grey", "Cancelled");
+  if(inv.status === "proof") return eChip("vio", "Awaiting match");
+  return inv.kind === "renewal" && daysBetween(inv.due, B.date) >= 0 ? eChip("bad", "Overdue") : eChip("warn", "To pay");
+}
 function plateInfo(o, x){
   const t = today(), gone = x.to && x.to <= t, leaving = x.to && x.to > t;
   if(gone) return { chip: eChip("grey", "Removed"), cover: "stopped " + fmtD(addDays(x.to, -1)), cls: "dim" };
-  if(o.status === "reverted") return { chip: eChip("bad", "Unpaid"), cover: "invoice overdue" };
+  if(!x.from){ const i = o.invoices.find(v => unpaidInv(v) && v.plates.indexOf(x.plate) >= 0); return { chip: eChip("warn", "Not paid yet"), cover: i ? "waiting on " + i.no : "not invoiced" }; }
+  if(o.status === "reverted" || !covering(o)) return { chip: eChip("bad", "Unpaid"), cover: o.coverTo && o.coverTo < t ? "year ended " + fmtD(o.coverTo) : "renewal unpaid" };
   if(leaving) return { chip: eChip("warn", "Removing"), cover: "at midnight" };
-  return { chip: eChip("org", "Covered", "check"), cover: x.from > monthStart() ? "from " + fmtD(x.from) : "to " + fmtD(orgCoverEnd(o)) };
+  return { chip: eChip("org", "Covered", "check"), cover: "to " + fmtY(o.coverTo) };
 }
 function orgAlerts(o){
-  const a = [], un = o.invoices.find(i => i.status !== "paid");
-  if(o.status === "grace" && un) a.push({ t: un.no + " is overdue", s: `Grace day ${o.graceDay} of ${T.grace} · plates still covered`, a: "openinv", v: un.no });
-  if(o.status === "reverted" && un) a.push({ t: "Plates reverted to UNPAID", s: un.no + " unpaid after " + T.grace + " days of grace", a: "openinv", v: un.no });
-  if(un && un.status === "open" && o.status === "active") a.push({ t: un.no + " is ready", s: "GMD " + gmd(un.amount) + " · due " + fmtD(un.due), a: "openinv", v: un.no });
-  if(un && un.status === "proof") a.push({ t: "Transfer reported", s: un.no + " · ParkNa Finance is matching it", a: "openinv", v: un.no });
+  const a = [], un = o.invoices.find(unpaidInv);
+  if(o.status === "grace" && un) a.push({ t: un.no + " is overdue", s: `Grace day ${o.graceDay} of ${T.grace} · cars still covered`, a: "openinv", v: un.no });
+  if(o.status === "reverted" && un) a.push({ t: "Cars reverted to UNPAID", s: un.no + " unpaid after " + T.grace + " days of grace", a: "openinv", v: un.no });
+  o.invoices.filter(i => i.status === "open" && !(i.kind === "renewal" && o.status !== "active")).forEach(i => a.push({ t: i.no + " to pay", s: "GMD " + gmd(i.amount) + " · " + plural(i.plates.length, "car") + (i.kind === "renewal" ? " · due " + fmtD(i.due) : " · covered once paid"), a: "openinv", v: i.no }));
+  o.invoices.filter(i => i.status === "proof").forEach(i => a.push({ t: "Transfer reported", s: i.no + " · ParkNa Finance is matching it", a: "openinv", v: i.no }));
   o.plates.filter(x => x.to && x.to > today()).forEach(x => a.push({ t: x.plate + " stops at midnight", s: "Removed from the fleet today", a: "nav", v: "fleet" }));
-  if(!o.plates.length) a.push({ t: "Add your plates", s: "Cover starts the moment a plate is added", a: "addgo" });
+  if(!o.plates.length) a.push({ t: "Add your cars", s: "One year per car, paid upfront", a: "addgo" });
   return a;
 }
 function renderOrg(){
@@ -216,11 +225,11 @@ function renderOrg(){
   if(!o) return paint(el, signInFrame(`<div><span class="tag">${spark(11)}ParkNa for organisations</span><h2>Account not found.</h2></div>`,
     `${brand("Organisation portal")}<div><h1>No organisation</h1><p>This number is no longer the contact on a ParkNa organisation account. Ask your ParkNa account manager.</p></div>
      <button class="eb pri full" style="height:46px" ${A("signout")}>Sign out</button>`));
-  const open = o.invoices.filter(i => i.status !== "paid").length, act = activePlates(o);
+  const open = o.invoices.filter(unpaidInv).length, act = activePlates(o);
   const depts = {}; o.plates.filter(x => !x.to || x.to > today()).forEach(x => { depts[x.dept] = (depts[x.dept] || 0) + 1; });
   const view = OS.inv ? "invoices" : OS.view;
   const side = sidebar([{ k: "overview", l: "Overview", i: "grid" }, { k: "fleet", l: "Fleet", i: "car", n: act.length }, { k: "invoices", l: "Invoices", i: "receipt", n: open || "", hot: open > 0 }, { k: "reports", l: "Reports", i: "file" }], view,
-    "Departments", Object.keys(depts).map(d => ({ k: d, code: d.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase(), t: d, s: plural(depts[d], "plate"), a: "dept" })), OS.dept);
+    "Departments", Object.keys(depts).map(d => ({ k: d, code: d.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase(), t: d, s: plural(depts[d], "car"), a: "dept" })), OS.dept);
   const alerts = orgAlerts(o), first = o.contact.name.split(" ")[0];
   const top = topbar("Search plate or invoice", OS.q, alerts.length > 0, o.contact.name, "Fleet admin · " + o.name, o.contact.name.split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase(), "Organisation portal");
   let main, right;
@@ -229,119 +238,124 @@ function renderOrg(){
   else if(view === "invoices") [main, right] = orgInvoices(o);
   else if(view === "reports") [main, right] = orgReports(o);
   else [main, right] = orgOverview(o, first);
-  const ov = OS.user ? userSheet() : OS.sheet ? plateSheet(OS.sheet, "org") : OS.bell ? bellSheet(alerts) : OS.help ? helpSheet("This is the organisation portal: <b>one monthly pass per plate</b>, billed on one invoice. Invoices are issued on the 25th and due by the 1st, with " + T.grace + " days of grace. Plates added mid-month are charged pro-rata; removed plates stop at midnight. Fleet cars park in any marked ParkNa bay: there are no reserved bays.") : "";
+  const ov = OS.user ? userSheet() : OS.sheet ? plateSheet(OS.sheet, "org") : OS.bell ? bellSheet(alerts) : OS.help ? helpSheet("This is the organisation portal. Each car is paid <b>upfront for a year</b> (" + gmd(T.annual) + " GMD less your discount) and is covered from the day its invoice is paid. Cars added later pay only the months left, so every car ends on the same date. The renewal invoice comes 30 days before the year ends, with " + T.grace + " days of grace after that. Removed cars stop at midnight, with no refund. Fleet cars park in any marked ParkNa bay: there are no reserved bays.") : "";
   paint(el, frame(top, side, main, right, ov));
 }
 function orgStats(o){
-  const act = activePlates(o), ch = orgChecks(o), inv = o.invoices[0], rev = o.status === "reverted";
-  const todayN = ch.filter(c => c.day === dkey(B.date)).length;
-  return `<div class="est4">${stat({ hi: 1, t: "Plates covered", big: rev ? 0 : act.length, unit: "/ " + o.agreed + " agreed", dots: dots(rev ? 0 : act.length, Math.max(o.agreed, act.length, 1), "k"), chip: rev ? eChip("bad", "Unpaid now") : eChip("ink", act.length ? "PAID if checked" : "Add plates", act.length ? "check" : "plus") })}
-   ${stat({ t: "Checked by attendants", big: ch.length, unit: "this month", dots: dots(Math.min(10, ch.length), 10, "v"), chip: eChip("vio", "+ " + todayN + " today") })}
-   ${stat({ t: inv ? inv.month.split(" ")[0] + " invoice" : "First invoice", big: inv ? (inv.status === "paid" ? "Paid" : inv.status === "proof" ? "Matching" : daysBetween(inv.due, B.date) >= 1 ? "Overdue" : "Open") : fmtD(next25()), unit: "", dots: dots(inv ? (inv.status === "paid" ? 10 : inv.status === "proof" ? 7 : 3) : 0, 10, "l"), chip: inv ? invChipE(inv) : eChip("grey", "for " + MONL[(next25().getMonth() + 1) % 12]) })}
-   ${stat({ t: "Next invoice", big: fmtD(next25()), unit: "", dots: dots(Math.round(10 * Math.min(1, today().getDate() / 25)), 10, "k"), chip: eChip("ok", "for " + MONL[(next25().getMonth() + 1) % 12], "cal") })}</div>`;
+  const act = activePlates(o), ch = orgChecks(o), cov = covering(o), wait = pendingPlates(o), owe = o.invoices.filter(unpaidInv).reduce((s, i) => s + i.amount, 0);
+  const todayN = ch.filter(c => c.day === dkey(B.date)).length, left = o.coverTo ? Math.max(0, daysBetween(B.date, o.coverTo)) : 0;
+  return `<div class="est4">${stat({ hi: 1, t: "Cars covered", big: cov ? act.length : 0, unit: "/ " + o.agreed + " agreed", dots: dots(cov ? act.length : 0, Math.max(o.agreed, act.length, 1), "k"), chip: !cov && act.length ? eChip("bad", "Unpaid now") : eChip("ink", act.length ? "PAID if checked" : "Add cars", act.length ? "check" : "plus") })}
+   ${stat({ t: "Waiting for payment", big: wait.length, unit: wait.length ? "GMD " + gmd(owe) : "cars", dots: dots(wait.length, Math.max(4, wait.length), "v"), chip: wait.length ? eChip("warn", "pay to cover them") : eChip("ok", "none waiting", "check") })}
+   ${stat({ t: "Covered until", big: o.coverTo ? fmtD(o.coverTo) : "—", unit: o.coverTo ? String(o.coverTo.getFullYear()) : "", dots: dots(o.coverTo ? Math.round(10 * Math.min(1, left / 365)) : 0, 10, "l"), chip: o.coverTo ? eChip(left <= 30 ? "warn" : "grey", left + " days left") : eChip("grey", "starts on payment") })}
+   ${stat({ t: "Checked by attendants", big: ch.length, unit: "this month", dots: dots(Math.min(10, ch.length), 10, "k"), chip: eChip("vio", "+ " + todayN + " today") })}</div>`;
 }
 function orgInsight(o){
-  const un = o.invoices.find(i => i.status !== "paid"), n = activePlates(o).length;
-  if(!o.plates.length) return insight({ tag: "Setup", title: "Add your plates to start cover", items: [{ t: "Upload your fleet list", s: "Plate, department, driver · every row is checked", a: "upload" }, { t: "Add one plate", s: "Covered from today, charged pro-rata", a: "addgo" }], btn: { l: "Add plates", a: "addgo" } });
-  if(o.status === "reverted" && un) return insight({ tag: "Billing", title: "Your plates are UNPAID", body: `<div class="wx">${un.no} was not paid after ${T.grace} days of grace. Fleet drivers must pay daily until it is paid.</div>`, items: [{ t: un.no + " · GMD " + gmd(un.amount), s: "Due " + fmtD(un.due) + " · pay to restore cover at once", a: "openinv", v: un.no }], btn: { l: "Pay now", a: "openinv", v: un.no } });
-  if(o.status === "grace" && un) return insight({ tag: "Billing", title: `Grace day ${o.graceDay} of ${T.grace}`, body: `<div class="wx">Plates stay covered during grace. After day ${T.grace} every plate reverts to UNPAID.</div>`, items: [{ t: un.no + " · GMD " + gmd(un.amount), s: "Was due " + fmtD(un.due), a: "openinv", v: un.no }], btn: { l: "Pay now", a: "openinv", v: un.no } });
-  if(un) return insight({ tag: "Billing", title: `${un.month.split(" ")[0]} invoice is ${un.status === "proof" ? "being matched" : "ready"}`, items: [{ t: un.no + " · GMD " + gmd(un.amount), s: un.status === "proof" ? "Transfer reported · Finance is matching it" : "Due " + fmtD(un.due) + " · by bank transfer", a: "openinv", v: un.no }], btn: { l: "Open invoice", a: "openinv", v: un.no } });
-  const topN = o.topups.length, nx = next25();
-  return insight({ tag: "Billing", why: 1, title: `All ${plural(n, "plate")} covered`, wx: OS.why ? `Each plate on the account has a monthly pass at ${gmd(T.monthly)} GMD less your ${Math.round(o.disc * 100)}% discount. Attendants see PAID; drivers are told there is nothing to pay.` : "",
-    items: [{ t: "Next invoice on " + fmtD(nx), s: "For " + MONL[(nx.getMonth() + 1) % 12] + " · " + plural(n, "plate") + (topN ? " + " + plural(topN, "pro-rata line") : ""), a: "nav", v: "invoices" }, { t: "Fleet list", s: "Add or remove plates any time", a: "nav", v: "fleet" }], btn: { l: "View invoices", a: "nav", v: "invoices" } });
+  const un = o.invoices.find(unpaidInv), n = activePlates(o).length;
+  if(!o.plates.length) return insight({ tag: "Setup", title: "Add your cars to start", items: [{ t: "Upload your fleet list", s: "Plate, department, driver · every row is checked", a: "upload" }, { t: "Add one car", s: gmd(proRata(o)) + " GMD for a year, paid upfront", a: "addgo" }], btn: { l: "Add cars", a: "addgo" } });
+  if(o.status === "reverted" && un) return insight({ tag: "Billing", title: "Your cars are UNPAID", body: `<div class="wx">${un.no} was not paid after ${T.grace} days of grace. Fleet drivers must pay daily until it is paid.</div>`, items: [{ t: un.no + " · GMD " + gmd(un.amount), s: "Pay to restore cover at once", a: "openinv", v: un.no }], btn: { l: "Pay now", a: "openinv", v: un.no } });
+  if(o.status === "grace" && un) return insight({ tag: "Billing", title: `Grace day ${o.graceDay} of ${T.grace}`, body: `<div class="wx">Cars stay covered during grace. After day ${T.grace} every car reverts to UNPAID.</div>`, items: [{ t: un.no + " · GMD " + gmd(un.amount), s: "Was due " + fmtD(un.due), a: "openinv", v: un.no }], btn: { l: "Pay now", a: "openinv", v: un.no } });
+  if(un) return insight({ tag: "Billing", title: un.status === "proof" ? un.no + " is being matched" : un.kind === "renewal" ? "Renewal invoice is ready" : plural(un.plates.length, "car") + " waiting for payment",
+    items: [{ t: un.no + " · GMD " + gmd(un.amount), s: un.status === "proof" ? "Transfer reported · Finance is matching it" : un.kind === "renewal" ? "Due " + fmtY(un.due) + " · by bank transfer" : "Covered from the day it is paid", a: "openinv", v: un.no }], btn: { l: "Open invoice", a: "openinv", v: un.no } });
+  const rn = o.coverTo ? addDays(o.coverTo, -30) : null;
+  return insight({ tag: "Billing", why: 1, title: `All ${plural(n, "car")} covered`, wx: OS.why ? `Each car is paid for a year at ${gmd(T.annual)} GMD less your ${Math.round(o.disc * 100)}% discount. Attendants see PAID; drivers are told there is nothing to pay.` : "",
+    items: [{ t: "Covered to " + fmtY(o.coverTo), s: "Renewal invoice on " + fmtY(rn), a: "nav", v: "invoices" }, { t: "Fleet list", s: "A car added now: GMD " + gmd(proRata(o)) + " to " + fmtD(o.coverTo), a: "nav", v: "fleet" }], btn: { l: "View invoices", a: "nav", v: "invoices" } });
 }
 function orgOverview(o, first){
-  const act = activePlates(o), un = o.invoices.find(i => i.status !== "paid");
-  const sub = !o.plates.length ? "Welcome to ParkNa. Add your plates to start cover. Cars park in any marked ParkNa bay."
-    : o.status === "reverted" ? `Your plates reverted to UNPAID. Pay ${un ? un.no : "the invoice"} to restore cover.`
-    : o.status === "grace" ? `${un.no} is overdue: grace day ${o.graceDay} of ${T.grace}. Your plates are still covered.`
-    : `All ${plural(act.length, "plate")} are covered. ${un ? un.no + " is " + (un.status === "proof" ? "being matched." : "due " + fmtD(un.due) + ".") : MONL[(next25().getMonth() + 1) % 12] + "’s invoice is issued on " + fmtD(next25()) + "."}`;
+  const act = activePlates(o), un = o.invoices.find(unpaidInv);
+  const sub = !o.plates.length ? "Welcome to ParkNa. Add your cars: each is paid upfront for a year. Cars park in any marked ParkNa bay."
+    : !o.coverTo ? `Your cars are covered from the day ${un ? un.no : "the first invoice"} is paid.`
+    : o.status === "reverted" ? `Your cars reverted to UNPAID. Pay ${un ? un.no : "the invoice"} to restore cover.`
+    : o.status === "grace" ? `${un.no} is overdue: grace day ${o.graceDay} of ${T.grace}. Your cars are still covered.`
+    : `${plural(act.length, "car")} covered to ${fmtY(o.coverTo)}.${un ? " " + un.no + " is " + (un.status === "proof" ? "being matched." : "waiting for payment.") : ""}`;
   const ch = orgChecks(o), lastC = p => { const c = ch.filter(x => x.plate === p); return c.length ? c[c.length - 1] : null; };
   const segs = [["plates", "Plates"], ["checks", "Checks"], ["invoices", "Invoices"]];
   let rows = "";
   if(OS.seg === "checks") rows = ch.slice().reverse().slice(0, 6).map(c => row({ lead: hm(c.t), title: c.plate, sub: "Attendant " + c.off + " · " + ROADS[c.road].name, mid: c.day.split("-")[2] + " " + MON[+c.day.split("-")[1]], chip: c.st === "UNPAID" ? eChip("warn", "Unpaid") : eChip("ok", "Paid") })).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No attendant checks on your plates yet this month.</small></div>`;
-  else if(OS.seg === "invoices") rows = o.invoices.map(i => row({ lead: MON[i.due.getMonth()], title: i.no, sub: "Issued " + fmtD(i.issued) + " · due " + fmtD(i.due), mid: i.month, dur: "GMD " + gmd(i.amount), chip: invChipE(i), a: "openinv", v: i.no })).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No invoices yet. The first is issued on ${fmtD(next25())}.</small></div>`;
-  else rows = o.plates.filter(x => !OS.dept || x.dept === OS.dept).map(x => { const pi = plateInfo(o, x), c = lastC(x.plate); return row({ lead: x.plate, mono: 1, cls: pi.cls, title: esc(x.driver), sub: esc(x.dept), mid: c ? "Checked " + hm(c.t) : "Not checked", dur: pi.cover, chip: pi.chip, a: "plate", v: x.plate }); }).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No plates yet. Upload your list or add one plate.</small></div>`;
+  else if(OS.seg === "invoices") rows = o.invoices.map(invRow).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No invoices yet. Adding cars creates the first one.</small></div>`;
+  else rows = o.plates.filter(x => !OS.dept || x.dept === OS.dept).map(x => { const pi = plateInfo(o, x), c = lastC(x.plate); return row({ lead: x.plate, mono: 1, cls: pi.cls, title: esc(x.driver), sub: esc(x.dept), mid: c ? "Checked " + hm(c.t) : "Not checked", dur: pi.cover, chip: pi.chip, a: "plate", v: x.plate }); }).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No cars yet. Upload your list or add one car.</small></div>`;
   const depts = {}; o.plates.filter(x => !x.to || x.to > today()).forEach(x => { (depts[x.dept] = depts[x.dept] || []).push(x.plate); });
   const dk = Object.keys(depts);
   const glance = dk.length ? `<div class="eglh"><b>Departments at a glance</b><span class="lg"><span><i></i>Checked</span><span><i class="o"></i>Not yet</span></span></div>
-    <div class="egl">${dk.slice(0, 5).map(d => { const ps = depts[d], chk = ps.filter(p => ch.some(c => c.plate === p)).length; return `<button class="egc ${OS.dept === d ? "on" : ""}" ${A("dept", d)}><span class="r">${esc(d.split(" ")[0])}<span>${ps.length}</span></span><span class="bg">${ps.length}</span><small>${ps.length === 1 ? "plate" : "plates"}</small>${dots(chk, ps.length, "k")}</button>`; }).join("")}</div>` : "";
-  const main = `<div class="ep"><div class="eh"><div><h1>Good ${partOfDay()}, ${esc(first)}</h1><p>${sub}</p></div><div class="btns">${eBtn("View invoices", "nav", "invoices", "ol")}${eBtn("Add plate", "addgo", null, "", "plus")}</div></div>${orgStats(o)}</div>
+    <div class="egl">${dk.slice(0, 5).map(d => { const ps = depts[d], chk = ps.filter(p => ch.some(c => c.plate === p)).length; return `<button class="egc ${OS.dept === d ? "on" : ""}" ${A("dept", d)}><span class="r">${esc(d.split(" ")[0])}<span>${ps.length}</span></span><span class="bg">${ps.length}</span><small>${ps.length === 1 ? "car" : "cars"}</small>${dots(chk, ps.length, "k")}</button>`; }).join("")}</div>` : "";
+  const main = `<div class="ep"><div class="eh"><div><h1>Good ${partOfDay()}, ${esc(first)}</h1><p>${sub}</p></div><div class="btns">${eBtn("View invoices", "nav", "invoices", "ol")}${eBtn("Add car", "addgo", null, "", "plus")}</div></div>${orgStats(o)}</div>
    <div class="ep"><div class="eh"><div><h2>Fleet today</h2><p style="margin-top:2px">${dstr(B.date)}${OS.dept ? " · " + esc(OS.dept) : ""}</p></div>${seg("seg", OS.seg, segs)}</div><div class="erows">${rows}</div>${OS.seg === "plates" ? glance : ""}</div>`;
   const top = act.map(x => ({ p: x.plate, d: x.driver, n: ch.filter(c => c.plate === x.plate).length }));
   const mx = Math.max(4, ...top.map(t => t.n));
-  const right = orgInsight(o) + queue({ title: "Checks this month", pill: plural(ch.length, "check"), pillCls: "ok", items: top.slice(0, 4).map(t => ({ t: t.p, s: t.d, v: t.n + " / " + mx, n: t.n, of: mx, bc: t.n >= mx ? "g" : "", vc: t.n >= mx ? "g" : "" })), empty: "No plates yet." })
+  const right = orgInsight(o) + queue({ title: "Checks this month", pill: plural(ch.length, "check"), pillCls: "ok", items: top.slice(0, 4).map(t => ({ t: t.p, s: t.d, v: t.n + " / " + mx, n: t.n, of: mx, bc: t.n >= mx ? "g" : "", vc: t.n >= mx ? "g" : "" })), empty: "No cars yet." })
     + callout("shield", "No reserved bays", "Fleet cars park in any marked ParkNa bay, like everyone else.");
   return [main, right];
 }
 function orgFleet(o){
-  const act = activePlates(o), ms = monthStart(), added = o.plates.filter(x => x.from >= ms && (!x.to || x.to > today())).length, rem = o.plates.filter(x => x.to && x.to > today()).length;
-  const pr = o.topups.reduce((s, x) => s + x.a, 0);
-  const stats = `<div class="est4">${stat({ hi: 1, t: "Plates covered", big: o.status === "reverted" ? 0 : act.length, unit: "/ " + o.agreed, dots: dots(act.length, Math.max(o.agreed, act.length, 1), "k"), chip: eChip("ink", "any bay", "check") })}
-   ${stat({ t: "Added this month", big: added, unit: "plates", dots: dots(added, Math.max(4, added), "v"), chip: eChip("vio", "from day one", "plus") })}
-   ${stat({ t: "Pro-rata on next invoice", big: kfmt(pr), unit: "GMD", dots: dots(o.topups.length, Math.max(4, o.topups.length), "l"), chip: eChip("grey", plural(o.topups.length, "line")) })}
-   ${stat({ t: "Removing tonight", big: rem, unit: "plates", dots: dots(rem, 4, "k"), chip: rem ? eChip("warn", "at midnight") : eChip("ok", "none", "check") })}</div>`;
+  const act = activePlates(o), wait = pendingPlates(o), rem = o.plates.filter(x => x.to && x.to > today()).length, cov = covering(o);
+  const priceNow = o.coverTo && cov ? `GMD ${gmd(proRata(o))} a car to ${fmtY(o.coverTo)} (${plural(monthsLeft(o), "month")})` : `GMD ${gmd(proRata(o))} a car for a year`;
+  const stats = `<div class="est4">${stat({ hi: 1, t: "Cars covered", big: cov ? act.length : 0, unit: "/ " + o.agreed, dots: dots(act.length, Math.max(o.agreed, act.length, 1), "k"), chip: eChip("ink", "any bay", "check") })}
+   ${stat({ t: "Waiting for payment", big: wait.length, unit: "cars", dots: dots(wait.length, Math.max(4, wait.length), "v"), chip: wait.length ? eChip("warn", "covered once paid") : eChip("ok", "none", "check") })}
+   ${stat({ t: "A car added now", big: kfmt(proRata(o)), unit: "GMD", dots: dots(o.coverTo && cov ? monthsLeft(o) : 12, 12, "l"), chip: eChip("grey", o.coverTo && cov ? "to " + fmtD(o.coverTo) : "for 12 months") })}
+   ${stat({ t: "Removing tonight", big: rem, unit: "cars", dots: dots(rem, 4, "k"), chip: rem ? eChip("warn", "at midnight") : eChip("ok", "none", "check") })}</div>`;
   let review = "";
   if(OS.upload){
     const U = OS.upload, ready = U.rows.filter(r => r.ok === "ready").length;
-    review = `<div class="ep"><div class="eh"><div><h2>${esc(U.name)}</h2><p style="margin-top:2px">${plural(U.rows.length, "row")} checked · covered from today, pro-rata GMD ${gmd(proRata(o))} a plate</p></div><div class="btns">${eBtn("Cancel", "cancelup", null, "ol")}<button class="eb pri" ${A("confirmup")} ${ready ? "" : "disabled"}>${ic("check", 16, 2.4)}Confirm ${plural(ready, "plate")}</button></div></div>
+    review = `<div class="ep"><div class="eh"><div><h2>${esc(U.name)}</h2><p style="margin-top:2px">${plural(U.rows.length, "row")} checked · ${priceNow} · covered once the invoice is paid</p></div><div class="btns">${eBtn("Cancel", "cancelup", null, "ol")}<button class="eb pri" ${A("confirmup")} ${ready ? "" : "disabled"}>${ic("check", 16, 2.4)}Add ${plural(ready, "car")} to an invoice</button></div></div>
      <div class="erows">${U.rows.map(r => row({ lead: esc(r.raw), mono: 1, title: esc(r.dept), sub: esc(r.driver), mid: r.ok === "ready" ? "Ready to add" : esc(r.why), chip: r.ok === "ready" ? eChip("ok", "Ready", "check") : r.ok === "flag" ? eChip("warn", "Flagged") : eChip("bad", "Rejected"), cls: r.ok === "ready" ? "" : "dim" })).join("")}</div></div>`;
   }
   const list = o.plates.filter(x => !OS.dept || x.dept === OS.dept);
-  const main = `<div class="ep"><div class="eh"><div><h1>Fleet</h1><p>${esc(o.name)} fleet · ${o.id} · one pass per plate, billed monthly</p></div><div class="btns">${eBtn("Upload list", "upload", null, "ol", "upload")}${eBtn("Add plate", "addopen", null, "", "plus")}</div></div>${stats}</div>
-   ${review}<div class="ep"><div class="eh"><div><h2>Fleet plates</h2><p style="margin-top:2px">${plural(act.length, "active plate")}${OS.dept ? " · " + esc(OS.dept) : ""}</p></div></div>
-   <div class="erows">${list.map(x => { const pi = plateInfo(o, x); return row({ lead: x.plate, mono: 1, cls: pi.cls, title: esc(x.driver), sub: esc(x.dept), mid: pi.cover, chip: pi.chip, btn: !x.to ? `<button class="ech" ${A("remove", x.plate)} title="Remove" aria-label="Remove ${x.plate}">${ic("x", 13, 2.4)}</button>` : "<span></span>" }); }).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No plates yet.</small></div>`}</div></div>`;
+  const main = `<div class="ep"><div class="eh"><div><h1>Fleet</h1><p>${esc(o.name)} fleet · ${o.id} · each car paid upfront for a year${o.coverTo ? " · covered to " + fmtY(o.coverTo) : ""}</p></div><div class="btns">${eBtn("Upload list", "upload", null, "ol", "upload")}${eBtn("Add car", "addopen", null, "", "plus")}</div></div>${stats}</div>
+   ${review}<div class="ep"><div class="eh"><div><h2>Fleet cars</h2><p style="margin-top:2px">${plural(act.length, "covered car")}${wait.length ? " · " + wait.length + " waiting for payment" : ""}${OS.dept ? " · " + esc(OS.dept) : ""}</p></div></div>
+   <div class="erows">${list.map(x => { const pi = plateInfo(o, x); return row({ lead: x.plate, mono: 1, cls: pi.cls, title: esc(x.driver), sub: esc(x.dept), mid: pi.cover, chip: pi.chip, btn: !x.to ? `<button class="ech" ${A("remove", x.plate)} title="Remove" aria-label="Remove ${x.plate}">${ic("x", 13, 2.4)}</button>` : "<span></span>" }); }).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No cars yet.</small></div>`}</div></div>`;
   const Ad = OS.add;
-  const addCard = `<div class="ep tight"><div class="eh"><h2>Add a plate</h2></div>
+  const addCard = `<div class="ep tight"><div class="eh"><h2>Add a car</h2></div>
     ${Ad.open ? `<div style="display:flex;flex-direction:column;gap:9px;margin-top:12px"><label class="ef">Plate${inp("adPlate", "OS.add.plate", Ad.plate, "BJL7010")}</label><label class="ef">Department${inp("adDept", "OS.add.dept", Ad.dept, "Branch ops")}</label><label class="ef">Driver${inp("adDrv", "OS.add.driver", Ad.driver, "Name")}</label>
-      ${Ad.err ? `<div class="eerr">${esc(Ad.err)}</div>` : ""}<div style="font-size:11.5px;color:var(--em)">Covered from today · pro-rata GMD ${gmd(proRata(o))}</div>
-      <div style="display:flex;gap:8px">${eBtn("Add plate", "addplate", null, "pri", "plus")}${eBtn("Cancel", "addcancel", null, "ol")}</div></div>`
-    : `<div class="edrop" style="margin-top:12px">${ic("upload", 20, 2)}<span><b>Drop a CSV file here</b><br>one plate a line: plate, department, driver</span>${eBtn("Choose a file", "upload", null, "gh sm")}</div><div style="margin-top:10px">${eBtn("Add one plate", "addopen", null, "full", "plus")}</div>`}</div>`;
-  const right = addCard + insight({ tag: "Rules", title: "How fleet cover works", items: [{ t: "One pass per plate", s: "Park in any marked ParkNa bay", a: "help" }, { t: "Added mid-month", s: "Covered at once, charged pro-rata", a: "help" }, { t: "Removed", s: "Cover stops at midnight", a: "help" }] })
+      ${Ad.err ? `<div class="eerr">${esc(Ad.err)}</div>` : ""}<div style="font-size:11.5px;color:var(--em)">${priceNow} · covered once the invoice is paid</div>
+      <div style="display:flex;gap:8px">${eBtn("Add car", "addplate", null, "pri", "plus")}${eBtn("Cancel", "addcancel", null, "ol")}</div></div>`
+    : `<div class="edrop" style="margin-top:12px">${ic("upload", 20, 2)}<span><b>Drop a CSV file here</b><br>one plate a line: plate, department, driver</span>${eBtn("Choose a file", "upload", null, "gh sm")}</div><div style="margin-top:10px">${eBtn("Add one car", "addopen", null, "full", "plus")}</div>`}</div>`;
+  const right = addCard + insight({ tag: "Rules", title: "How fleet cover works", items: [{ t: "A year per car, upfront", s: "Covered from the day the invoice is paid", a: "help" }, { t: "Added later", s: "Pays the months left: every car ends together", a: "help" }, { t: "Removed", s: "Cover stops at midnight · no refund", a: "help" }] })
     + callout("shield", "No reserved bays", "Requests for reserved bays go to the Council.");
   return [main, right];
 }
+function invRow(i){ return row({ lead: KIND[i.kind] ? KIND[i.kind].split(" ")[0] : "", title: i.no, sub: (KIND[i.kind] || "Invoice") + " · " + plural(i.plates.length, "car") + " · issued " + fmtD(i.issued), mid: esc(i.month), dur: "GMD " + gmd(i.amount), chip: invChipE(i), a: "openinv", v: i.no }); }
 function orgInvoices(o){
-  const paid = o.invoices.filter(i => i.status === "paid"), open = o.invoices.filter(i => i.status !== "paid");
+  const paid = o.invoices.filter(i => i.status === "paid"), open = o.invoices.filter(unpaidInv);
   const stats = `<div class="est4">${stat({ hi: 1, t: "Paid to ParkNa", big: kfmt(paid.reduce((s, i) => s + i.amount, 0)), unit: "GMD", dots: dots(paid.length, Math.max(4, o.invoices.length), "k"), chip: eChip("ink", plural(paid.length, "invoice"), "check") })}
-   ${stat({ t: "Open invoices", big: open.length, unit: open.length ? "GMD " + gmd(open.reduce((s, i) => s + i.amount, 0)) : "", dots: dots(open.length, 4, "v"), chip: open.length ? invChipE(open[0]) : eChip("ok", "All paid", "check") })}
-   ${stat({ t: "Next invoice", big: fmtD(next25()), dots: dots(Math.round(10 * Math.min(1, today().getDate() / 25)), 10, "l"), chip: eChip("grey", "due the 1st") })}
-   ${stat({ t: "Bulk discount", big: Math.round(o.disc * 100), unit: "%", dots: dots(Math.round(o.disc * 50), 10, "k"), chip: eChip("ok", T.grace + " days’ grace") })}</div>`;
-  const main = `<div class="ep"><div class="eh"><div><h1>Invoices</h1><p>Issued on the 25th for the next month · due by the 1st · ${T.grace} days’ grace, then plates revert</p></div></div>${stats}</div>
-   <div class="ep"><div class="eh"><h2>All invoices</h2></div><div class="erows">${o.invoices.map(i => row({ lead: MON[i.due.getMonth()], title: i.no, sub: "Issued " + fmtD(i.issued) + " · due " + fmtD(i.due), mid: i.month, dur: "GMD " + gmd(i.amount), chip: invChipE(i), a: "openinv", v: i.no })).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No invoices yet.</small></div>`}</div></div>`;
+   ${stat({ t: "To pay", big: open.length, unit: open.length ? "GMD " + gmd(open.reduce((s, i) => s + i.amount, 0)) : "", dots: dots(open.length, 4, "v"), chip: open.length ? invChipE(open[0]) : eChip("ok", "All paid", "check") })}
+   ${stat({ t: "Renewal invoice", big: o.coverTo ? fmtD(addDays(o.coverTo, -30)) : "—", dots: dots(o.coverTo ? Math.round(10 * Math.min(1, Math.max(0, daysBetween(B.date, o.coverTo)) / 365)) : 0, 10, "l"), chip: eChip("grey", o.coverTo ? "year ends " + fmtD(o.coverTo) : "after the first year") })}
+   ${stat({ t: "Your discount", big: Math.round(o.disc * 100), unit: "%", dots: dots(Math.round(o.disc * 50), 10, "k"), chip: eChip("ok", T.grace + " days’ grace") })}</div>`;
+  const main = `<div class="ep"><div class="eh"><div><h1>Invoices</h1><p>Each car is paid upfront for a year · cars added later pay the months left · renewal invoice 30 days before the year ends, ${T.grace} days’ grace</p></div></div>${stats}</div>
+   <div class="ep"><div class="eh"><h2>All invoices</h2></div><div class="erows">${o.invoices.map(invRow).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No invoices yet. Adding cars creates the first one.</small></div>`}</div></div>`;
   return [main, orgInsight(o) + callout("card", "Wallet limit", "Wave Business pays invoices up to " + gmd(T.walletLimit) + " GMD. Above that, bank transfer.")];
 }
 function orgInvoice(o, inv){
-  const main = `<div class="ep"><div class="eh"><div><h1>${inv.no}</h1><p>${inv.month} · issued ${fmtD(inv.issued)} · due ${fmtD(inv.due)}</p></div><div class="btns">${invChipE(inv)}${eBtn("All invoices", "nav", "invoices", "ol")}</div></div>
-    <div class="erows">${inv.lines.map((l, i) => row({ lead: String(i + 1).padStart(2, "0"), title: esc(l.t), sub: l.a < 0 ? "Discount" : /pro-rata/.test(l.t) ? "Added mid-month" : "Monthly pass per plate", dur: (l.a < 0 ? "−" : "") + gmd(Math.abs(l.a)) })).join("")}
-     <div class="erow sel" style="grid-template-columns:66px 1fr auto"><span class="lead">Total</span><div class="tt"><b>GMD ${gmd(inv.amount)}</b><small>One monthly pass per plate at ${gmd(T.monthly)} GMD, less ${Math.round(o.disc * 100)}%</small></div><span>${invChipE(inv)}</span></div></div></div>`;
+  const what = inv.kind === "addon" ? "Cars added during the year, to its end" : inv.kind === "renewal" ? "One year per car, less your discount" : "One year per car from the day it is paid, less your discount";
+  const main = `<div class="ep"><div class="eh"><div><h1>${inv.no}</h1><p>${KIND[inv.kind] || "Invoice"} · ${esc(inv.month)} · issued ${fmtD(inv.issued)}${inv.kind === "renewal" ? " · due " + fmtY(inv.due) : ""}</p></div><div class="btns">${invChipE(inv)}${eBtn("All invoices", "nav", "invoices", "ol")}</div></div>
+    <div class="erows">${inv.lines.map((l, i) => row({ lead: String(i + 1).padStart(2, "0"), title: esc(l.t), sub: l.a < 0 ? "Discount" : inv.kind === "addon" ? "Months left in the year" : "A car for a year", dur: (l.a < 0 ? "−" : "") + gmd(Math.abs(l.a)) })).join("")}
+     <div class="erow sel" style="grid-template-columns:66px 1fr auto"><span class="lead">Total</span><div class="tt"><b>GMD ${gmd(inv.amount)}</b><small>${what} · cars: ${inv.plates.join(", ") || "—"}</small></div><span>${invChipE(inv)}</span></div></div></div>`;
   let right;
-  if(inv.status === "paid") right = insight({ tag: "Paid", title: "Paid " + fmtD(inv.paidOn), body: `<div class="kvw"><span>Method</span><b>${esc(inv.method)}</b><span>Amount</span><b>GMD ${gmd(inv.amount)}</b><span>Covered to</span><b>${fmtD(inv.end)}</b></div>`, btn: { l: "Download statement", a: "download", v: inv.no } });
-  else if(inv.status === "proof") right = insight({ tag: "Awaiting match", title: "Transfer reported " + fmtD(inv.proofOn), body: `<div class="wx">ParkNa Finance matches your transfer to ${inv.no} when it reaches the account. You get an SMS when it is matched. Plates stay covered meanwhile.</div>` });
+  if(inv.status === "paid") right = insight({ tag: "Paid", title: "Paid " + fmtD(inv.paidOn), body: `<div class="kvw"><span>Method</span><b>${esc(inv.method)}</b><span>Amount</span><b>GMD ${gmd(inv.amount)}</b><span>Covered to</span><b>${fmtY(inv.end)}</b></div>`, btn: { l: "Download statement", a: "download", v: inv.no } });
+  else if(inv.status === "void") right = insight({ tag: "Cancelled", title: "Nothing to pay", body: `<div class="wx">${inv.kind === "addon" ? "Its cars moved to the renewal invoice." : "Its cars were removed before it was paid."}</div>` });
+  else if(inv.status === "proof") right = insight({ tag: "Awaiting match", title: "Transfer reported " + fmtD(inv.proofOn), body: `<div class="wx">ParkNa Finance matches your transfer to ${inv.no} when it reaches the account. You get an SMS when it is matched${inv.kind === "renewal" ? "" : " and the cars are covered from that day"}.</div>` });
   else {
     const wallet = !!(PN.mode && PN.mode.payments), over = inv.amount > T.walletLimit, m = !wallet || over ? "transfer" : OS.pay.method;
     const bank = PN.bank || (isDemo() ? { bank: "Demo Commercial Bank", accountName: "ParkNa Collections", accountNumber: "0012 3456 789" } : null);
-    right = insight({ tag: "Pay invoice", title: `<span class="big">GMD ${gmd(inv.amount)}</span><div class="insub">Due ${fmtD(inv.due)}</div>`,
+    right = insight({ tag: "Pay invoice", title: `<span class="big">GMD ${gmd(inv.amount)}</span><div class="insub">${inv.kind === "renewal" ? "Due " + fmtY(inv.due) : "Cars are covered once it is paid"}</div>`,
       body: `<div class="opt3"><button class="${m === "wallet" ? "on" : ""}" ${A("paymethod", "wallet")} ${!wallet || over ? "disabled" : ""}><b>Wave Business</b><small>${!wallet ? "opens soon" : over ? "above " + gmd(T.walletLimit) + " limit" : "business wallet"}</small></button><button class="${m === "transfer" ? "on" : ""}" ${A("paymethod", "transfer")}><b>Bank transfer</b><small>quote the invoice</small></button></div>
         ${m !== "transfer" ? "" : bank ? `<div class="kvw"><span>Account</span><b>${esc(bank.accountName)}</b><span>Bank</span><b>${esc(bank.bank)}</b><span>Account no.</span><b>${esc(bank.accountNumber)}</b><span>Reference</span><b>${inv.no}</b></div>`
           : `<div class="wx">Pay by bank transfer to the ParkNa account named in your agreement and quote <b>${inv.no}</b> as the reference. Your account manager can send the bank details again.</div>`}`,
       btn: m === "transfer" ? { l: "I have paid by transfer", a: "uploadproof", pri: 1 } : { l: "Pay with Wave Business", a: "paywallet", pri: 1 } });
   }
-  return [main, right + callout("clock", "Grace", T.grace + " days after the due date, with a daily SMS. Then plates revert to UNPAID.")];
+  return [main, right + callout("clock", "Grace", "A renewal has " + T.grace + " days of grace after the year ends, with a daily SMS. Then the cars revert to UNPAID.")];
 }
 function orgReports(o){
   const ch = orgChecks(o), plates = [...new Set(o.plates.map(x => x.plate))], paid = o.invoices.filter(i => i.status === "paid");
   const unp = ch.filter(x => x.st === "UNPAID").length;
   const stats = `<div class="est4">${stat({ hi: 1, t: "Checked by attendants", big: ch.length, unit: "this month", dots: dots(Math.min(10, ch.length), 10, "k"), chip: eChip("ink", "all logged", "check") })}
    ${stat({ t: "Checked unpaid", big: unp, unit: "times", dots: dots(unp, Math.max(4, unp), "r"), chip: eChip("grey", "info only") })}
-   ${stat({ t: "Plates active", big: o.status === "reverted" ? 0 : activePlates(o).length, dots: dots(activePlates(o).length, Math.max(o.agreed, 1), "v"), chip: eChip("vio", "of " + o.agreed + " agreed") })}
+   ${stat({ t: "Cars covered", big: covering(o) ? activePlates(o).length : 0, dots: dots(activePlates(o).length, Math.max(o.agreed, 1), "v"), chip: eChip("vio", "of " + o.agreed + " agreed") })}
    ${stat({ t: "Paid to ParkNa", big: kfmt(paid.reduce((s, i) => s + i.amount, 0)), unit: "GMD", dots: dots(paid.length, 6, "l"), chip: eChip("ok", plural(paid.length, "invoice"), "check") })}</div>`;
   const rows = plates.map(p => { const c = ch.filter(x => x.plate === p), l = c[c.length - 1], u = c.filter(x => x.st === "UNPAID").length, x = o.plates.find(y => y.plate === p);
     return row({ lead: p, mono: 1, title: esc(x.driver), sub: esc(x.dept), mid: l ? "Last " + l.day.split("-")[2] + " " + MON[+l.day.split("-")[1]] + " " + hm(l.t) + " · " + ROADS[l.road].name.split(" ")[0] : "Not checked yet", dur: plural(c.length, "check"), chip: u ? eChip("warn", u + " unpaid · before joining") : eChip("ok", "All paid", "check") }); }).join("");
   const main = `<div class="ep"><div class="eh"><div><h1>Reports</h1><p>${esc(o.name)} · statements and every attendant check on a fleet plate</p></div></div>${stats}</div>
    <div class="ep"><div class="eh"><h2>Attendant checks on fleet plates</h2></div><div class="erows">${rows || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No plates yet.</small></div>`}</div></div>`;
-  const right = queue({ title: "Statements", pill: plural(o.invoices.length, "month"), pillCls: "ok", items: o.invoices.map(i => ({ t: i.month, s: i.no + " · GMD " + gmd(i.amount), btn: `<button class="eb gh sm" ${A("download", i.no)}>PDF</button>` })), empty: "No statements yet." })
-    + callout("shield", "No fines in the pilot", "Unpaid checks are shown for information only.");
+  const right = queue({ title: "Statements", pill: plural(paid.length, "invoice"), pillCls: "ok", items: paid.map(i => ({ t: esc(i.month), s: i.no + " · GMD " + gmd(i.amount), btn: `<button class="eb gh sm" ${A("download", i.no)}>PDF</button>` })), empty: "No paid invoices yet." })
+    + callout("shield", "Covered cars are never warned", "Unpaid checks before a car joined, or while its invoice waited, are shown for information.");
   return [main, right];
 }
 function uploadRows(o, list){
@@ -390,14 +404,15 @@ function revenueToday(){
   const R = {}; Object.keys(ROADS).forEach(k => R[k] = { n: Math.floor((bg[k] || 0) * f), m: 0, amt: 0 });
   R.OTH = { n: 0, m: 0, amt: 0 };
   Object.keys(ROADS).forEach(k => R[k].amt = R[k].n * T.daily);
-  const src = { daily: Object.values(R).reduce((s, r) => s + r.amt, 0), monthly: 0, org: 0 };
+  const src = { daily: Object.values(R).reduce((s, r) => s + r.amt, 0), monthly: 0, org: 0, fine: 0 };
   LOG.filter(l => l.day === d && !l.bad).forEach(l => {
     if(l.src === "org"){ src.org += l.amount; return; }
+    if(l.src === "fine"){ src.fine += l.amount; return; }
     const pk = PARK.find(c => c.plate === l.plate), k = pk ? pk.road : "OTH";
     if(l.src === "monthly"){ R[k].m++; src.monthly += l.amount; } else { R[k].n++; src.daily += l.amount; }
     R[k].amt += l.amount;
   });
-  return { R, src, total: src.daily + src.monthly + src.org };
+  return { R, src, total: src.daily + src.monthly + src.org + src.fine };
 }
 function checksByRoad(){
   const d = dkey(B.date), C = {}; Object.keys(ROADS).forEach(k => C[k] = { c: 0, u: 0 });
@@ -439,13 +454,14 @@ function renderBack(){
   const exc = EXC.filter(e => e.status === "open").length, C = checksByRoad();
   const onRoad = k => Object.values(OFF).filter(o => o.active && roadOf(o) === k && offStats(o).on).map(o => o.id);
   const side = sidebar([{ k: "dash", l: "Dashboard", i: "grid" }, { k: "attendants", l: "Attendants", i: "users", n: Object.values(OFF).filter(o => o.active).length }, { k: "orgs", l: "Organisations", i: "building", n: Object.keys(ORGA).length },
+    { k: "fines", l: "Warnings", i: "bell", n: FINES.filter(f => f.status === "open").length || "" },
     { k: "payments", l: "Payments", i: "card", n: (proofs.length + exc) || "", hot: 1 }, { k: "tariff", l: "Tariffs & rules", i: "sliders" }, { k: "ann", l: "Announcements", i: "mega", n: (typeof ANN !== "undefined" && ANN ? ANN.filter(annLive).length : 0) || "" }, { k: "council", l: "Revenue report", i: "chart" },
     { k: "staff", l: "Staff & audit", i: "shield" }].filter(it => canSee(it.k)),
     pageOf(V), "Pilot roads", Object.keys(ROADS).map(k => ({ k, code: k, t: ROADS[k].name, s: (onRoad(k).length ? "Att. " + onRoad(k).join(", ") : "No attendant") + " · " + C[k].c + " checks", a: "road" })), BS.road);
   const nd = needs().filter(x => x.a === "cover" ? can("officers") : canSee(x.v));
   const top = topbar("Search plate, e.g. BJL1234", BS.q, nd.length > 0, m.name || m.username || "", STAFF_ROLES[m.role] || "", initialsOf(m.name || m.username), council ? "Council view" : "Back office");
-  const [main, right] = { dash: backDash, attendants: backAtt, register: backReg, orgs: backOrgs, neworg: backNewOrg, payments: () => backPay(proofs), tariff: backTariff, ann: backAnn, council: backCouncil, staff: backStaff }[V]();
-  const ov = BS.user ? userSheet() : BS.pw ? pwSheet() : BS.sheet ? plateSheet(BS.sheet, "back") : BS.bell ? bellSheet(nd) : BS.help ? helpSheet("The ParkNa back office. <b>Administrators</b> register attendants and set their fixed road, create organisation accounts, apply the tariff adopted by the Council, publish announcements and manage staff accounts. <b>Supervisors</b> look after attendants and roads. <b>Finance</b> matches organisation bank transfers and handles payment exceptions. The <b>Revenue report</b> is the Council’s read-only view. Every change is recorded in the audit log with the name of the person who made it." + (isDemo() ? " On this demo server, roads and attendants other than 07 and 12 run simulated background activity." : "")) : "";
+  const [main, right] = { dash: backDash, attendants: backAtt, register: backReg, orgs: backOrgs, neworg: backNewOrg, payments: () => backPay(proofs), fines: backFines, tariff: backTariff, ann: backAnn, council: backCouncil, staff: backStaff }[V]();
+  const ov = BS.user ? userSheet() : BS.pw ? pwSheet() : BS.sheet ? plateSheet(BS.sheet, "back") : BS.bell ? bellSheet(nd) : BS.help ? helpSheet("The ParkNa back office. <b>Administrators</b> register attendants and set their fixed road, create organisation accounts, apply the tariff adopted by the Council, publish announcements and manage staff accounts. <b>Supervisors</b> look after attendants and roads. <b>Finance</b> matches organisation bank transfers, records warnings paid at the Council office and handles payment exceptions. The <b>Revenue report</b> is the Council’s read-only view. Every change is recorded in the audit log with the name of the person who made it." + (isDemo() ? " On this demo server, roads and attendants other than 07 and 12 run simulated background activity." : "")) : "";
   paint(el, frame(top, side, main, right, ov));
 }
 function backDash(){
@@ -458,12 +474,12 @@ function backDash(){
   const stats = `<div class="est4">${stat({ hi: 1, t: "Collected today", big: kfmt(rv.total), unit: "GMD", dots: dots(Math.round(frac * 10), 10, "k"), chip: eChip("ink", "60% Council", "up") })}
    ${stat({ t: "On shift now", big: on, unit: "of " + offs.length + " attendants", dots: dots(on, offs.length, "v"), chip: !offs.length ? eChip("grey", "none registered") : quiet ? eChip("warn", quiet + " quiet") : eChip("ok", "All covered", "check") })}
    ${stat({ t: "Plates checked", big: tc, unit: "today", dots: dots(Math.round(pct(tu, tc) / 10), 10, "l"), chip: eChip("vio", pct(tu, tc) + "% paid", "plus") })}
-   ${stat({ t: "Unpaid when checked", big: tc ? 100 - pct(tu, tc) : 0, unit: "%", dots: dots(Math.round((tc ? 100 - pct(tu, tc) : 0) / 10), 10, "k"), chip: eChip("ok", "No fines yet", "down") })}</div>`;
+   ${stat({ t: "Unpaid when checked", big: tc ? 100 - pct(tu, tc) : 0, unit: "%", dots: dots(Math.round((tc ? 100 - pct(tu, tc) : 0) / 10), 10, "k"), chip: warnedToday() ? eChip("warn", plural(warnedToday(), "warning") + " today") : eChip("ok", "No warnings today", "check") })}</div>`;
   let rows;
   if(BS.seg === "attendants") rows = offs.map((o, i) => { const [c, l, s] = st[i]; return row({ lead: o.id, title: esc(o.name), sub: shortRoad(roadOf(o)) + (roadOf(o) !== o.road ? " · moved" : "") + " · " + SHIFTS[o.shift].label, mid: s.last != null ? "Last SMS " + hm(s.last) : "No SMS yet", dur: s.checked + " checks", chip: eChip(c, l), a: can("officers") ? "pick" : null, v: o.num }); }).join("")
     || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No attendants registered yet.${can("officers") ? " Register the first one from Attendants." : ""}</small></div>`;
   else if(BS.seg === "payments"){ const d = dkey(B.date), w = LOG.filter(l => l.day === d && !l.bad).slice(0, 6);
-    rows = w.map(l => row({ lead: l.t, title: l.src === "org" ? esc(l.text.split("·")[1] || l.text) : l.plate, sub: l.src === "org" ? "Organisation invoice" : (l.ticket || "") + " · " + (l.prov || ""), mid: l.src === "monthly" ? "Monthly pass" : l.src === "org" ? "Bank transfer" : "Daily pass", dur: "GMD " + gmd(l.amount), chip: eChip("ok", "Matched", "check"), a: "nav", v: "payments" })).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No live payments yet today. Background totals are in the Revenue report.</small></div>`; }
+    rows = w.map(l => row({ lead: l.t, title: l.src === "org" ? esc(l.text.split("·")[1] || l.text) : l.plate, sub: l.src === "org" ? "Organisation invoice" : (l.ticket || "") + " · " + (l.prov || "Council office"), mid: l.src === "monthly" ? "Monthly pass" : l.src === "org" ? "Bank transfer" : l.src === "fine" ? "Warning paid" : "Daily pass", dur: "GMD " + gmd(l.amount), chip: eChip("ok", "Matched", "check"), a: "nav", v: "payments" })).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No live payments yet today. Background totals are in the Revenue report.</small></div>`; }
   else rows = Object.keys(ROADS).map(k => { const ids = Object.values(OFF).filter(o => o.active && roadOf(o) === k && offStats(o).on), q = ids.some(o => offStatus(o)[1] === "Quiet");
     return row({ lead: k, cls: BS.road === k ? "sel" : "", title: ROADS[k].name, sub: "Bays " + ROADS[k].bays.replace("-", "–") + " · " + (ids.length ? "Attendant " + ids.map(o => o.id).join(", ") : "no attendant"), mid: plural(C[k].c, "check"), dur: pct(C[k].u, C[k].c) + "% paid", chip: !ids.length ? eChip("grey", "Uncovered") : q ? eChip("warn", "Quiet") : eChip("ok", "Active"), a: "road", v: k }); }).join("");
   const glance = `<div class="eglh"><b>Roads at a glance</b><span class="lg"><span><i></i>Paid</span><span><i class="o"></i>Unpaid</span></span></div>
@@ -476,6 +492,39 @@ function backDash(){
       items: nd.slice(0, 3), btn: nd.length ? { l: "Review " + (nd.length > 1 ? "all" : "it"), a: nd[0].a, v: nd[0].v } : canSee("attendants") ? { l: "Open attendants", a: "nav", v: "attendants" } : { l: "Open payments", a: "nav", v: "payments" } })
     + shiftQueue()
     + callout("map", `${ROADS[k].name}: ${plural(C[k].c, "check")}`, `${C[k].u} unpaid · GMD ${gmd(rv.R[k].amt)} collected · ${ids.length ? "Attendant " + ids.map(o => o.id).join(", ") : "no attendant on shift"}`);
+  return [main, right];
+}
+const warnedToday = () => FINES.filter(f => f.day === dkey(B.date)).length;
+/* warnings issued by attendants to unpaid cars: the daily fee within 24 hours, then with the fine */
+function fineChip(f){ return f.status === "paid" ? eChip("ok", f.settled && f.settled.late ? "Paid + fine" : "Paid", "check") : f.status === "cancelled" ? eChip("grey", "Cancelled") : fineLate(f) ? eChip("bad", "Fine added") : eChip("warn", "Open"); }
+function backFines(){
+  const all = FINES.slice().reverse(), open = all.filter(f => f.status === "open"), d = dkey(B.date);
+  const ms = monthStart(), paidM = all.filter(f => f.status === "paid" && fromKey(f.settled.day) >= ms);
+  const owed = open.reduce((s, f) => s + fineOwed(f), 0), lateN = open.filter(fineLate).length;
+  const stats = `<div class="est4">${stat({ hi: 1, t: "Open warnings", big: open.length, unit: "GMD " + gmd(owed) + " to pay", dots: dots(open.length, Math.max(4, open.length), "k"), chip: lateN ? eChip("bad", plural(lateN, "with the fine", "with the fine")) : eChip("ink", "within 24 hours", "clock") })}
+   ${stat({ t: "Issued today", big: all.filter(f => f.day === d).length, dots: dots(Math.min(10, all.filter(f => f.day === d).length), 10, "v"), chip: eChip("vio", "by attendants") })}
+   ${stat({ t: "Paid this month", big: paidM.length, unit: "GMD " + gmd(paidM.reduce((s, f) => s + f.settled.amount, 0)), dots: dots(Math.min(10, paidM.length), 10, "l"), chip: eChip("ok", paidM.filter(f => f.settled.late).length + " with the fine", "check") })}
+   ${stat({ t: "Fine after 24 hours", big: gmd(T.fine), unit: "GMD", dots: dots(Math.round(T.fine / 50), 10, "k"), chip: eChip("grey", "plus " + gmd(T.daily) + " daily fee") })}</div>`;
+  const list = BS.fseg === "all" ? all : all.filter(f => f.status === BS.fseg);
+  const offName = id => { const o = Object.values(OFF).find(x => x.id === id); return o ? "Attendant " + id + " · " + o.name.split(" ")[0] : "Attendant " + id; };
+  const main = `<div class="ep"><div class="eh"><div><h1>Warnings</h1><p>Attendants issue a warning to a car parked without paying. The driver pays the ${gmd(T.daily)} GMD daily fee within 24 hours, or ${gmd(T.daily + T.fine)} GMD with the ${gmd(T.fine)} GMD fine after that. A warning is paid before any new pass.</p></div></div>${stats}</div>
+   <div class="ep"><div class="eh"><div><h2>All warnings</h2></div>${seg("fseg", BS.fseg, [["open", "Open"], ["paid", "Paid"], ["cancelled", "Cancelled"], ["all", "All"]])}</div>
+   <div class="erows">${list.slice(0, 200).map(f => row({ lead: f.id.slice(2), cls: BS.fsel === f.id ? "sel" : "", title: f.plate, sub: esc(ROADS[f.road].name) + " · " + esc(offName(f.off)), mid: fmtD(fromKey(f.day)) + " " + hm(f.t) + (f.status === "open" ? " · due " + fineDue(f) : f.status === "paid" ? " · paid " + esc(f.settled.method) : " · " + esc(f.note || "")),
+       dur: "GMD " + gmd(f.status === "paid" ? f.settled.amount : f.status === "open" ? fineOwed(f) : 0), chip: fineChip(f), a: "fsel", v: f.id })).join("")
+     || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No ${BS.fseg === "all" ? "" : BS.fseg + " "}warnings.</small></div>`}</div></div>`;
+  const f = FINES.find(x => x.id === BS.fsel) || open[0];
+  let right;
+  if(!f) right = insight({ tag: "Warnings", title: "No open warnings", body: `<div class="wx">Attendants issue a warning from the ParkNa Officer app (Issue warning, after a NOT PAID check) or by SMS: W and the plate. The driver gets an SMS and sees it in the app.</div>` });
+  else {
+    const kv = `<div class="kvw"><span>Plate</span><b>${f.plate}</b><span>Where</span><b>${esc(ROADS[f.road].name)}</b><span>When</span><b>${fmtD(fromKey(f.day))} ${hm(f.t)}</b><span>By</span><b>${esc(offName(f.off))}</b>`
+      + (f.status === "open" ? `<span>To pay now</span><b>GMD ${gmd(fineOwed(f))}${fineLate(f) ? " (with fine)" : ""}</b><span>Due</span><b>${fineDue(f)}</b>` : f.status === "paid" ? `<span>Paid</span><b>GMD ${gmd(f.settled.amount)} · ${esc(f.settled.method)}</b>` : `<span>Cancelled</span><b>${esc(f.note || "")}</b>`) + `</div>`;
+    const acts = f.status !== "open" ? "" : (can("money") ? `<label class="fld2">Paid at the Council office: receipt no.${inp("fRef", "BS.fref", BS.fref, "e.g. BCC-R-1042")}</label>` : "")
+      + (can("officers") ? `<label class="fld2">Or cancel it: reason${inp("fWhy", "BS.freason", BS.freason, "e.g. wrong plate typed")}</label>` : "")
+      + (BS.ferr ? `<div class="err">${esc(BS.ferr)}</div>` : "")
+      + `<div style="display:flex;gap:8px">${can("money") ? `<button class="eb lm" ${A("finepaid", f.id)}>${ic("check", 16, 2.3)}Record payment</button>` : ""}${can("officers") ? `<button class="eb ol" style="background:transparent;color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.5)" ${A("finecancel", f.id)}>Cancel</button>` : ""}</div>`;
+    right = insight({ tag: "Warning " + f.id, title: f.status === "open" ? (fineLate(f) ? "Fine added" : "Waiting for payment") : f.status === "paid" ? "Paid" : "Cancelled", body: kv + acts });
+  }
+  right += callout("sms", "What the driver receives", "An SMS and an in-app warning: pay within 24 hours, or with the fine. A reminder follows the next morning.");
   return [main, right];
 }
 function backAtt(){
@@ -518,14 +567,14 @@ function backReg(){
 }
 function backOrgs(){
   const orgs = Object.values(ORGA), plates = orgs.reduce((s, o) => s + (o.status === "reverted" ? 0 : activePlates(o).length), 0);
-  const open = orgs.reduce((s, o) => s + o.invoices.filter(i => i.status !== "paid").length, 0), paid = orgs.reduce((s, o) => s + o.invoices.filter(i => i.status === "paid").reduce((a, i) => a + i.amount, 0), 0);
-  const stats = `<div class="est4">${stat({ hi: 1, t: "Organisation plates", big: plates, unit: "covered", dots: dots(plates, Math.max(10, plates), "k"), chip: eChip("ink", "1 pass a plate", "check") })}
-   ${stat({ t: "Accounts", big: orgs.length, dots: dots(orgs.length, 6, "v"), chip: eChip("vio", "monthly", "plus") })}
-   ${stat({ t: "Invoices open", big: open, dots: dots(open, 4, "l"), chip: open ? eChip("warn", "due the 1st") : eChip("ok", "all paid", "check") })}
+  const open = orgs.reduce((s, o) => s + o.invoices.filter(unpaidInv).length, 0), paid = orgs.reduce((s, o) => s + o.invoices.filter(i => i.status === "paid").reduce((a, i) => a + i.amount, 0), 0);
+  const stats = `<div class="est4">${stat({ hi: 1, t: "Organisation cars", big: plates, unit: "covered", dots: dots(plates, Math.max(10, plates), "k"), chip: eChip("ink", "paid a year upfront", "check") })}
+   ${stat({ t: "Accounts", big: orgs.length, dots: dots(orgs.length, 6, "v"), chip: eChip("vio", gmd(T.annual) + " GMD a car a year") })}
+   ${stat({ t: "Invoices open", big: open, dots: dots(open, 4, "l"), chip: open ? eChip("warn", "cars wait for payment") : eChip("ok", "all paid", "check") })}
    ${stat({ t: "Collected from organisations", big: kfmt(paid), unit: "GMD", dots: dots(Math.min(10, orgs.length * 2), 10, "k"), chip: eChip("ok", "matched", "check") })}</div>`;
-  const stc = o => o.status === "active" ? eChip("ok", "Active") : o.status === "grace" ? eChip("warn", "Grace " + o.graceDay + "/" + T.grace) : o.status === "reverted" ? eChip("bad", "Reverted") : eChip("vio", "New");
+  const stc = o => o.status === "active" ? (covering(o) ? eChip("ok", "Active") : eChip("bad", "Year ended")) : o.status === "grace" ? eChip("warn", "Grace " + o.graceDay + "/" + T.grace) : o.status === "reverted" ? eChip("bad", "Reverted") : eChip("vio", "New · not paid");
   const main = `<div class="ep"><div class="eh"><div><h1>Organisations</h1><p>Created by an administrator after the account manager’s visit and a signed agreement. Never self-service.</p></div><div class="btns">${can("orgs") ? eBtn("New organisation", "nav", "neworg", "", "plus") : ""}</div></div>${stats}</div>
-   <div class="ep"><div class="eh"><h2>Accounts</h2></div><div class="erows">${orgs.map(o => { const i = o.invoices[0]; return row({ lead: o.id.slice(4), title: esc(o.name), sub: esc(o.contact.name) + " · +220 " + o.contact.num, mid: activePlates(o).length + " / " + o.agreed + " plates · " + Math.round(o.disc * 100) + "%", dur: i ? i.no.slice(4) : "no invoice", chip: stc(o) }); }).join("")
+   <div class="ep"><div class="eh"><h2>Accounts</h2></div><div class="erows">${orgs.map(o => { const i = o.invoices[0]; return row({ lead: o.id.slice(4), title: esc(o.name), sub: esc(o.contact.name) + " · +220 " + o.contact.num, mid: activePlates(o).length + " / " + o.agreed + " cars · " + Math.round(o.disc * 100) + "%" + (pendingPlates(o).length ? " · " + pendingPlates(o).length + " waiting" : ""), dur: o.coverTo ? "to " + fmtY(o.coverTo) : "not paid yet", chip: stc(o) }); }).join("")
      || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No organisation accounts yet.</small></div>`}</div></div>`;
   const alert = orgs.filter(o => o.status !== "active" && o.status !== "new" || o.invoices.some(i => i.status === "proof"));
   const right = insight({ tag: "Billing", title: alert.length ? plural(alert.length, "account") + " to watch" : "All accounts in good standing", items: alert.map(o => ({ t: o.name, s: o.status === "grace" ? "Grace day " + o.graceDay : o.status === "reverted" ? "Plates reverted" : "Transfer waiting to be matched", a: "nav", v: o.invoices.some(i => i.status === "proof") ? "payments" : "orgs" })), btn: can("orgs") ? { l: "New organisation", a: "nav", v: "neworg" } : null })
@@ -536,18 +585,18 @@ function backNewOrg(){
   const F = BS.no;
   const main = `<div class="ep"><div class="eh"><div><h1>New organisation</h1><p>After the account manager’s visit. The billing contact gets a portal login by SMS.</p></div><div class="btns">${eBtn("Back", "nav", "orgs", "ol")}</div></div>
     <div class="efg" style="margin-top:18px"><label class="ef" style="grid-column:1/-1">Organisation name${inp("noName", "BS.no.name", F.name, "e.g. Demo Utilities Co.")}</label>
-     <label class="ef">Plates agreed${inp("noPlates", "BS.no.plates", F.plates, "6", "number")}</label><label class="ef">Bulk discount${sel("noDisc", "BS.no.disc", F.disc, [["0.15", "15%"], ["0.2", "20%"]])}</label>
+     <label class="ef">Cars agreed${inp("noPlates", "BS.no.plates", F.plates, "6", "number")}</label><label class="ef">Bulk discount${sel("noDisc", "BS.no.disc", F.disc, [["0.15", "15%"], ["0.2", "20%"]])}</label>
      <label class="ef">Billing contact${inp("noContact", "BS.no.contact", F.contact, "Name")}</label><label class="ef">Contact phone (+220)${inp("noPhone", "BS.no.phone", F.phone, "7102345", "tel")}</label></div>
     <label class="echk" style="margin-top:14px"><input type="checkbox" id="noSigned" data-f="BS.no.signed" ${F.signed ? "checked" : ""}> Signed agreement received</label>
     ${F.err ? `<div class="eerr" style="margin-top:10px">${esc(F.err)}</div>` : ""}
     <div style="display:flex;gap:8px;margin-top:16px">${eBtn("Create account · send login", "createorg", null, "pri", "check")}${eBtn("Cancel", "nav", "orgs", "ol")}</div></div>`;
-  const n = +F.plates || 0, amt = Math.round(n * T.monthly * (1 - +F.disc));
-  const right = insight({ tag: "What they get", title: n ? `GMD ${gmd(amt)} a month` : "One pass per plate", body: `<div class="kvw"><span>Plates</span><b>${n || "—"}</b><span>Price</span><b>${gmd(T.monthly)} less ${Math.round(+F.disc * 100)}%</b><span>Invoice</span><b>on the 25th, due the 1st</b><span>Grace</span><b>${T.grace} days, then revert</b><span>Bays</span><b>any marked ParkNa bay</b></div>` })
+  const n = +F.plates || 0, amt = n * Math.round(T.annual * (1 - +F.disc));
+  const right = insight({ tag: "What they pay", title: n ? `GMD ${gmd(amt)} a year` : "One year per car, upfront", body: `<div class="kvw"><span>Cars</span><b>${n || "—"}</b><span>Price</span><b>${gmd(T.annual)} a car a year, less ${Math.round(+F.disc * 100)}%</b><span>Paid</span><b>upfront; cover starts on payment</b><span>Cars added later</span><b>the months left in the year</b><span>Renewal</span><b>invoice 30 days before the year ends</b><span>Grace</span><b>${T.grace} days, then revert</b><span>Bays</span><b>any marked ParkNa bay</b></div>` })
     + callout("sms", "Login by SMS", "The contact signs in with their phone number and a one-time code.");
   return [main, right];
 }
 function backPay(proofs){
-  const d = dkey(B.date), wal = LOG.filter(l => l.day === d && !l.bad && l.src !== "org"), rv = revenueToday(), openExc = EXC.filter(e => e.status === "open").length;
+  const d = dkey(B.date), wal = LOG.filter(l => l.day === d && !l.bad && l.src !== "org" && l.num), rv = revenueToday(), openExc = EXC.filter(e => e.status === "open").length;
   const stats = `<div class="est4">${stat({ hi: 1, t: "Collected today", big: kfmt(rv.total), unit: "GMD", dots: dots(Math.round((paidDay() ? Math.max(0, Math.min(1, (B.min - 420) / 720)) : 0) * 10), 10, "k"), chip: eChip("ink", "all sources", "up") })}
    ${stat({ t: "Wallet payments", big: wal.length, unit: "live today", dots: dots(Math.min(10, wal.length), 10, "v"), chip: eChip("ok", "by callback", "check") })}
    ${stat({ t: "Transfers to match", big: proofs.length, dots: dots(proofs.length, 4, "l"), chip: proofs.length ? eChip("warn", "by invoice no.") : eChip("ok", "none waiting", "check") })}
@@ -555,7 +604,7 @@ function backPay(proofs){
   const wallets = !!(PN.mode && PN.mode.payments);
   const main = `<div class="ep"><div class="eh"><div><h1>Payments</h1><p>${wallets ? "Wallet payments match by callback. " : ""}Organisation bank transfers are matched to invoices by their reference.</p></div></div>${stats}</div>
    <div class="ep"><div class="eh"><h2>Bank transfers to match</h2></div><div class="erows">${proofs.map(([o, i]) => row({ lead: fmtD(i.proofOn), cls: "sel", title: i.no, sub: esc(o.name) + " · says it has paid", mid: "Reference " + i.no, dur: "GMD " + gmd(i.amount), chip: eChip("vio", "Awaiting"), btn: can("money") ? `<button class="eb sm pri" ${A("match", o.id + "|" + i.no)}>Match</button>` : "<span></span>" })).join("") || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">Nothing to match.</small></div>`}</div></div>
-   <div class="ep"><div class="eh"><h2>Wallet payments today</h2>${wallets ? `<span class="ec ok">${ic("check", 12, 2.8)}matched by callback</span>` : `<span class="ec grey">not switched on yet</span>`}</div><div class="erows">${wal.slice(0, 8).map(l => row({ lead: l.t, title: l.plate, sub: l.ticket + " · " + N(l.num).name, mid: l.prov + " · " + (l.src === "monthly" ? "monthly" : "daily"), dur: "GMD " + gmd(l.amount), chip: eChip("ok", "Matched", "check"), a: "plate", v: l.plate })).join("")
+   <div class="ep"><div class="eh"><h2>Wallet payments today</h2>${wallets ? `<span class="ec ok">${ic("check", 12, 2.8)}matched by callback</span>` : `<span class="ec grey">not switched on yet</span>`}</div><div class="erows">${wal.slice(0, 8).map(l => row({ lead: l.t, title: l.plate, sub: (l.ticket || "office") + " · " + (l.num ? N(l.num).name : "paid in person"), mid: (l.prov || "Council office") + " · " + (l.src === "monthly" ? "monthly" : l.src === "fine" ? "warning" : "daily"), dur: "GMD " + gmd(l.amount), chip: eChip("ok", "Matched", "check"), a: "plate", v: l.plate })).join("")
      || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">${wallets ? "No wallet payments yet today." : "Mobile money payments (Wave, Afrimoney, APS, QMoney) are added when the provider agreements are in place. Until then drivers see “opens soon”."}</small></div>`}</div></div>`;
   const right = insight({ tag: "Revenue share", title: `<span class="big">GMD ${gmd(rv.total)}</span><div style="font-size:12px;color:#D6DFEE;margin-top:6px;font-weight:500">collected today</div>`,
       body: `<div class="br2"><span>Council 60%</span><i style="width:100%"></i><span>${gmd(rv.total * .6)}</span></div><div class="br2"><span>Operator 40%</span><i class="l" style="width:66%"></i><span>${gmd(rv.total * .4)}</span></div>` })
@@ -563,16 +612,17 @@ function backPay(proofs){
   return [main, right];
 }
 function backTariff(){
-  const F = BS.tar, v = F.daily === "" ? T.daily : +F.daily, mo = monthlyFor(v || 0);
+  const F = BS.tar, v = F.daily === "" ? T.daily : +F.daily, mo = monthlyFor(v || 0), fv = F.fine === "" ? T.fine : +F.fine;
   const main = `<div class="ep"><div class="eh"><div><h1>Tariffs & rules</h1><p>Decided by Banjul City Council. Admin applies them and publishes to every channel at once.</p></div><div class="btns">${eChip("ok", "Live · one price for every plate", "check")}</div></div>
-    <div class="efg" style="margin-top:18px"><label class="ef big">Daily pass (GMD)${inp("tDaily", "BS.tar.daily", F.daily === "" ? String(T.daily) : F.daily, "200", "number", 'data-rr="1"')}</label><label class="ef big">Monthly pass (GMD)<input value="${gmd(mo)}" disabled></label></div>
-    <div class="ekv" style="margin-top:14px"><span>Monthly</span><b>26 paid days less 15%</b><span>Paid hours</span><b>7am–7pm, Monday to Saturday</b><span>Organisations</span><b>15–20% bulk discount · ${T.grace} days’ grace</b><span>Officer line</span><b>START, a plate, END · fixed road per officer</b><span>Shortcode</span><b>${esc(PN.mode && PN.mode.shortcode || SC)}</b></div>
+    <div class="efg" style="margin-top:18px"><label class="ef big">Daily pass (GMD)${inp("tDaily", "BS.tar.daily", F.daily === "" ? String(T.daily) : F.daily, "200", "number", 'data-rr="1"')}</label><label class="ef big">Monthly pass (GMD)<input value="${gmd(mo)}" disabled></label>
+     <label class="ef big">Organisations: a car a year (GMD)${inp("tAnnual", "BS.tar.annual", F.annual === "" ? String(T.annual) : F.annual, "53040", "number")}</label><label class="ef big">Fine after 24 hours (GMD)${inp("tFine", "BS.tar.fine", F.fine === "" ? String(T.fine) : F.fine, "100", "number", 'data-rr="1"')}</label></div>
+    <div class="ekv" style="margin-top:14px"><span>Monthly</span><b>26 paid days less 15%</b><span>Paid hours</span><b>7am–7pm, Monday to Saturday</b><span>Organisations</span><b>paid upfront for a year · 15–20% discount · cars added later pay the months left · ${T.grace} days’ grace on renewal</b><span>Warnings</span><b>daily fee within 24 hours, then with the fine</b><span>Officer line</span><b>START, a plate, W and a plate, END · fixed road per officer</b><span>Shortcode</span><b>${esc(PN.mode && PN.mode.shortcode || SC)}</b></div>
     <label class="ef" style="margin-top:14px">Council authority reference${inp("tAuth", "BS.tar.auth", F.auth, "e.g. BCC resolution number")}</label>
     ${F.err ? `<div class="eerr" style="margin-top:8px">${esc(F.err)}</div>` : ""}
     <div style="margin-top:14px">${eBtn("Publish to all channels", "publish", null, "pri", "up")}</div></div>
    <div class="ep"><div class="eh"><h2>Change log</h2></div><div class="erows">${T.log.slice().reverse().map((l, i) => row({ lead: l.when.split(" ").slice(0, 2).join(" "), title: esc(l.what), sub: esc(l.auth), mid: "", dur: esc(l.by), chip: i === 0 ? eChip("ok", "Live") : eChip("grey", "Earlier") })).join("")}</div></div>`;
-  const right = insight({ tag: "Preview", title: "Drivers will see", body: `<div class="bub">${PN.mode && PN.mode.payments ? `Daily pass BJL1234: ${v || "?"} GMD, valid till 7pm today.\n1 Wave 2 Afrimoney` : `BJL1234 is not paid today (${v || "?"} GMD till 7pm). Paying by mobile money opens soon.`}</div><div class="wx">Also the driver app, the Park &amp; Pay card and the organisation portal.</div>` })
-    + queue({ title: "Not in the pilot", pill: "off", items: [{ t: "Tariffs by vehicle type", s: "One price for every plate", v: "Off" }, { t: "Fines and violations", s: "Unpaid checks counted for the Council", v: "Off" }, { t: "Clamping", s: "No clamping journey", v: "Off" }] });
+  const right = insight({ tag: "Preview", title: "Drivers will see", body: `<div class="bub">${PN.mode && PN.mode.payments ? `Daily pass BJL1234: ${v || "?"} GMD, valid till 7pm today.\n1 Wave 2 Afrimoney` : `BJL1234 is not paid today (${v || "?"} GMD till 7pm). Paying by mobile money opens soon.`}</div><div class="bub" style="margin-top:8px">ParkNa WARNING W-00001: BJL1234 was parked on Wellington Road at 10:15 without paying. Pay the ${v || "?"} GMD daily fee within 24 hours. After that it is ${(v || 0) + (fv || 0)} GMD with the ${fv || 0} GMD fine.</div><div class="wx">Also the driver app, the Park &amp; Pay card and the organisation portal.</div>` })
+    + queue({ title: "Not in the pilot", pill: "off", items: [{ t: "Tariffs by vehicle type", s: "One price for every plate", v: "Off" }, { t: "Clamping and towing", s: "Warnings and fines only", v: "Off" }] });
   return [main, right];
 }
 /* Council events and announcements: shown as a banner on the driver app's home screen */
@@ -600,7 +650,7 @@ function backAnn(){
 }
 function backCouncil(){
   const rv = revenueToday(), C = checksByRoad(), tc = Object.values(C).reduce((s, x) => s + x.c, 0), tu = Object.values(C).reduce((s, x) => s + x.u, 0);
-  const mx = Math.max(1, ...Object.keys(ROADS).map(k => rv.R[k].amt)), sm = Math.max(1, rv.src.daily, rv.src.monthly, rv.src.org);
+  const mx = Math.max(1, ...Object.keys(ROADS).map(k => rv.R[k].amt)), sm = Math.max(1, rv.src.daily, rv.src.monthly, rv.src.org, rv.src.fine);
   const un = tc ? 100 - pct(tu, tc) : 0;
   const stats = `<div class="est4">${stat({ hi: 1, t: "Collected today", big: kfmt(rv.total), unit: "GMD", dots: dots(Math.round((paidDay() ? Math.max(0, Math.min(1, (B.min - 420) / 720)) : 0) * 10), 10, "k"), chip: eChip("ink", "all sources", "check") })}
    ${stat({ t: "Council share 60%", big: kfmt(rv.total * .6), unit: "GMD", dots: dots(6, 10, "v"), chip: eChip("vio", "to the Council", "up") })}
@@ -611,9 +661,9 @@ function backCouncil(){
    <div class="ep"><div class="eh"><h2>By road</h2></div><div class="erows">${Object.keys(ROADS).map(k => { const u = C[k].c ? 100 - pct(C[k].u, C[k].c) : 0;
      return row({ lead: k, title: ROADS[k].name, sub: rv.R[k].n + " daily · " + rv.R[k].m + " monthly · " + plural(C[k].c, "check"), mid: `<div class="emin"><i style="width:${100 * rv.R[k].amt / mx}%"></i></div>`, dur: "GMD " + gmd(rv.R[k].amt), chip: u >= 18 ? eChip("warn", u + "% unpaid") : eChip("grey", u + "% unpaid") }); }).join("")}
      ${rv.R.OTH.amt ? row({ lead: "—", title: "Other roads", sub: rv.R.OTH.n + " daily", dur: "GMD " + gmd(rv.R.OTH.amt) }) : ""}</div></div>`;
-  const right = insight({ tag: "By source", title: `<span class="big">GMD ${gmd(rv.total)}</span>`, body: `<div class="br2"><span>Daily passes</span><i style="width:${100 * rv.src.daily / sm}%"></i><span>${kfmt(rv.src.daily)}</span></div><div class="br2"><span>Monthly</span><i class="l" style="width:${100 * rv.src.monthly / sm}%"></i><span>${kfmt(rv.src.monthly)}</span></div><div class="br2"><span>Organisations</span><i class="g" style="width:${100 * rv.src.org / sm}%"></i><span>${kfmt(rv.src.org)}</span></div>` })
+  const right = insight({ tag: "By source", title: `<span class="big">GMD ${gmd(rv.total)}</span>`, body: `<div class="br2"><span>Daily passes</span><i style="width:${100 * rv.src.daily / sm}%"></i><span>${kfmt(rv.src.daily)}</span></div><div class="br2"><span>Monthly</span><i class="l" style="width:${100 * rv.src.monthly / sm}%"></i><span>${kfmt(rv.src.monthly)}</span></div><div class="br2"><span>Organisations</span><i class="g" style="width:${100 * rv.src.org / sm}%"></i><span>${kfmt(rv.src.org)}</span></div><div class="br2"><span>Warnings</span><i style="width:${100 * rv.src.fine / sm}%"></i><span>${kfmt(rv.src.fine)}</span></div>` })
     + queue({ title: "Unpaid rate by road", pill: un + "% overall", items: Object.keys(ROADS).map(k => { const u = C[k].c ? 100 - pct(C[k].u, C[k].c) : 0; return { t: ROADS[k].name, s: C[k].u + " of " + C[k].c + " checks unpaid", v: u + "%", n: u, of: 40, bc: "r", vc: u >= 18 ? "r" : "" }; }) })
-    + callout("chart", "Evidence for the fines decision", "The unpaid rate by road informs when and how fines start after the pilot.");
+    + callout("chart", "Warnings", plural(warnedToday(), "warning") + " issued today · " + FINES.filter(f => f.status === "open").length + " open");
   return [main, right];
 }
 /* staff accounts and the audit log (administrators only; the data comes from /api/staff and /api/audit) */
@@ -669,6 +719,8 @@ function backActUI(a, v){
   if(a === "nav"){ if((v === "register" && !can("officers")) || (v === "neworg" && !can("orgs"))) return; BS.view = v; BS.sheet = null; BS.bell = false; BS.user = false; return renderBack(); }
   if(a === "seg"){ BS.seg = v; return renderBack(); }
   if(a === "aseg"){ BS.aseg = v; return renderBack(); }
+  if(a === "fseg"){ BS.fseg = v; BS.fsel = null; return renderBack(); }
+  if(a === "fsel"){ BS.fsel = v; BS.fref = ""; BS.freason = ""; BS.ferr = ""; return renderBack(); }
   if(a === "road"){ BS.road = v; if(BS.view !== "dash" && canSee("dash")){ BS.view = "dash"; BS.seg = "roads"; } return renderBack(); }
   if(a === "pick"){ if(!can("officers")) return; BS.re.off = v; BS.re.err = ""; if(BS.view !== "attendants") BS.view = "attendants"; return renderBack(); }
   if(a === "cover"){

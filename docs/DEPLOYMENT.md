@@ -292,6 +292,12 @@ gunzip -c /backup/parkna/pre-deploy-<timestamp>-parkna.sql.gz | mysql parkna
 deploy/scripts/rollback.sh
 ```
 
+**Upgrading from 1.0 to 1.1** (warnings and fines, organisations paying a year upfront per car): deploy the new
+package as usual. ParkNa updates the database itself on start (migration V4: the new `fine` table, the yearly price
+and fine in the tariff, and the paid year of each organisation). Organisations from 1.0 stay covered to the end of
+their last paid month; after that they get an invoice for a year per car. The release number (e.g. 1.1.23) shows in
+`/api/health`, the back office, the landing page and the apps.
+
 ## 11. Before real use (go-live checklist)
 
 **Start clean.** A production server starts from an empty database. If this database ever ran the demo, empty it first
@@ -322,7 +328,10 @@ systemctl start tomcat          # creates the tables and the first 'admin' accou
 
 **People and data**
 - Your own administrator password chosen; a named account for everyone in Staff & audit.
-- Tariff confirmed in Tariffs & rules, with the Council's authority reference.
+- Tariff confirmed in Tariffs & rules, with the Council's authority reference: the daily price, the organisation
+  price per car per year (paid upfront) and the fine added when a warning is not paid within 24 hours.
+- Supervisors and Finance know the **Warnings** page: Finance records a warning paid at the Council office (with the
+  receipt number); administrators and supervisors cancel one issued by mistake.
 - Attendants registered with their real numbers, roads and shifts; organisations created with their billing contacts.
 - Mobile-money payments stay off (`payments.mode=off`, the default): the apps say "opens soon" and organisations pay
   invoices by bank transfer, which Finance matches in Payments. Wave, Afrimoney, APS and QMoney are connected in a

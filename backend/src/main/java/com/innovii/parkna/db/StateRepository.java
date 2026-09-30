@@ -7,6 +7,7 @@ import com.innovii.parkna.model.Check;
 import com.innovii.parkna.model.Clock;
 import com.innovii.parkna.model.DailyPass;
 import com.innovii.parkna.model.ExceptionCase;
+import com.innovii.parkna.model.Fine;
 import com.innovii.parkna.model.LedgerEntry;
 import com.innovii.parkna.model.MonthlyPass;
 import com.innovii.parkna.model.Officer;
@@ -43,7 +44,7 @@ public final class StateRepository {
     /** Tables cleared by a demo reset, children first. */
     private static final String[] TABLES = {"invoice_line", "invoice", "org_topup", "org_plate", "organisation", "officer_check", "officer",
             "ledger_entry", "plate_payer", "plate", "sms_message", "receipt", "wallet", "subscriber_plate", "subscriber",
-            "tariff_change", "tariff", "park_bay", "exception_case", "announcement", "system_state"};
+            "tariff_change", "tariff", "park_bay", "exception_case", "announcement", "fine", "system_state"};
 
     // ================================================================== load
 
@@ -60,10 +61,11 @@ public final class StateRepository {
                 s.seq = rs.getInt(4);
                 s.ver = rs.getLong(5);
             }
-            try (ResultSet rs = st.executeQuery("SELECT daily_gmd, monthly_gmd, grace_days, wallet_limit_gmd FROM tariff WHERE id = 1")) {
+            try (ResultSet rs = st.executeQuery("SELECT daily_gmd, monthly_gmd, grace_days, wallet_limit_gmd, annual_gmd, fine_gmd FROM tariff WHERE id = 1")) {
                 if (!rs.next()) throw new SQLException("tariff row missing");
                 s.tariff = new Tariff();
                 s.tariff.daily = rs.getInt(1); s.tariff.monthly = rs.getInt(2); s.tariff.grace = rs.getInt(3); s.tariff.walletLimit = rs.getInt(4);
+                s.tariff.annual = rs.getInt(5); s.tariff.fine = rs.getInt(6);
             }
             try (ResultSet rs = st.executeQuery("SELECT changed_when, description, authority, changed_by FROM tariff_change ORDER BY id")) {
                 while (rs.next()) s.tariff.log.add(new Tariff.Change(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4)));
@@ -112,6 +114,22 @@ public final class StateRepository {
                     a.id = rs.getString(1); a.kind = rs.getString(2); a.title = rs.getString(3); a.text = rs.getString(4); a.when = rs.getString(5); a.link = rs.getString(6);
                     a.theme = rs.getString(7); a.from = date(rs.getDate(8)); a.to = date(rs.getDate(9)); a.status = rs.getString(10); a.created = date(rs.getDate(11)); a.by = rs.getString(12);
                     s.ann.add(a);
+                }
+            }
+            try (ResultSet rs = st.executeQuery("SELECT fine_id, plate, fine_day, fine_minute, road, attendant_id, base_gmd, fine_gmd, status, settled_day, settled_time, settled_gmd,"
+                    + " settled_late, settled_method, settled_ticket, settled_msisdn, note FROM fine ORDER BY id")) {
+                while (rs.next()) {
+                    Fine f = new Fine();
+                    f.id = rs.getString(1); f.plate = rs.getString(2); f.day = dkey(rs.getDate(3)); f.t = rs.getInt(4); f.road = rs.getString(5); f.off = rs.getString(6);
+                    f.base = rs.getInt(7); f.fine = rs.getInt(8); f.status = rs.getString(9);
+                    if (rs.getDate(10) != null) {
+                        Fine.Settled x = new Fine.Settled();
+                        x.day = dkey(rs.getDate(10)); x.t = rs.getString(11); x.amount = rs.getInt(12); x.late = rs.getBoolean(13); x.method = rs.getString(14);
+                        x.ticket = rs.getString(15); x.num = rs.getString(16);
+                        f.settled = x;
+                    }
+                    f.note = rs.getString(17);
+                    s.fines.add(f);
                 }
             }
         }
@@ -213,11 +231,12 @@ public final class StateRepository {
     }
 
     private void loadOrganisations(Statement st, State s) throws SQLException {
-        try (ResultSet rs = st.executeQuery("SELECT org_id, name, contact_name, contact_msisdn, discount, plates_agreed, status, created_on, grace_day FROM organisation ORDER BY id")) {
+        try (ResultSet rs = st.executeQuery("SELECT org_id, name, contact_name, contact_msisdn, discount, plates_agreed, status, created_on, grace_day, cover_from, cover_to FROM organisation ORDER BY id")) {
             while (rs.next()) {
                 Organisation o = new Organisation();
                 o.id = rs.getString(1); o.name = rs.getString(2); o.contact = new Organisation.Contact(rs.getString(3), rs.getString(4));
                 o.disc = rs.getDouble(5); o.agreed = rs.getDouble(6); o.status = rs.getString(7); o.created = date(rs.getDate(8)); o.graceDay = integer(rs, 9);
+                o.coverFrom = date(rs.getDate(10)); o.coverTo = date(rs.getDate(11));
                 s.orga.put(o.id, o);
             }
         }
@@ -231,11 +250,14 @@ public final class StateRepository {
         try (ResultSet rs = st.executeQuery("SELECT org_id, description, amount_gmd FROM org_topup ORDER BY org_id, position")) {
             while (rs.next()) s.orga.get(rs.getString(1)).topups.add(new Organisation.Topup(rs.getString(2), rs.getInt(3)));
         }
-        try (ResultSet rs = st.executeQuery("SELECT org_id, invoice_no, month_label, issued_on, due_on, cover_end, amount_gmd, status, method, paid_on, proof_on FROM invoice ORDER BY org_id, position")) {
+        try (ResultSet rs = st.executeQuery("SELECT org_id, invoice_no, month_label, issued_on, due_on, cover_end, amount_gmd, status, method, paid_on, proof_on, kind, plate_list FROM invoice ORDER BY org_id, position")) {
             while (rs.next()) {
                 Organisation.Invoice i = new Organisation.Invoice();
                 i.no = rs.getString(2); i.month = rs.getString(3); i.issued = date(rs.getDate(4)); i.due = date(rs.getDate(5)); i.end = date(rs.getDate(6));
                 i.amount = rs.getInt(7); i.status = rs.getString(8); i.method = rs.getString(9); i.paidOn = date(rs.getDate(10)); i.proofOn = date(rs.getDate(11));
+                i.kind = rs.getString(12);
+                String list = rs.getString(13);
+                if (list != null && !list.isEmpty()) i.plates.addAll(List.of(list.split(",")));
                 s.orga.get(rs.getString(1)).invoices.add(i);
             }
         }
@@ -262,6 +284,7 @@ public final class StateRepository {
         for (String id : ch.orgs) { Organisation o = s.orga.get(id); if (o != null) saveOrganisation(c, o); }
         if (ch.exceptions) saveExceptions(c, s.exc);
         if (ch.announcements) saveAnnouncements(c, s.ann);
+        for (String id : ch.fines) for (Fine f : s.fines) if (f.id.equals(id)) { saveFine(c, f); break; }
     }
 
     /** Clears every table and writes the whole state (used for the first start and for a demo reset). */
@@ -297,6 +320,19 @@ public final class StateRepository {
         }
         saveExceptions(c, s.exc);
         saveAnnouncements(c, s.ann);
+        for (Fine f : s.fines) saveFine(c, f);
+    }
+
+    private void saveFine(Connection c, Fine f) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("INSERT INTO fine (fine_id, plate, fine_day, fine_minute, road, attendant_id, base_gmd, fine_gmd, status, settled_day, settled_time,"
+                + " settled_gmd, settled_late, settled_method, settled_ticket, settled_msisdn, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+                + " ON DUPLICATE KEY UPDATE status = VALUES(status), settled_day = VALUES(settled_day), settled_time = VALUES(settled_time), settled_gmd = VALUES(settled_gmd),"
+                + " settled_late = VALUES(settled_late), settled_method = VALUES(settled_method), settled_ticket = VALUES(settled_ticket), settled_msisdn = VALUES(settled_msisdn), note = VALUES(note)")) {
+            Fine.Settled x = f.settled;
+            set(ps, f.id, f.plate, day(f.day), f.t, f.road, f.off, f.base, f.fine, f.status, x == null ? null : day(x.day), x == null ? null : x.t,
+                    x == null ? null : x.amount, x == null ? null : x.late, x == null ? null : x.method, x == null ? null : x.ticket, x == null ? null : x.num, f.note);
+            ps.executeUpdate();
+        }
     }
 
     private void saveSystemState(Connection c, State s) throws SQLException {
@@ -309,9 +345,10 @@ public final class StateRepository {
     }
 
     private void saveTariff(Connection c, Tariff t) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("INSERT INTO tariff (id, daily_gmd, monthly_gmd, grace_days, wallet_limit_gmd) VALUES (1, ?, ?, ?, ?)"
-                + " ON DUPLICATE KEY UPDATE daily_gmd = VALUES(daily_gmd), monthly_gmd = VALUES(monthly_gmd), grace_days = VALUES(grace_days), wallet_limit_gmd = VALUES(wallet_limit_gmd)")) {
-            set(ps, t.daily, t.monthly, t.grace, t.walletLimit);
+        try (PreparedStatement ps = c.prepareStatement("INSERT INTO tariff (id, daily_gmd, monthly_gmd, grace_days, wallet_limit_gmd, annual_gmd, fine_gmd) VALUES (1, ?, ?, ?, ?, ?, ?)"
+                + " ON DUPLICATE KEY UPDATE daily_gmd = VALUES(daily_gmd), monthly_gmd = VALUES(monthly_gmd), grace_days = VALUES(grace_days), wallet_limit_gmd = VALUES(wallet_limit_gmd),"
+                + " annual_gmd = VALUES(annual_gmd), fine_gmd = VALUES(fine_gmd)")) {
+            set(ps, t.daily, t.monthly, t.grace, t.walletLimit, t.annual, t.fine);
             ps.executeUpdate();
         }
     }
@@ -433,10 +470,11 @@ public final class StateRepository {
     }
 
     private void saveOrganisation(Connection c, Organisation o) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("INSERT INTO organisation (org_id, name, contact_name, contact_msisdn, discount, plates_agreed, status, created_on, grace_day)"
-                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), contact_name = VALUES(contact_name), contact_msisdn = VALUES(contact_msisdn),"
-                + " discount = VALUES(discount), plates_agreed = VALUES(plates_agreed), status = VALUES(status), created_on = VALUES(created_on), grace_day = VALUES(grace_day)")) {
-            set(ps, o.id, o.name, o.contact.name, o.contact.num, o.disc, o.agreed, o.status, o.created, o.graceDay);
+        try (PreparedStatement ps = c.prepareStatement("INSERT INTO organisation (org_id, name, contact_name, contact_msisdn, discount, plates_agreed, status, created_on, grace_day, cover_from, cover_to)"
+                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), contact_name = VALUES(contact_name), contact_msisdn = VALUES(contact_msisdn),"
+                + " discount = VALUES(discount), plates_agreed = VALUES(plates_agreed), status = VALUES(status), created_on = VALUES(created_on), grace_day = VALUES(grace_day),"
+                + " cover_from = VALUES(cover_from), cover_to = VALUES(cover_to)")) {
+            set(ps, o.id, o.name, o.contact.name, o.contact.num, o.disc, o.agreed, o.status, o.created, o.graceDay, o.coverFrom, o.coverTo);
             ps.executeUpdate();
         }
         for (String t : new String[]{"org_plate", "org_topup", "invoice", "invoice_line"}) {
@@ -452,12 +490,12 @@ public final class StateRepository {
             for (Organisation.Topup x : o.topups) { set(ps, o.id, i++, x.t, x.a); ps.addBatch(); }
             ps.executeBatch();
         }
-        try (PreparedStatement inv = c.prepareStatement("INSERT INTO invoice (org_id, position, invoice_no, month_label, issued_on, due_on, cover_end, amount_gmd, status, method, paid_on, proof_on)"
-                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        try (PreparedStatement inv = c.prepareStatement("INSERT INTO invoice (org_id, position, invoice_no, month_label, issued_on, due_on, cover_end, amount_gmd, status, method, paid_on, proof_on, kind, plate_list)"
+                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
              PreparedStatement line = c.prepareStatement("INSERT INTO invoice_line (org_id, invoice_position, position, description, amount_gmd) VALUES (?, ?, ?, ?, ?)")) {
             int i = 0;
             for (Organisation.Invoice x : o.invoices) {
-                set(inv, o.id, i, x.no, x.month, x.issued, x.due, x.end, x.amount, x.status, x.method, x.paidOn, x.proofOn);
+                set(inv, o.id, i, x.no, x.month, x.issued, x.due, x.end, x.amount, x.status, x.method, x.paidOn, x.proofOn, x.kind == null ? "monthly" : x.kind, String.join(",", x.plates));
                 inv.addBatch();
                 int j = 0;
                 for (Organisation.Line l : x.lines) { set(line, o.id, i, j++, l.t, l.a); line.addBatch(); }

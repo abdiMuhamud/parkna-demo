@@ -19,7 +19,7 @@ function engine(){
   const ctx = { console, Math, Date, JSON, Object, Array, String, Number, isNaN };
   vm.createContext(ctx);
   vm.runInContext(src, ctx, { filename: "engine.js" });
-  vm.runInContext("function __bump(){ return ++VER; } function __state(){ return { B: B, OFF: OFF, ORGA: ORGA, NUMS: NUMS, PLATES: PLATES, EXC: EXC, ANN: ANN, T: T }; }", ctx);
+  vm.runInContext("function __bump(){ return ++VER; } function __state(){ return { B: B, OFF: OFF, ORGA: ORGA, NUMS: NUMS, PLATES: PLATES, EXC: EXC, ANN: ANN, FINES: FINES, T: T }; }", ctx);
   ctx.reset();
   return ctx;
 }
@@ -37,7 +37,7 @@ function recorder(file){
       try {
         if(step.act){ res = JSON.stringify(E.act(step.act), replacer); vm.runInContext("__bump()", E); }
         else if(step.tick){ if(E.tickMinute()) vm.runInContext("__bump()", E); }
-      } catch(e){ E.hydrate(before); return false; }
+      } catch(e){ if(process.env.PARITY_DEBUG) console.error("JS engine threw on", JSON.stringify(step), e.message); E.hydrate(before); return false; }
       lines.push(JSON.stringify({ step, res: res === undefined ? null : res, snap: E.snapshot() }));
       return true;
     },
@@ -81,6 +81,23 @@ function story(){
   A({ type: "sms", num: "7012345", text: "BJL9191" });
   A({ type: "sms", num: "7012345", text: "1" });
   A({ type: "sms", num: "7300007", text: "BJL9191" });
+  /* warnings: issue, repeat, paid plate, no plate, not on shift; the driver pays within 24 hours */
+  A({ type: "driver.addPlate", num: "7045678", plate: "BJL4040" });
+  for(const t of ["W BJL9191", "W BJL7777", "W BJL7001", "W", "W 12", "W BJL6006", "BJL6006", "W BJL2211", "w bjl2211", "WARN BJL4040", "BJL2211"]) A({ type: "sms", num: "7300007", text: t });
+  A({ type: "sms", num: "7300012", text: "W BJL5678" });
+  A({ type: "sms", num: "3034567", text: "BJL2211" });
+  A({ type: "sms", num: "3034567", text: "M BJL2211" });
+  A({ type: "sms", num: "3034567", text: "1" });
+  A({ type: "sms", num: "3034567", text: "BJL2211" });
+  A({ type: "sms", num: "7300007", text: "BJL2211" });
+  A({ type: "driver.pay", num: "7045678", plate: "BJL4040", kind: "monthly", prov: "Wave" });
+  A({ type: "back.settleFine", id: "W-00099", ref: "x" });
+  A({ type: "back.settleFine", id: "W-00001", ref: " " });
+  A({ type: "back.cancelFine", id: "W-00003" });
+  A({ type: "back.cancelFine", id: "W-00003", reason: "Wrong plate typed" });
+  A({ type: "back.settleFine", id: "W-00003", ref: "BCC-R-1" });
+  A({ type: "back.settleFine", id: "W-00001", ref: " BCC-R-2 " });
+  A({ type: "sms", num: "7300007", text: "BJL6006" });
   A({ type: "back.reassign", off: "7300007", road: "WEL" });
   A({ type: "back.reassign", off: "7300007", road: "LEM" });
   A({ type: "back.reassign", off: "7300099", road: "LEM" });
@@ -118,10 +135,26 @@ function story(){
   A({ type: "back.createOrg", name: " Gambia Ports ", plates: "3", contact: " Musa J. ", phone: "720 0001", signed: true, disc: "0.2" });
   A({ type: "back.createOrg", name: "Kairaba Hotel", plates: 2, contact: "Aji", phone: "7200002", signed: true });
   A({ type: "org.addPlate", org: "ORG-015", plate: "BJL8001" });
+  A({ type: "org.addPlate", org: "ORG-015", plate: "BJL8002", dept: "Port", driver: "Ali" });
+  A({ type: "org.addPlates", org: "ORG-015", rows: [{ p: "BJL8003" }, { p: "BJL8001" }] });
+  A({ type: "org.removePlate", org: "ORG-015", plate: "BJL8003" });
+  A({ type: "org.addPlate", org: "ORG-016", plate: "BJL8101" });
+  A({ type: "org.removePlate", org: "ORG-016", plate: "BJL8101" });
+  A({ type: "org.addPlate", org: "ORG-016", plate: "BJL8102" });
+  A({ type: "org.payWallet", org: "ORG-015", inv: "INV-015-001" });
+  A({ type: "back.match", org: "ORG-015", inv: "INV-015-001" });
+  A({ type: "back.match", org: "ORG-015", inv: "INV-015-001" });
+  A({ type: "org.uploadProof", org: "ORG-015", inv: "INV-015-001" });
+  A({ type: "org.addPlate", org: "ORG-015", plate: "BJL8004" });
+  A({ type: "org.removePlate", org: "ORG-015", plate: "BJL8002" });
+  A({ type: "sms", num: "7300012", text: "BJL8001" });
   A({ type: "back.publish", daily: "abc", auth: "x" });
   A({ type: "back.publish", daily: 200, auth: "x" });
   A({ type: "back.publish", daily: 250, auth: " " });
   A({ type: "back.publish", daily: "249.6", auth: "BCC resolution 12/2026" });
+  A({ type: "back.publish", annual: 500, auth: "x" });
+  A({ type: "back.publish", fine: 6000, auth: "x" });
+  A({ type: "back.publish", annual: "60000", fine: 150, auth: "BCC resolution 13/2026" });
   A({ type: "back.announce" });
   A({ type: "back.announce", title: "x".repeat(61) });
   A({ type: "back.announce", title: "Road works", text: "y".repeat(181) });
@@ -165,11 +198,19 @@ function story(){
     A({ type: "sms", num: who, text: d % 3 ? "BJL7002" : "M" });
     A({ type: "sms", num: who, text: String(1 + d % 4) });
     if(d % 5 === 0){ A({ type: "sms", num: "7300007", text: "START" }); A({ type: "sms", num: "7300007", text: "BJL7002" }); A({ type: "sms", num: "7300007", text: "BJL7009" }); }
-    if(d === 30) A({ type: "org.uploadProof", org: "ORG-014", inv: "INV-2612-014" });
-    if(d === 36) A({ type: "back.match", org: "ORG-015", inv: "INV-2612-015" });
-    if(d === 37) A({ type: "org.payWallet", org: "ORG-016", inv: "INV-2612-016" });
-    if(d === 38) A({ type: "org.payWallet", org: "ORG-014", inv: "INV-2612-014" });
-    if(d === 40) A({ type: "back.match", org: "ORG-014", inv: "INV-2612-014" });
+    if(d === 10){ A({ type: "sms", num: "7300007", text: "W BJL2211" }); A({ type: "sms", num: "7300007", text: "W BJL6006" }); A({ type: "sms", num: "7300007", text: "W BJL4040" }); }
+    if(d === 11){ A({ type: "clock.set", min: 620 }); A({ type: "sms", num: "3034567", text: "BJL2211" }); A({ type: "clock.set", min: 700 }); A({ type: "sms", num: "3034567", text: "BJL2211" }); A({ type: "sms", num: "3034567", text: "2" }); }
+    if(d === 12) A({ type: "driver.pay", num: "7023456", plate: "BJL6006", prov: "APS" });
+    if(d === 6) A({ type: "back.match", org: "ORG-015", inv: "INV-015-002" });
+    if(d === 8) A({ type: "back.match", org: "ORG-016", inv: "INV-016-001" });
+  }
+  /* on through the Demo Bank year: renewal invoice 30 days before 30 Sep 2027, grace, reverting, paying */
+  for(let d = 0; d < 330; d++){
+    A({ type: "clock.nextDay" });
+    if(d % 40 === 0) A({ type: "sms", num: "7300007", text: "START" });
+    if(d === 285) A({ type: "org.uploadProof", org: "ORG-014", inv: "INV-014-004" });
+    if(d === 300) A({ type: "sms", num: "7300012", text: "BJL7001" });
+    if(d === 310) A({ type: "back.match", org: "ORG-014", inv: "INV-014-004" });
   }
   A({ type: "nothing.here" });
   A({ type: "demo.reset" });
@@ -193,7 +234,9 @@ function randomRun(n){
   const smsText = () => pick([plate(), plate(), String(int(0, 5)), String(int(0, 5)), "START", "END", "HELP", "INFO", "M", "M " + plate(), "m " + pick(PLATES), "hello", "  ", "12", "stop"]);
   const acts = [
     [8, () => ({ type: "sms", num: driverNum(), text: smsText() })],
-    [8, () => ({ type: "sms", num: officerNum(), text: pick(["START", "END", plate(), plate(), plate(), "x", "9"]) })],
+    [8, () => ({ type: "sms", num: officerNum(), text: pick(["START", "END", plate(), plate(), plate(), "x", "9", "W " + plate(), "W " + pick(PLATES)]) })],
+    [1, () => ({ type: "back.settleFine", id: pick(S().FINES.map(f => f.id).concat(["W-00000"])), ref: pick(["R-1", "", "BCC 22"]) })],
+    [0.5, () => ({ type: "back.cancelFine", id: pick(S().FINES.map(f => f.id).concat(["W-00000"])), reason: pick(["Wrong plate", ""]) })],
     [5, () => ({ type: "driver.pay", num: driverNum(), plate: plate(), kind: chance(0.25) ? "monthly" : undefined, prov: chance(0.95) ? pick(["Wave", "Afrimoney", "APS", "QMoney"]) : "Cash" })],
     [2, () => ({ type: "driver.login", num: driverNum(), name: chance(0.5) ? pick(["Ali", " Binta ", ""]) : undefined })],
     [2, () => ({ type: "driver.addPlate", num: driverNum(), plate: plate() })],
@@ -211,7 +254,7 @@ function randomRun(n){
     [1, () => ({ type: "back.register", name: pick(["Lamin Bojang", "", "Isatou"]), phone: chance(0.8) ? "73" + int(10000, 99999) : "1", road: pick(["WEL", "LIB", "IND", "LEM", "RUS"]), shift: pick(["AM", "PM"]) })],
     [1, () => ({ type: "back.reassign", off: officerNum(), road: pick(["WEL", "LIB", "IND", "LEM", "RUS"]) })],
     [0.5, () => ({ type: "back.createOrg", name: pick(["Acme", "", "Serrekunda Motors"]), plates: pick([0, 2, "5", 1.5]), contact: pick(["Ama", ""]), phone: "72" + int(10000, 99999), signed: chance(0.8), disc: pick([undefined, 0.1, "0.25", 0]) })],
-    [0.5, () => ({ type: "back.publish", daily: pick([int(40, 400), "300", 2100, "x"]), auth: chance(0.8) ? "Ref " + int(1, 99) : "" })],
+    [0.5, () => ({ type: "back.publish", daily: pick([int(40, 400), "300", 2100, "x", undefined]), annual: pick([undefined, int(500, 90000), "x"]), fine: pick([undefined, int(0, 300), -5]), auth: chance(0.8) ? "Ref " + int(1, 99) : "" })],
     [0.5, () => ({ type: "back.exception", plate: chance(0.7) ? pick(PLATES) : undefined, detail: chance(0.5) ? "note" : undefined })],
     [0.5, () => ({ type: "back.refer", i: int(0, 3) })],
     [0.7, () => ({ type: "back.announce", title: pick(["Clean-up day", "", "Road closed", "x".repeat(70)]), text: pick(["", "Details here."]), kind: pick(["Event", "Notice", "Other", undefined]), theme: pick(["green", "red", "pink"]), from: pick([undefined, "2026-11-0" + int(1, 9), "2026-12-" + int(10, 31), "bad"]), to: pick([undefined, "2026-11-2" + int(0, 9), "2027-01-15"]), link: pick(["", "https://bcc.gm", "bcc.gm"]) })],

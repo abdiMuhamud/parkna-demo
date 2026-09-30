@@ -32,6 +32,8 @@ public class Changes {
     public boolean tariff;
     public boolean exceptions;
     public boolean announcements;
+    /** Warnings added or changed, by id. */
+    public final Set<String> fines = new LinkedHashSet<>();
 
     /** A line added to a phone's SMS thread; {@code out} is set for messages ParkNa sends. */
     public record NewSms(String num, SmsEntry entry, OutMessage out) {}
@@ -46,6 +48,6 @@ public class Changes {
 
     public boolean isEmpty() {
         return !fullReset && subscribers.isEmpty() && plates.isEmpty() && officers.isEmpty() && orgs.isEmpty() && sms.isEmpty()
-                && receipts.isEmpty() && ledger.isEmpty() && checks.isEmpty() && tariffLog.isEmpty() && !tariff && !exceptions && !announcements;
+                && receipts.isEmpty() && ledger.isEmpty() && checks.isEmpty() && tariffLog.isEmpty() && !tariff && !exceptions && !announcements && fines.isEmpty();
     }
 }

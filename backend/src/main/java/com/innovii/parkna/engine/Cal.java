@@ -27,12 +27,18 @@ public final class Cal {
     /** new Date(y, m+1, d): 31 Jan + 1 month is 3 March, as in JavaScript. */
     public static LocalDate addMonth(LocalDate d) { return date(d.getYear(), d.getMonthValue(), d.getDayOfMonth()); }
 
+    /** new Date(y+1, m, d): 29 Feb + 1 year is 1 March, as in JavaScript. */
+    public static LocalDate addYear(LocalDate d) { return date(d.getYear() + 1, d.getMonthValue() - 1, d.getDayOfMonth()); }
+
     public static long daysBetween(LocalDate a, LocalDate b) { return ChronoUnit.DAYS.between(a, b); }
 
     /** Days in the month. */
     public static int dim(LocalDate d) { return d.lengthOfMonth(); }
 
     public static String fmtD(LocalDate d) { return d.getDayOfMonth() + " " + MON[d.getMonthValue() - 1]; }
+
+    /** "30 Sep 2027". */
+    public static String fmtY(LocalDate d) { return fmtD(d) + " " + d.getYear(); }
 
     /** 0 = Sunday, as Date.getDay(). */
     public static int dow(LocalDate d) { return d.getDayOfWeek().getValue() % 7; }

@@ -26,12 +26,15 @@ const SHARED_ASSETS = ["engine.js"];              /* everything else in frontend
 /* 1. the APK projects. PARKNA_SERVER_URL (e.g. https://parkna.gm) is built into the apps so people never type a server
       address; without it the app asks for one on first start. */
 const server = (process.env.PARKNA_SERVER_URL || "").trim().replace(/\/+$/, "");
+/* the release number, e.g. 1.1.14 (VERSION file + build number, set by the GitHub build); shown in the apps */
+const version = (process.env.PARKNA_VERSION || fs.readFileSync(path.join(root, "VERSION"), "utf8").trim() + "-dev").trim();
+if(!/^[0-9A-Za-z.\-]+$/.test(version)){ console.error("PARKNA_VERSION must look like 1.1.14"); process.exit(1); }
 if(server && !/^https?:\/\/[^\s"'<>]+$/.test(server)){ console.error("PARKNA_SERVER_URL must look like https://parkna.gm"); process.exit(1); }
 for(const app of ["driver", "officer"]){
   const www = path.join(root, "apps", app, "www");
   fs.rmSync(path.join(www, "assets"), { recursive: true, force: true });
   copyDir(shared, path.join(www, "assets"), SHARED_ASSETS);
-  fs.writeFileSync(path.join(www, "assets", "config.js"), "/* built by scripts/build-frontend.js */\nwindow.PARKNA_CONFIG = " + JSON.stringify(server ? { server } : {}) + ";\n");
+  fs.writeFileSync(path.join(www, "assets", "config.js"), "/* built by scripts/build-frontend.js */\nwindow.PARKNA_CONFIG = " + JSON.stringify(server ? { server, version } : { version }) + ";\n");
   fs.copyFileSync(path.join(shared, "engine.js"), path.join(www, "engine.js"));
 }
 
@@ -42,4 +45,4 @@ copyDir(shared, path.join(dist, "shared"), SHARED_ASSETS);
 fs.copyFileSync(path.join(shared, "engine.js"), path.join(dist, "engine.js"));
 for(const app of ["driver", "officer"]) copyDir(path.join(root, "apps", app, "www"), path.join(dist, app));
 
-console.log("Built frontend/dist (Nginx document root) and copied shared files into apps/driver and apps/officer" + (server ? " (server " + server + ")" : ""));
+console.log("Built ParkNa " + version + ": frontend/dist (Nginx document root) and the shared files in apps/driver and apps/officer" + (server ? " (server " + server + ")" : ""));

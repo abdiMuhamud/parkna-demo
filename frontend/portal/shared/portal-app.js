@@ -16,8 +16,8 @@ const ME = () => PN.me || {};
 const myRole = () => ME().role || "";
 const isDemo = () => !!(PN.mode && PN.mode.demo);
 const STAFF_ROLES = { admin: "Administrator", supervisor: "Supervisor", finance: "Finance", council: "Council · read-only" };
-const PAGES = { admin: ["dash", "attendants", "orgs", "payments", "tariff", "ann", "council", "staff"], supervisor: ["dash", "attendants", "council"],
-  finance: ["dash", "orgs", "payments", "council"], council: ["council"] };
+const PAGES = { admin: ["dash", "attendants", "orgs", "fines", "payments", "tariff", "ann", "council", "staff"], supervisor: ["dash", "attendants", "fines", "council"],
+  finance: ["dash", "orgs", "fines", "payments", "council"], council: ["council"] };
 const pageOf = v => v === "register" ? "attendants" : v === "neworg" ? "orgs" : v;
 const canSee = v => (PAGES[myRole()] || []).includes(pageOf(v));
 const can = what => ({ officers: ["admin", "supervisor"], orgs: ["admin"], money: ["admin", "finance"], payers: ["admin", "finance", "supervisor"] }[what] || []).includes(myRole());
@@ -147,7 +147,7 @@ async function orgAct(a, v){
       const r = await call({ type: "org.addPlate", org: o.id, plate: OS.add.plate, dept: OS.add.dept, driver: OS.add.driver });
       if(r.err){ OS.add.err = r.err; return renderOrg(); }
       OS.add = freshOS().add; renderOrg();
-      return wtoast(STAGE, `${r.plate} covered from today · pro-rata GMD ${gmd(r.proRata)} on the next invoice`);
+      return wtoast(STAGE, `${r.plate} added to invoice ${r.inv} · covered once it is paid`);
     }
     case "upload": { const f = $("csvFile"); if(f){ f.value = ""; f.click(); } return; }
     case "confirmup": {
@@ -155,11 +155,12 @@ async function orgAct(a, v){
       const r = await call({ type: "org.addPlates", org: o.id, rows });
       if(r.err) return wtoast(STAGE, r.err);
       OS.upload = null; renderOrg();
-      return wtoast(STAGE, `${plural(rows.length, "plate")} added · covered from today`);
+      return wtoast(STAGE, r.inv ? `${plural(r.added, "car")} added to invoice ${r.inv} · covered once it is paid` : "No new cars to add");
     }
     case "remove":
-      if(!confirm(`Remove ${v} from the fleet? Cover stops at midnight.`)) return;
-      await call({ type: "org.removePlate", org: o.id, plate: v }); return wtoast(STAGE, `${v}: cover stops at midnight`);
+      { const x = o.plates.find(y => y.plate === v && !y.to), waiting = x && !x.from;
+        if(!confirm(waiting ? `Remove ${v}? It comes off its unpaid invoice.` : `Remove ${v} from the fleet? Cover stops at midnight, with no refund for the rest of the year.`)) return;
+        await call({ type: "org.removePlate", org: o.id, plate: v }); return wtoast(STAGE, waiting ? `${v} removed from the invoice` : `${v}: cover stops at midnight`); }
     case "uploadproof": {
       const r = await call({ type: "org.uploadProof", org: o.id, inv: OS.inv });
       return wtoast(STAGE, r.err || "Thank you · ParkNa Finance will match your transfer and confirm by SMS");
@@ -233,9 +234,23 @@ async function backAct(a, v){
       const r = await call({ type: "back.match", org, inv });
       return wtoast(STAGE, r.err || `${inv} matched · the organisation is told by SMS`);
     }
+    case "finepaid": {
+      if(!confirm(`Record that warning ${v} was paid at the Council office?`)) return;
+      const r = await call({ type: "back.settleFine", id: v, ref: BS.fref });
+      if(r.err){ BS.ferr = r.err; return renderBack(); }
+      BS.fref = ""; BS.ferr = ""; renderBack();
+      return wtoast(STAGE, `${v} paid · GMD ${gmd(r.amount)} · the driver is told by SMS`);
+    }
+    case "finecancel": {
+      if(!confirm(`Cancel warning ${v}? The driver is told there is nothing to pay.`)) return;
+      const r = await call({ type: "back.cancelFine", id: v, reason: BS.freason });
+      if(r.err){ BS.ferr = r.err; return renderBack(); }
+      BS.freason = ""; BS.ferr = ""; renderBack();
+      return wtoast(STAGE, `${v} cancelled · the driver is told by SMS`);
+    }
     case "refer": { const r = await call({ type: "back.refer", i: v }); return wtoast(STAGE, r.err || "Referred to Finance for the refund decision"); }
     case "publish": {
-      const F = BS.tar, r = await call({ type: "back.publish", daily: F.daily === "" ? T.daily : F.daily, auth: F.auth });
+      const F = BS.tar, r = await call({ type: "back.publish", daily: F.daily === "" ? T.daily : F.daily, annual: F.annual === "" ? T.annual : F.annual, fine: F.fine === "" ? T.fine : F.fine, auth: F.auth });
       if(r.err){ F.err = r.err; return renderBack(); }
       BS.tar = freshBS().tar; renderBack();
       return wtoast(STAGE, "Published to SMS, app, portal and cards");
