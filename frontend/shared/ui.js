@@ -211,5 +211,70 @@ var UI = (function(){
     };
   }
 
-  return { ic: ic, FLAG: FLAG, initials: initials, phone: phone, money: money, greet: greet, crest: crest, bname: bname, SignIn: SignIn };
+  /* ---------- screen updates without flicker ----------
+     The screens are rebuilt as HTML on every change (a keystroke, the OTP countdown, a live update from the server).
+     Replacing the whole page would destroy the field being typed in (on Android the keyboard then closes and opens
+     again) and replay the sheets' slide-in animations. morph() changes only what differs: the focused field, its
+     text and the keyboard stay as they are, open sheets do not animate again, scroll positions are kept. */
+  function same(a, b){ return a.nodeType === b.nodeType && a.nodeName === b.nodeName && (a.nodeType !== 1 || (a.id || "") === (b.id || "")); }
+  function patchAttrs(a, b){
+    var i, n;
+    for(i = a.attributes.length - 1; i >= 0; i--){ n = a.attributes[i].name; if(!b.hasAttribute(n)) a.removeAttribute(n); }
+    for(i = 0; i < b.attributes.length; i++){ n = b.attributes[i]; if(a.getAttribute(n.name) !== n.value) a.setAttribute(n.name, n.value); }
+  }
+  function patchNode(a, b){
+    if(a.nodeType !== 1){ if(a.nodeValue !== b.nodeValue) a.nodeValue = b.nodeValue; return; }
+    patchAttrs(a, b);
+    var tag = a.nodeName;
+    if(tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT"){
+      /* never touch what the person is typing; other fields follow the new screen */
+      if(a !== document.activeElement){
+        if(a.type === "checkbox" || a.type === "radio") a.checked = b.hasAttribute("checked");
+        else if(tag === "SELECT"){ var sel = b.querySelector("option[selected]"); if(sel && a.value !== sel.value) a.value = sel.value; }
+        else { var v = b.getAttribute("value") || ""; if(a.value !== v) a.value = v; }
+      }
+      if(tag !== "SELECT") return;
+    }
+    patchChildren(a, b);
+  }
+  function patchChildren(parent, next){
+    var a = parent.firstChild, b = next.firstChild, nb;
+    while(b){
+      nb = b.nextSibling;
+      if(!a){ parent.appendChild(b); }
+      else if(same(a, b)){ patchNode(a, b); a = a.nextSibling; }
+      else if(a.nextSibling && same(a.nextSibling, b)){ var gone = a; a = a.nextSibling; parent.removeChild(gone); patchNode(a, b); a = a.nextSibling; }
+      else { parent.insertBefore(b, a); }
+      b = nb;
+    }
+    while(a){ var na = a.nextSibling; parent.removeChild(a); a = na; }
+  }
+  function morph(root, html){
+    var t = document.createElement("template");
+    t.innerHTML = html;
+    patchChildren(root, t.content);
+  }
+
+  /* ---------- the on-screen keyboard ----------
+     While it is open (the app area gets much shorter), <html> has the class "kb": the bottom bar and its raised
+     button hide instead of jumping up above the keyboard. */
+  (function(){
+    var full = 0;
+    function h(){ return window.visualViewport ? window.visualViewport.height : window.innerHeight; }
+    function update(){
+      var now = h();
+      if(now > full) full = now;
+      var f = document.activeElement, typing = !!f && (f.nodeName === "INPUT" || f.nodeName === "TEXTAREA") && f.type !== "checkbox";
+      var open = typing && full - now > 120, el = document.documentElement;
+      if(el.classList.contains("kb") !== open) el.classList.toggle("kb", open);
+    }
+    window.addEventListener("resize", update);
+    document.addEventListener("focusin", function(){ setTimeout(update, 50); });
+    document.addEventListener("focusout", function(){ setTimeout(update, 50); });
+    if(window.visualViewport) window.visualViewport.addEventListener("resize", update);
+    window.addEventListener("orientationchange", function(){ full = 0; setTimeout(update, 400); });
+    update();
+  })();
+
+  return { ic: ic, FLAG: FLAG, initials: initials, phone: phone, money: money, greet: greet, crest: crest, bname: bname, SignIn: SignIn, morph: morph };
 })();

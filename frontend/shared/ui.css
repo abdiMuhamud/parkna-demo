@@ -263,6 +263,11 @@ a{color:inherit}
 .sheet .sht h3{font-size:20px;font-weight:800;letter-spacing:-.02em}
 .sheet .x{width:38px;height:38px;border-radius:50%;background:#fff;border:1px solid var(--line2);display:grid;place-items:center}
 @keyframes up{from{transform:translateY(40px);opacity:.6}to{transform:none;opacity:1}}
+/* keyboard open (html.kb, set in ui.js): the bottom bar stays hidden instead of jumping up above the keyboard */
+html.kb .tabs{display:none}
+html.kb .scr{padding-bottom:24px}
+html.kb .toast{bottom:12px}
+html.kb .sheet{max-height:100%}
 @keyframes fade{from{opacity:0}to{opacity:1}}
 
 /* ---------- mobile-money providers ---------- */
