@@ -67,6 +67,8 @@ public final class ParknaService implements AutoCloseable, AuthService.Directory
             Map.entry("back.match", EnumSet.of(ADMIN, FINANCE)),
             Map.entry("back.refer", EnumSet.of(ADMIN, FINANCE)),
             Map.entry("back.exception", EnumSet.of(ADMIN, FINANCE, SUPERVISOR)),
+            Map.entry("back.settleFine", EnumSet.of(ADMIN, FINANCE)),
+            Map.entry("back.cancelFine", EnumSet.of(ADMIN, SUPERVISOR)),
             Map.entry("back.publish", EnumSet.of(ADMIN)),
             Map.entry("back.announce", EnumSet.of(ADMIN)),
             Map.entry("back.announceStatus", EnumSet.of(ADMIN)),
@@ -287,7 +289,7 @@ public final class ParknaService implements AutoCloseable, AuthService.Directory
 
     private static String target(Map<String, Object> a) {
         StringBuilder b = new StringBuilder();
-        for (String k : new String[]{"off", "org", "inv", "plate", "phone", "name", "road", "id", "daily", "title"})
+        for (String k : new String[]{"off", "org", "inv", "plate", "phone", "name", "road", "id", "daily", "annual", "fine", "ref", "reason", "title"})
             if (a.get(k) != null) { if (b.length() > 0) b.append(' '); b.append(k).append('=').append(a.get(k)); }
         return b.toString();
     }

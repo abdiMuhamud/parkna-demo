@@ -44,10 +44,11 @@ Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Server installation on Ro
 ## Getting a build
 
 Every push builds and tests everything on GitHub (**Actions → Build ParkNa**). Each push to `main` also publishes a
-release (**Releases**) with:
+release (**Releases**) with its own, always higher, release number: the `VERSION` file plus the build number, e.g.
+`1.1.23`. The apps (sign-in screen and Profile), the landing page, the back office and `/api/health` show that number.
 
-- `parkna-1.0.0-b<build>.tar.gz`: the server package (WAR, front end, config templates, deploy scripts, SQL)
-- `ParkNa-Driver-v1.0.aab` and `ParkNa-Officer-v1.0.aab`: for Google Play, and `.apk` files of the same builds to
+- `parkna-1.1.<build>.tar.gz`: the server package (WAR, front end, config templates, deploy scripts, SQL)
+- `ParkNa-Driver-1.1.<build>.aab` and `ParkNa-Officer-1.1.<build>.aab`: for Google Play, and `.apk` files of the same builds to
   install directly on a phone. Until the Play upload key is added to the repository secrets, the build makes
   `...-test.apk` files instead (signed with the shared test key; they install over each other).
 
@@ -125,8 +126,13 @@ A suggested order:
 
 - One price for every plate: GMD 200 a day or GMD 4,420 a month.
 - Paid hours: 7am to 7pm, Monday to Saturday.
-- No fines and no clamping during the pilot.
-- Organisations are invoiced on the 25th, due on the 1st, with 5 days' grace; after that their plates revert to normal pricing.
+- Warnings: an attendant issues a warning to a car parked without paying (in the Officer app, or `W BJL1234` by SMS).
+  The driver gets an SMS and an in-app notice and pays the GMD 200 daily fee within 24 hours; after that it is
+  GMD 300 (the GMD 100 fine is added). A warning is paid before any new pass, in the app or by texting the plate;
+  Finance can record one paid at the Council office. No clamping.
+- Organisations pay upfront for a year per car (GMD 53,040 less their discount). Cars are covered from the day the
+  invoice is paid; cars added later pay the months left, so every car ends on the same date. The renewal invoice
+  comes 30 days before the year ends, with 5 days' grace; after that the cars revert to normal pricing.
 - Revenue share: 60% Council, 40% operator.
 - SMS shortcode: `sms.shortcode` in `config.properties` (7275 until the operator confirms the number).
 

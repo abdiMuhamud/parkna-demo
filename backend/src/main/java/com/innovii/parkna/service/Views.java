@@ -8,6 +8,7 @@ import com.innovii.parkna.engine.ParkingEngine;
 import com.innovii.parkna.json.Json;
 import com.innovii.parkna.model.Announcement;
 import com.innovii.parkna.model.Check;
+import com.innovii.parkna.model.Fine;
 import com.innovii.parkna.model.LedgerEntry;
 import com.innovii.parkna.model.Officer;
 import com.innovii.parkna.model.Organisation;
@@ -104,6 +105,7 @@ final class Views {
         List<Announcement> live = new ArrayList<>();
         for (Announcement a : st.ann) if (e.annLive(a)) live.add(a);
         m.put("ANN", live);
+        m.put("FINES", List.of());
         m.put("T", st.tariff);
         m.put("seq", 0);
         return m;
@@ -122,6 +124,7 @@ final class Views {
         putPlates(st, m, plates);
         m.put("CHECKS", checksOn(st, new LinkedHashSet<>(u.plates), 62, 200));
         m.put("ORGA", orgsCovering(st, plates));
+        m.put("FINES", finesOn(st, plates, null));
         return m;
     }
 
@@ -148,6 +151,7 @@ final class Views {
         for (Check c : checks) plates.add(c.plate);
         putPlates(st, m, plates);
         m.put("ORGA", orgsCovering(st, plates));
+        m.put("FINES", finesOn(st, plates, o.id));
         if (cfg.mode == AppConfig.Mode.DEMO) {
             List<ParkedCar> park = new ArrayList<>();
             for (ParkedCar c : st.park) if (c.road.equals(road)) park.add(new ParkedCar(c.road, c.bay, c.plate, null));
@@ -172,6 +176,7 @@ final class Views {
         for (Organisation.FleetPlate x : o.plates) fleet.add(x.plate);
         putPlates(st, m, fleet);
         m.put("CHECKS", checksOn(st, fleet, 62, 2000));
+        m.put("FINES", finesOn(st, fleet, null));
         List<LedgerEntry> log = new ArrayList<>();
         for (LedgerEntry l : st.log) {
             boolean mineInvoice = "org".equals(l.src) && l.text != null && l.text.contains(" " + o.id + " ");
@@ -195,6 +200,30 @@ final class Views {
         }
     }
 
+    /** Warnings on these plates (open ones always, others from the last 62 days), plus those this attendant issued in 14 days. */
+    private static List<Fine> finesOn(State st, Set<String> plates, String attendant) {
+        LocalDate since = st.clock.date.minusDays(62), mine = st.clock.date.minusDays(14);
+        List<Fine> out = new ArrayList<>();
+        for (Fine f : st.fines) {
+            LocalDate d = Cal.fromDkey(f.day);
+            boolean onPlate = plates.contains(f.plate) && (f.status.equals("open") || !d.isBefore(since));
+            boolean issued = attendant != null && f.off.equals(attendant) && !d.isBefore(mine);
+            if (onPlate || issued) out.add(withoutPhone(f));
+        }
+        return out;
+    }
+
+    /** A warning without the number that paid it. */
+    private static Fine withoutPhone(Fine f) {
+        if (f.settled == null || f.settled.num == null) return f;
+        Fine c = new Fine();
+        c.id = f.id; c.plate = f.plate; c.day = f.day; c.t = f.t; c.road = f.road; c.off = f.off; c.base = f.base; c.fine = f.fine; c.status = f.status; c.note = f.note;
+        Fine.Settled x = new Fine.Settled();
+        x.day = f.settled.day; x.t = f.settled.t; x.amount = f.settled.amount; x.late = f.settled.late; x.method = f.settled.method; x.ticket = f.settled.ticket;
+        c.settled = x;
+        return c;
+    }
+
     private static List<Check> checksOn(State st, Set<String> plates, int days, int max) {
         LocalDate since = st.clock.date.minusDays(days);
         List<Check> out = new ArrayList<>();
@@ -213,16 +242,10 @@ final class Views {
             r.put("id", o.id);
             r.put("name", o.name);
             r.put("status", o.status);
+            r.put("coverFrom", o.coverFrom);
+            r.put("coverTo", o.coverTo);
             r.put("plates", mine);
-            List<Map<String, Object>> inv = new ArrayList<>();
-            for (Organisation.Invoice i : o.invoices) {
-                if (!"paid".equals(i.status)) continue;
-                Map<String, Object> x = new LinkedHashMap<>();
-                x.put("status", i.status);
-                x.put("end", i.end);
-                inv.add(x);
-            }
-            r.put("invoices", inv);
+            r.put("invoices", List.of());
             r.put("topups", List.of());
             out.put(o.id, r);
         }

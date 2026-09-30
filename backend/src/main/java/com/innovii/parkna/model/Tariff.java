@@ -7,6 +7,10 @@ import java.util.List;
 public class Tariff {
     public int daily;
     public int monthly;
+    /** An organisation car for a year, before the organisation's discount. */
+    public int annual;
+    /** Added to the daily fee when a warning is not paid within 24 hours. */
+    public int fine;
     public int grace;
     public int walletLimit;
     public List<Change> log = new ArrayList<>();

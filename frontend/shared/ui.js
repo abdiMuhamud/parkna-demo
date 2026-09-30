@@ -62,7 +62,7 @@ var UI = (function(){
     }
     function err(){ return S.err ? '<div class="err">'+esc(S.err)+'</div>' : ""; }
     function paysup(){ return driver ? '<div class="paysup"><b>Payments supported</b><img src="assets/img/art/payments-strip.webp" alt="Wave, Afrimoney, QMoney, APS Wallet"></div>' : ""; }
-    function secure(){ return '<div class="secure">A secure service by Banjul City Council</div>'; }
+    function secure(){ var v = window.PARKNA_CONFIG && window.PARKNA_CONFIG.version; return '<div class="secure">A secure service by Banjul City Council'+(v ? ' · v'+esc(v) : "")+'</div>'; }
     function demoList(){
       if(!(PN.info && PN.info.demo) || !o.demo) return "";
       return '<div class="fld" style="font-size:13px">Demo accounts<div class="demo">'+o.demo().map(function(d){ return '<button data-si="demo" data-v="'+d.num+'">'+esc(d.name)+'<small>'+esc(d.note)+'</small></button>'; }).join("")+'</div></div>';

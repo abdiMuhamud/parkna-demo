@@ -22,6 +22,8 @@ public class State {
     public List<ExceptionCase> exc = new ArrayList<>();
     /** Newest first. */
     public List<Announcement> ann = new ArrayList<>();
+    /** Warnings to unpaid cars, oldest first (W-00001, W-00002, ...). */
+    public List<Fine> fines = new ArrayList<>();
     public Tariff tariff = new Tariff();
     public int seq;
 

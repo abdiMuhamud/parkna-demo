@@ -3,7 +3,7 @@
    as the SMS line (START, a plate, END to the short code), so the SMS line keeps working on phones without data. */
 (function(){
 var APP = document.getElementById("app");
-var VERSION = "1.0";
+var VERSION = (window.PARKNA_CONFIG && window.PARKNA_CONFIG.version) || "1.1";
 var ic = UI.ic;
 PN.init({ as: "officer" });
 
@@ -27,6 +27,9 @@ function notices(){ return thread().filter(function(m){ return m.i && m.tag; });
 function seenKey(){ return "parkna.seen.o." + (PN.me ? PN.me.num : ""); }
 function unread(){ return Math.max(0, notices().length - (+PN.ls(seenKey()) || 0)); }
 function myChecks(o){ return CHECKS.filter(function(c){ return c.off === o.id; }); }
+/* the warning issued on this plate that day, if any (the server sends this attendant's warnings and those on the plates they checked) */
+function warningOn(plate, day){ return (typeof FINES !== "undefined" && FINES ? FINES : []).filter(function(f){ return f.plate === plate && f.day === day; })[0]; }
+function warnedToday(o){ var d = dkey(B.date); return (typeof FINES !== "undefined" && FINES ? FINES : []).filter(function(f){ return f.off === o.id && f.day === d; }).length; }
 
 /* ---------- render ---------- */
 function render(){
@@ -108,7 +111,8 @@ function homeView(){
     + (on ? tile("end", "End shift", "stop", false, V.busy) : tile("start", "Start shift", "play", true, V.busy))
     + tile("check", "Check", "scan", on) + tile("checks", "Checks", "shield") + tile("help", "Help", "help") + '</div>';
   var unp = s.checked ? Math.round(s.unpaid * 100 / s.checked) : 0;
-  var stats = '<div class="two"><div class="stat"><small>Checked today</small><b>'+s.checked+'</b></div><div class="stat"><small>Not paid'+(s.checked ? '<i class="down">'+unp+'%</i>' : "")+'</small><b>'+s.unpaid+'</b></div></div>';
+  var wn = warnedToday(o);
+  var stats = '<div class="two"><div class="stat"><small>Checked today</small><b>'+s.checked+'</b></div><div class="stat"><small>Not paid'+(s.checked ? '<i class="down">'+unp+'%</i>' : "")+'</small><b>'+s.unpaid+(wn ? '<small style="font-size:12.5px;font-weight:600;color:var(--mute);margin-left:8px">'+wn+' warned</small>' : "")+'</b></div></div>';
   var recent = myChecks(o).filter(function(c){ return c.day === dkey(B.date); }).slice(-5).reverse();
   return '<div class="scr">'+head+hero+tiles+stats
     + '<div class="sh"><h2>Recent checks</h2><button data-a="tab" data-v="checks">View all'+ic("arrow", 18, 2.2)+'</button></div>'
@@ -116,10 +120,10 @@ function homeView(){
 }
 function tile(a, label, icon, on, off){ return '<button class="'+(on ? "on" : "")+'" data-a="'+a+'"'+(off ? " disabled" : "")+'>'+ic(icon, 30, 1.8)+label+'</button>'; }
 function checkRow(c){
-  var st = PLATES[c.plate] ? state(c.plate) : null, un = c.st === "UNPAID", org = c.st === "ORG", paidNow = un && st && st !== "UNPAID";
+  var st = PLATES[c.plate] ? state(c.plate) : null, un = c.st === "UNPAID", org = c.st === "ORG", paidNow = un && st && st !== "UNPAID", w = un ? warningOn(c.plate, c.day) : null;
   return '<div class="row"><span class="av'+(un ? " ic-bad" : org ? "" : " ic-ok")+'">'+ic(org ? "shield" : "car", 20, 2)+'</span>'
-    + '<span class="t"><b style="font-family:PlateMono,monospace;letter-spacing:.06em">'+plateTxt(c.plate)+'</b><small>'+hm(c.t)+(c.road !== roadOf(me()) ? ' · '+esc(ROADS[c.road].name) : "")+(paidNow ? " · paid since" : "")+'</small></span>'
-    + '<span class="r"><span class="st '+(un ? "unpaid" : org ? "org" : c.st === "MONTHLY" ? "month" : "paid")+'">'+(un ? "Not paid" : org ? "Organisation" : c.st === "MONTHLY" ? "Monthly" : "Paid")+'</span></span></div>';
+    + '<span class="t"><b style="font-family:PlateMono,monospace;letter-spacing:.06em">'+plateTxt(c.plate)+'</b><small>'+hm(c.t)+(c.road !== roadOf(me()) ? ' · '+esc(ROADS[c.road].name) : "")+(paidNow ? " · paid since" : "")+(w ? " · warning "+w.id+(w.status === "paid" ? " paid" : w.status === "cancelled" ? " cancelled" : "") : "")+'</small></span>'
+    + '<span class="r"><span class="st '+(un ? "unpaid" : org ? "org" : c.st === "MONTHLY" ? "month" : "paid")+'">'+(un ? (w ? "Warned" : "Not paid") : org ? "Organisation" : c.st === "MONTHLY" ? "Monthly" : "Paid")+'</span></span></div>';
 }
 
 function promo(x){
@@ -183,11 +187,18 @@ function checkSheet(){
   var cars = PARK.filter(function(c){ return c.road === roadOf(o); });
   if(cars.length) h += '<div class="demo" style="margin-top:-6px">'+cars.map(function(c){ return '<button data-a="fill" data-v="'+c.plate+'" style="font-family:PlateMono,monospace;letter-spacing:.05em">'+plateTxt(c.plate)+'<small>Bay '+c.bay+'</small></button>'; }).join("")+'</div>';
   if(r) h += result(r);
+  /* not paid and no warning yet today: the attendant can issue one */
+  if(r && C.last && /: UNPAID\./.test(r) && !/already issued/.test(r) && !warningOn(C.last, dkey(B.date)))
+    h += '<button class="btn danger" data-a="warn" data-v="'+C.last+'"'+(C.busy ? " disabled" : "")+'>'+ic("info", 20, 2.2)+'Issue warning to '+plateTxt(C.last)+'</button>';
   h += '<button class="btn" data-a="docheck"'+(C.busy || !normPlate(C.plate) ? " disabled" : "")+'>'+(C.busy ? "Checking…" : ic("scan", 20, 2.2)+"Check")+'</button>';
   return h;
 }
 /* the answer is the same text the SMS line sends: "BJL1234: PAID. Daily pass till 7pm." */
 function result(txt){
+  var w = /^([A-Z0-9]+): WARNING (W-\d+) issued at ([0-9:]+)\.\s*([\s\S]*)$/.exec(txt);
+  if(w) return '<div class="res unpaid"><div class="rt"><span class="plate">'+plateTxt(w[1])+'</span>'+ic("info", 30, 2.6)+'</div><h2>WARNING</h2>'
+    + '<p><b>'+w[2]+'</b> issued at '+w[3]+'. The driver pays '+gmd(T.daily)+' GMD within 24 hours, or '+gmd(T.daily + T.fine)+' GMD with the fine.</p>'
+    + w[4].split("\n").filter(Boolean).map(function(l){ return '<p>'+esc(l)+'</p>'; }).join("")+'</div>';
   var m = /^([A-Z0-9]+): (PAID|UNPAID)\.\s*([\s\S]*)$/.exec(txt);
   if(!m) return '<div class="note">'+ic("info", 18, 2)+'<span>'+esc(txt)+'</span></div>';
   var paid = m[2] === "PAID", org = paid && /Organisation/.test(m[3]);
@@ -200,10 +211,11 @@ function helpSheet(){
   return head("How checks work") + '<div class="rows">'
     + [["play", "Start your shift", "Tap Start shift when you arrive on your road. Checks only count during your shift."],
        ["scan", "Check each car", "Tap the yellow Check button and enter the plate. ParkNa answers PAID or NOT PAID at once."],
-       ["x", "Not paid?", "If the driver is there, show the Park & Pay card. If not, leave a card on the windscreen. Never take money."],
+       ["x", "Not paid?", "If the driver is there, show the Park & Pay card. If not, tap Issue warning and leave a card on the windscreen. Never take money."],
+       ["info", "Warnings", "The driver gets an SMS: pay the "+gmd(T.daily)+" GMD daily fee within 24 hours, or "+gmd(T.daily + T.fine)+" GMD with the "+gmd(T.fine)+" GMD fine. One warning per car per day. By SMS: text W and the plate."],
        ["shield", "Organisation plates", "Company cars are covered by their organisation. Nothing to do."],
        ["stop", "End your shift", "Tap End shift when you leave. Your supervisor sees your checks live."],
-       ["sms", "No data?", "The SMS line does the same: text START, a plate, or END to " + shortcode() + " from your registered number."]].map(function(r){
+       ["sms", "No data?", "The SMS line does the same: text START, a plate, W and a plate, or END to " + shortcode() + " from your registered number."]].map(function(r){
         return '<div class="row" style="align-items:flex-start"><span class="av">'+ic(r[0], 20, 2)+'</span><span class="t"><b>'+r[1]+'</b><small style="line-height:1.5">'+esc(r[2])+'</small></span><span></span></div>'; }).join("")+'</div>';
 }
 
@@ -225,9 +237,16 @@ function shift(cmd){
   });
 }
 function focusPlate(){ var i = document.getElementById("chkPlate"); if(i) i.focus(); }
+function warn(p){
+  var C = V.check;
+  if(!confirm("Issue a warning to " + plateTxt(p) + "? The driver will get an SMS.")) return;
+  C.busy = true; render();
+  line("W " + p).then(function(r){ C.busy = false; C.res = r.err || String(r.reply || ""); render(); });
+}
 function doCheck(){
   var C = V.check, p = normPlate(C.plate);
   if(!p) return;
+  C.last = p;
   C.busy = true; C.res = null; render();
   line(p).then(function(r){
     C.busy = false;
@@ -251,6 +270,7 @@ APP.addEventListener("click", function(e){
     case "help": V.sheet = "help"; nav(); return render();
     case "fill": V.check.plate = v; return render();
     case "docheck": return doCheck();
+    case "warn": return warn(v);
     case "start": return shift("START");
     case "end": if(!confirm("End your shift now?")) return; return shift("END");
     case "signout": if(!confirm("Sign out of ParkNa Officer on this phone?")) return; return PN.logout();
