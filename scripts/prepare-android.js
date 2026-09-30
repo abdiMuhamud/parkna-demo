@@ -30,6 +30,12 @@ function edit(file, must, fn){
 
 copyDir(path.join(app, "res"), path.join(main, "res"));
 
+/* keyboard: the app area shrinks above the keyboard (adjustResize) and no keyboard pops up on its own at start */
+edit(path.join(main, "AndroidManifest.xml"), /<activity/, s => {
+  s = s.replace(/ android:windowSoftInputMode="[^"]*"/g, "");
+  return s.replace(/<activity/, '<activity android:windowSoftInputMode="adjustResize|stateHidden"');
+});
+
 /* network */
 edit(path.join(main, "AndroidManifest.xml"), /<application/, s => {
   s = s.replace(/ android:usesCleartextTraffic="true"/g, "");

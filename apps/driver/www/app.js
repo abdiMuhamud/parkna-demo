@@ -48,15 +48,11 @@ function render(){
   else h = mainView();
   paint(h);
 }
+/* updates only what changed (UI.morph): the field being typed in and the keyboard stay, sheets do not animate again */
 function paint(h){
-  var a = document.activeElement, id = a && a.id, s = null, e = null;
-  try { if(id){ s = a.selectionStart; e = a.selectionEnd; } } catch(x){}
-  var sc = APP.querySelector(".scr"), top = sc ? sc.scrollTop : 0, sh = APP.querySelector(".sheet"), stop = sh ? sh.scrollTop : 0;
-  APP.innerHTML = h;
-  var sc2 = APP.querySelector(".scr"); if(sc2) sc2.scrollTop = top;
-  var sh2 = APP.querySelector(".sheet"); if(sh2) sh2.scrollTop = stop;
-  var pr = APP.querySelector(".promos"); if(pr && V.annX) pr.scrollLeft = V.annX;
-  if(id){ var n = document.getElementById(id); if(n){ n.focus(); try { if(s != null) n.setSelectionRange(s, e); } catch(x){} } }
+  var a = document.activeElement, id = a && a.id;
+  UI.morph(APP, h);
+  if(id && document.activeElement !== a){ var n = document.getElementById(id); if(n && n !== document.activeElement) n.focus(); }
 }
 function loadingView(){
   return '<div class="center">'+UI.crest()+'<div class="spin"></div><p>'+(V.slow ? "Can’t reach ParkNa yet. Check your internet connection." : "Loading your account…")+'</p>'

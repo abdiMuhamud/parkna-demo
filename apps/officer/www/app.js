@@ -40,13 +40,11 @@ function render(){
   else h = mainView();
   paint(h);
 }
+/* updates only what changed (UI.morph): the field being typed in and the keyboard stay, sheets do not animate again */
 function paint(h){
-  var a = document.activeElement, id = a && a.id, s = null, e = null;
-  try { if(id){ s = a.selectionStart; e = a.selectionEnd; } } catch(x){}
-  var sc = APP.querySelector(".scr"), top = sc ? sc.scrollTop : 0;
-  APP.innerHTML = h;
-  var sc2 = APP.querySelector(".scr"); if(sc2) sc2.scrollTop = top;
-  if(id){ var n = document.getElementById(id); if(n){ n.focus(); try { if(s != null) n.setSelectionRange(s, e); } catch(x){} } }
+  var a = document.activeElement, id = a && a.id;
+  UI.morph(APP, h);
+  if(id && document.activeElement !== a){ var n = document.getElementById(id); if(n && n !== document.activeElement) n.focus(); }
 }
 function loadingView(){
   var off = PN.ready && PN.me && !me();
