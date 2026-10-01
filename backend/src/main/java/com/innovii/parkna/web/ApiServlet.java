@@ -31,6 +31,9 @@ import java.util.Map;
  *   POST /api/auth/verify       {phone, as, code}                 check it, returns {token}
  *   POST /api/auth/staff        {username, password}              staff sign-in, returns {token}
  *   GET  /api/terms             the terms and conditions in force {v, title, body, at}
+ *   GET  /api/sim/bench, /api/sim/info?num=   the SMS and USSD simulator (/sms), while sms.simulator.enabled
+ *   POST /api/sim/sms {from, text}, /api/sim/ussd {from, text}, /api/sim/clock {what}
+ *   POST /api/ussd              a USSD gateway: sessionId, phoneNumber, text (form or JSON), answers "CON ..."/"END ..."; allowed IPs only
  *   GET  /api/sms/mo            incoming SMS from Kannel (?from=%p&amp;text=%a), allowed IPs only
  * With "Authorization: Bearer &lt;token&gt;"
  *   GET  /api/state             your view of the data
@@ -80,6 +83,8 @@ public class ApiServlet extends HttpServlet {
                     json(resp, db ? 200 : 503, r);
                 }
                 case "/sms/mo" -> incomingSms(req, resp);
+                case "/sim/bench" -> json(resp, 200, service().simBench());
+                case "/sim/info" -> json(resp, 200, service().simInfo(req.getParameter("num")));
                 case "/terms" -> {
                     Map<String, Object> r = new LinkedHashMap<>();
                     r.put("ok", true);
@@ -128,6 +133,7 @@ public class ApiServlet extends HttpServlet {
         String p = path(req), ip = clientIp(req), ua = req.getHeader("User-Agent");
         try {
             if (p.equals("/sms/mo")) { incomingSms(req, resp); return; }
+            if (p.equals("/ussd") && !String.valueOf(req.getContentType()).contains("json")) { ussdGateway(req, resp, req.getParameter("phoneNumber"), req.getParameter("text")); return; }
             Map<String, Object> body = body(req);
             switch (p) {
                 case "/auth/code" -> json(resp, 200, auth().requestOtp(str(body.get("phone")), str(body.get("as")), ip));
@@ -137,6 +143,10 @@ public class ApiServlet extends HttpServlet {
                 case "/auth/logout" -> { auth().logout(session(req)); json(resp, 200, Map.of("ok", true)); }
                 case "/auth/password" -> { auth().changePassword(session(req), str(body.get("current")), str(body.get("next"))); json(resp, 200, Map.of("ok", true)); }
                 case "/act" -> json(resp, 200, service().act(session(req), body, ip));
+                case "/sim/sms" -> json(resp, 200, service().simSms(str(body.get("from")), str(body.get("text")), ip));
+                case "/sim/ussd" -> json(resp, 200, service().simUssd(str(body.get("from")), str(body.get("text"))));
+                case "/sim/clock" -> json(resp, 200, service().simClock(str(body.get("what"))));
+                case "/ussd" -> ussdGateway(req, resp, str(body.get("phoneNumber")), str(body.get("text")));
                 case "/terms" -> json(resp, 200, service().publishTerms(admin(req), str(body.get("title")), str(body.get("body")), str(body.get("note")),
                         Boolean.TRUE.equals(body.get("notify")), ip));
                 case "/staff" -> json(resp, 200, auth().createStaff(admin(req), str(body.get("username")), str(body.get("name")), str(body.get("role"))));
@@ -193,6 +203,18 @@ public class ApiServlet extends HttpServlet {
         service().incomingSms(from, text);
         resp.setStatus(200);
         resp.setContentType("text/plain");
+    }
+
+    /** A USSD gateway's request (Africa's Talking style). Only the addresses in sms.mo.allowedIps, like incoming SMS. */
+    private void ussdGateway(HttpServletRequest req, HttpServletResponse resp, String phone, String text) throws IOException {
+        String ip = clientIp(req);
+        if (!config().sms.moAllowedIps().contains(ip)) { log.warn("Refused USSD call from {} (not in sms.mo.allowedIps)", ip); resp.setStatus(403); return; }
+        if (phone == null) { resp.setStatus(400); resp.getWriter().write("phoneNumber is required"); return; }
+        String r = service().ussd(phone, text);
+        resp.setStatus(200);
+        resp.setContentType("text/plain");
+        resp.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        resp.getWriter().write(r);
     }
 
     /** The caller's address; behind Nginx that is X-Real-IP, not Nginx itself. */

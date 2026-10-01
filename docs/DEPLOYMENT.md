@@ -312,9 +312,15 @@ After the upgrade:
   `sunupark.gm/terms`: point that domain at this server (or ask for the address to be changed).
 - **Police**: create staff accounts with the role *Police* (Staff & audit). They see only *Fines tracking*: drivers
   with unpaid warnings, overdue fines, first-time and repeat offenders, and the phone linked to each plate.
-- **SMS simulator** (`https://your-domain/sms`): administrators and supervisors text the short code as any phone.
-  On by default on a demo server or with `sms.gateway=simulated`; with Kannel, set `sms.simulator.enabled=true` in
-  `config.properties` to use it (replies to the numbers used there stay in the simulator for 2 hours).
+- **SMS & USSD simulator** (`https://your-domain/sms`, no sign-in): an Android Messages phone for the short code,
+  a dialer for `*7275#` (the USSD menu: daily and monthly passes, check a plate, pay a warning, my plates, terms;
+  attendants start and end their shift, check plates and issue warnings), the subscriber's plates, wallets and
+  charges, demo clock controls and 18 ready-made use cases. On by default on a demo server or with
+  `sms.gateway=simulated`; with Kannel, set `sms.simulator.enabled=true` only on a test server (no sign-in: anyone
+  with the address can use it). Replies to the numbers used there stay in the simulator for 2 hours.
+- **USSD gateway**: the operator's USSD gateway calls `POST /parkna/api/ussd` (sessionId, phoneNumber, text; the
+  answer is `CON ...` or `END ...`), from an address in `sms.mo.allowedIps`.
+- **Demo servers** also get a police account to try: `police` / `police-demo` (never on a production server).
 - Internal names stay as they were: the database `parkna`, the WAR `parkna.war`, `/home/sdf/parkna`, the
   `tomcat-parkna` service, the Android app IDs. Only what people see is called SUNU Park.
 

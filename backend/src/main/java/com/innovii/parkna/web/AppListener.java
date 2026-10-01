@@ -29,7 +29,7 @@ public class AppListener implements ServletContextListener {
     private static final Logger log = LoggerFactory.getLogger(AppListener.class);
 
     static final String SERVICE = "parkna.service", CONFIG = "parkna.config", EVENTS = "parkna.events", AUTH = "parkna.auth";
-    static final String VERSION = readVersion();
+    public static final String VERSION = readVersion();
 
     private HikariDataSource ds;
     private ParknaService service;

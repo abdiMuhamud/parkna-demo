@@ -268,10 +268,24 @@ public final class ParknaService implements AutoCloseable, AuthService.Directory
 
     /** A text typed in the SMS simulator, handled exactly as if it came from that phone through Kannel. */
     private Map<String, Object> simulatedSms(Session s, Map<String, Object> a, String ip) {
+        Map<String, Object> r = simSms(String.valueOf(a.getOrDefault("from", "")), String.valueOf(a.getOrDefault("text", "")), s.name());
+        if (auth != null) auth.audit(s.name(), s.role(), "sim.sms", String.valueOf(a.get("from")), r.containsKey("err") ? "refused" : "ok", String.valueOf(a.get("text")), ip);
+        return r;
+    }
+
+    // ================================================================== SMS and USSD simulator (/sms, no sign-in)
+
+    public boolean simulatorOn() { return cfg.smsSimulator; }
+
+    private static String msisdn(String raw) {
+        String d = String.valueOf(raw == null ? "" : raw).replaceAll("[^0-9]", "");
+        return d.length() > 7 ? d.substring(d.length() - 7) : d;
+    }
+
+    /** A text typed in the simulator, handled exactly like an SMS from that phone through Kannel. */
+    public Map<String, Object> simSms(String rawFrom, String rawText, String who) {
         if (!cfg.smsSimulator) return error("The SMS simulator is switched off on this server (sms.simulator.enabled).");
-        String from = String.valueOf(a.getOrDefault("from", "")).replaceAll("[^0-9]", "");
-        if (from.length() > 7) from = from.substring(from.length() - 7);
-        String text = String.valueOf(a.getOrDefault("text", "")).trim();
+        String from = msisdn(rawFrom), text = String.valueOf(rawText == null ? "" : rawText).trim();
         if (from.length() != 7) return error("Enter a 7-digit phone number.");
         if (text.isEmpty()) return error("Type a message.");
         if (text.length() > 160) return error("Keep it to one SMS (160 characters).");
@@ -280,9 +294,167 @@ public final class ParknaService implements AutoCloseable, AuthService.Directory
         m.put("type", "sms");
         m.put("num", from);
         m.put("text", text);
-        Map<String, Object> r = run(m, "SMS simulator (" + s.name() + ") as +220 " + from);
-        if (auth != null) auth.audit(s.name(), s.role(), "sim.sms", from, r.containsKey("err") ? "refused" : "ok", text, ip);
-        return r;
+        return run(m, "SMS simulator (" + who + ") as +220 " + from);
+    }
+
+    /** One step of a USSD session (*7275#): {@code text} is the whole session so far ("", "1", "1*2"...). "CON ..." or "END ...". */
+    public String ussd(String rawFrom, String text) {
+        String num = msisdn(rawFrom);
+        if (num.length() != 7) return "END Unknown number.";
+        return new UssdMenu(ussdBackend()).handle(num, text);
+    }
+
+    /** A USSD session from the simulator (the replies' SMS stay in the simulator, like simSms). */
+    public Map<String, Object> simUssd(String rawFrom, String text) {
+        if (!cfg.smsSimulator) return error("The simulator is switched off on this server (sms.simulator.enabled).");
+        String num = msisdn(rawFrom);
+        if (num.length() != 7) return error("Enter a 7-digit phone number.");
+        simulated.put(num, System.currentTimeMillis() + 2 * 3600_000L);
+        String r = ussd(num, text);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("ok", true);
+        out.put("end", r.startsWith("END"));
+        out.put("text", r.substring(4));
+        return out;
+    }
+
+    private UssdMenu.Backend ussdBackend() {
+        return new UssdMenu.Backend() {
+            private <T> T read(java.util.function.Supplier<T> f) { lock.lock(); try { return f.get(); } finally { lock.unlock(); } }
+            @Override public boolean officer(String num) { return read(() -> engine.isOfficer(num)); }
+            @Override public String officerId(String num) { return read(() -> engine.state().off.get(num).id); }
+            @Override public List<String> plates(String num) { return read(() -> { var u = engine.state().nums.get(num); return u == null ? List.<String>of() : List.copyOf(u.plates); }); }
+            @Override public List<String> warnedPlates(String num) {
+                return read(() -> { var u = engine.state().nums.get(num); List<String> o = new java.util.ArrayList<>();
+                    if (u != null) for (String p : u.plates) if (!engine.openWarnings(p).isEmpty()) o.add(p); return o; });
+            }
+            @Override public Map<String, Object> quote(String num, String plate, String kind) { return read(() -> engine.quoteFor(num, plate, kind)); }
+            @Override public String describe(String p) { return read(() -> describePlate(p)); }
+            @Override public Map<String, Object> pay(String num, String plate, String kind, String prov) {
+                Map<String, Object> a = new LinkedHashMap<>();
+                a.put("type", "driver.pay"); a.put("num", num); a.put("plate", plate); a.put("kind", kind); a.put("prov", prov);
+                return run(a, "USSD +220 " + num);
+            }
+            @Override public String officerLine(String num, String text) {
+                Map<String, Object> a = new LinkedHashMap<>();
+                a.put("type", "sms"); a.put("num", num); a.put("text", text);
+                Object reply = run(a, "USSD +220 " + num).get("reply");
+                return reply == null ? "Done." : String.valueOf(reply);
+            }
+            @Override public int daily() { return read(() -> engine.state().tariff.daily); }
+            @Override public int monthly() { return read(() -> engine.state().tariff.monthly); }
+            @Override public boolean payments() { return engine.paymentsEnabled(); }
+        };
+    }
+
+    /** "BJL1234: PAID till 7pm today", with any open warning. Call under the lock. */
+    private String describePlate(String p) {
+        String st = engine.stateOf(p);
+        StringBuilder b = new StringBuilder(p).append(": ");
+        switch (st) {
+            case "DAILY" -> b.append("PAID till 7pm today");
+            case "MONTHLY" -> b.append("monthly pass to ").append(engine.untilOf(p));
+            case "ORG" -> b.append("covered by ").append(engine.untilOf(p));
+            default -> b.append(engine.paidHoursNow() ? "NOT PAID today (" + engine.state().tariff.daily + " GMD)" : "free now (paid 7am-7pm Mon-Sat)");
+        }
+        for (Map<String, Object> w : engine.openWarnings(p))
+            b.append(". Warning ").append(w.get("id")).append(": ").append(w.get("owed")).append(" GMD").append(Boolean.TRUE.equals(w.get("late")) ? " with the fine" : " by " + w.get("due"));
+        int n = engine.offences(p);
+        if (n > 1) b.append(". Repeat offender (").append(n).append(" warnings)");
+        return b.toString();
+    }
+
+    /** Everything the simulator shows about one number: who it is, plates, wallet, receipts and its SMS thread. */
+    public Map<String, Object> simInfo(String raw) {
+        if (!cfg.smsSimulator) return error("The simulator is switched off on this server (sms.simulator.enabled).");
+        String num = msisdn(raw);
+        if (num.length() != 7) return error("Enter a 7-digit phone number.");
+        lock.lock();
+        try {
+            State st = engine.state();
+            Map<String, Object> r = new LinkedHashMap<>();
+            r.put("ok", true);
+            r.put("num", num);
+            var u = st.nums.get(num);
+            var o = st.off.get(num);
+            String org = engine.orgForContact(num);
+            if (o != null && o.active) {
+                r.put("role", "officer");
+                r.put("name", o.name);
+                r.put("label", "Attendant " + o.id + " · " + engine.currentRoad(o) + (o.on ? " · on shift" : ""));
+            } else if (org != null) {
+                r.put("role", "org");
+                r.put("name", st.orga.get(org).contact.name);
+                r.put("label", st.orga.get(org).name + " · " + org);
+            } else {
+                r.put("role", u == null ? "new" : "driver");
+                r.put("name", u == null || u.name.equals("+220 " + num) ? "New number" : u.name);
+                r.put("label", u == null ? "Not known to SUNU Park yet" : "Driver");
+            }
+            List<Map<String, Object>> plates = new java.util.ArrayList<>();
+            if (u != null) for (String p : u.plates) {
+                Map<String, Object> x = new LinkedHashMap<>();
+                x.put("plate", p); x.put("st", engine.stateOf(p)); x.put("until", engine.untilOf(p));
+                x.put("warnings", engine.openWarnings(p)); x.put("offences", engine.offences(p));
+                plates.add(x);
+            }
+            r.put("plates", plates);
+            r.put("wallet", u == null ? Map.of() : u.wallet);
+            r.put("receipts", u == null ? List.of() : u.receipts.subList(0, Math.min(12, u.receipts.size())));
+            r.put("sms", u == null ? List.of() : u.sms.subList(Math.max(0, u.sms.size() - 150), u.sms.size()));
+            r.put("terms", u == null ? null : u.terms);
+            return r;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** The bench: clock, prices, and on a demo server the sample people to pick from. */
+    public Map<String, Object> simBench() {
+        lock.lock();
+        try {
+            State st = engine.state();
+            Map<String, Object> r = new LinkedHashMap<>(views.mode(engine));
+            r.put("ok", true);
+            r.put("simulator", cfg.smsSimulator);
+            r.put("version", com.innovii.parkna.web.AppListener.VERSION);
+            r.put("date", Cal.fmtD(st.clock.date) + " " + st.clock.date.getYear());
+            r.put("dow", st.clock.date.getDayOfWeek().getValue() % 7);
+            r.put("time", Cal.hm(st.clock.min));
+            r.put("paidHours", engine.paidHoursNow());
+            r.put("monthly", st.tariff.monthly);
+            r.put("fine", st.tariff.fine);
+            if (cfg.mode == AppConfig.Mode.DEMO && cfg.smsSimulator) {
+                List<Map<String, Object>> people = new java.util.ArrayList<>();
+                for (var o : st.off.values()) if (o.active && o.bg == null) people.add(Map.of("num", o.num, "name", o.name, "role", "officer", "note", "Attendant " + o.id + " · " + engine.currentRoad(o)));
+                for (var g : st.orga.values()) people.add(Map.of("num", g.contact.num, "name", g.contact.name, "role", "org", "note", g.name));
+                for (var u : st.nums.values()) {
+                    if (st.off.containsKey(u.num) || engine.orgForContact(u.num) != null || u.plates.isEmpty() || !u.num.matches("\\d{7}")) continue;
+                    people.add(Map.of("num", u.num, "name", u.name, "role", "driver", "note", String.join(", ", u.plates)));
+                    if (people.size() > 40) break;
+                }
+                r.put("people", people);
+            }
+            return r;
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /** Demo clock buttons on the bench (demo servers with demo controls only). */
+    public Map<String, Object> simClock(String what) {
+        if (!cfg.smsSimulator || !cfg.demoControls) return error("Demo controls are switched off on this server.");
+        if (cfg.clockMode == AppConfig.ClockMode.REAL) return error("The clock follows real time on this server.");
+        Map<String, Object> a = new LinkedHashMap<>();
+        switch (String.valueOf(what)) {
+            case "nextDay" -> a.put("type", "clock.nextDay");
+            case "hour" -> { a.put("type", "clock.add"); a.put("min", 60); }
+            case "morning" -> { a.put("type", "clock.set"); a.put("min", 600); }
+            case "evening" -> { a.put("type", "clock.set"); a.put("min", 1160); }
+            case "reset" -> a.put("type", "demo.reset");
+            default -> { return error("Unknown control."); }
+        }
+        return run(a, "SMS simulator demo controls");
     }
 
     /**

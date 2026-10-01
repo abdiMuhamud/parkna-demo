@@ -374,9 +374,22 @@ public final class AuthService {
     // ================================================================== staff accounts
 
     /** On the very first start, creates the "admin" account with a random password written once to the log. */
+    /** On a demo server: a police account anyone can try (username police, password police-demo). Never in production. */
+    public static final String DEMO_POLICE_USER = "police", DEMO_POLICE_PASSWORD = "police-demo";
+
+    private void demoPolice(Connection c) throws SQLException {
+        if (cfg.mode != AppConfig.Mode.DEMO || count(c, "SELECT COUNT(*) FROM staff_user WHERE username = '" + DEMO_POLICE_USER + "'") > 0) return;
+        try (PreparedStatement ps = c.prepareStatement("INSERT INTO staff_user (username, display_name, role, password_hash, must_change_password) VALUES (?, 'Demo police officer', 'POLICE', ?, FALSE)")) {
+            ps.setString(1, DEMO_POLICE_USER); ps.setString(2, Passwords.hash(DEMO_POLICE_PASSWORD));
+            ps.executeUpdate();
+        }
+        log.info("Demo server: created the police account '{}' (password {})", DEMO_POLICE_USER, DEMO_POLICE_PASSWORD);
+    }
+
     public void bootstrap() {
         try (Connection c = ds.getConnection()) {
-            if (count(c, "SELECT COUNT(*) FROM staff_user") > 0) return;
+            boolean first = count(c, "SELECT COUNT(*) FROM staff_user") == 0;
+            if (!first) { demoPolice(c); return; }
             String password = Passwords.readable(14);
             try (PreparedStatement ps = c.prepareStatement("INSERT INTO staff_user (username, display_name, role, password_hash, must_change_password) VALUES ('admin', 'Administrator', 'ADMIN', ?, TRUE)")) {
                 ps.setString(1, Passwords.hash(password));
@@ -387,6 +400,7 @@ public final class AuthService {
             log.warn(" Password: {}   (shown only this once)", password);
             log.warn(" Sign in at /admin, then choose your own password.");
             log.warn("==================================================================");
+            demoPolice(c);
         } catch (SQLException e) {
             throw storage(e);
         }

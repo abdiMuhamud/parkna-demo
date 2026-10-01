@@ -141,8 +141,10 @@ SUNU Park ("our park / our parking", the platform name confirmed by BCC; called 
   comes 30 days before the year ends, with 5 days' grace; after that the cars revert to normal pricing.
 - The police follow up unpaid fines in the back office (*Fines tracking*, role Police): overdue warnings, repeat
   offenders and the phone linked to each plate.
-- SMS simulator at `/sms` for administrators and supervisors: text the short code as any driver, attendant or
-  organisation contact and see the replies (`sms.simulator.enabled`).
+- SMS & USSD simulator at `/sms` (no sign-in; demo and test servers): text the short code or dial `*7275#` as any
+  driver, attendant or organisation contact, with 18 ready-made use cases (`sms.simulator.enabled`). Real USSD
+  gateways call `POST /api/ussd`.
+- Police sign in from the landing page (Police card, `/admin?police`); on a demo server as `police` / `police-demo`.
 - Revenue share: 60% Council, 40% operator.
 - SMS shortcode: `sms.shortcode` in `config.properties` (7275 until the operator confirms the number).
 

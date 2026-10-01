@@ -134,6 +134,18 @@ function signInFrame(left, box){
 }
 function staffSignIn(){
   const F = AUTH;
+  /* /admin?police: the same sign-in, worded for police officers (their account opens Fines tracking) */
+  if(/[?&]police\b/.test(location.search)) return signInFrame(`<div><span class="tag">${spark(11)}SUNU Park · Police</span>
+      <h2>Follow up unpaid parking fines.</h2><p>Drivers with unpaid warnings, overdue fines and repeat offenders, with the phone linked to each plate. Read-only; every sign-in is recorded in the audit log.</p></div>
+    <div class="chips"><span>${ic("shield", 16, 2.2)}Overdue fines</span><span>${ic("car", 16, 2.2)}First-time and repeat offenders</span><span>${ic("users", 16, 2.2)}Driver contacts</span></div>`,
+    `${brand("Police · Fines tracking")}
+    <div><h1>Police sign-in</h1><p>With the username and password your SUNU Park administrator created for you (role Police).${PN.info && PN.info.demo ? " Demo server: <b>police</b> / <b>police-demo</b>." : ""}</p></div>
+    ${F.note ? `<div class="eban vio">${esc(F.note)}</div>` : ""}
+    <label class="ef">Username${inp("auUser", "AU.user", F.user, "e.g. police.banjul", "text", 'autocapitalize="none" spellcheck="false" autocomplete="username"')}</label>
+    <label class="ef">Password${inp("auPass", "AU.pass", F.pass, "", "password", 'autocomplete="current-password"')}</label>
+    ${F.err ? `<div class="eerr">${esc(F.err)}</div>` : ""}
+    <button class="eb pri full" style="height:46px" ${A("staffin")} ${F.busy ? "disabled" : ""}>${F.busy ? "Signing in…" : "Sign in"}</button>
+    <p style="font-size:11.5px">No account yet? Ask a SUNU Park administrator: Staff &amp; audit → new account, role Police.</p>`);
   return signInFrame(`<div><span class="tag">${spark(11)}SUNU Park back office</span>
       <h2>Parking for Banjul, run from one place.</h2><p>For SUNU Park and Banjul City Council staff. Sign in with your own account: everything you do is recorded in the audit log.</p></div>
     <div class="chips"><span>${ic("users", 16, 2.2)}Attendants and roads, live</span><span>${ic("building", 16, 2.2)}Organisations and invoices</span><span>${ic("chart", 16, 2.2)}Revenue for the Council</span></div>`,

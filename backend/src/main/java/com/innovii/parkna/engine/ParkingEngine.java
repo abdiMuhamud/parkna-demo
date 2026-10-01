@@ -247,6 +247,37 @@ public class ParkingEngine {
         return r;
     }
 
+    /** What paying this plate would cost this phone right now, or why it can't be paid (USSD menus). Changes nothing. */
+    public Map<String, Object> quoteFor(String num, Object plate, String kind) {
+        Quote q = quote(num, plate, kind);
+        Map<String, Object> r = new LinkedHashMap<>();
+        if (q.err != null) r.put("err", q.err);
+        r.put("plate", q.plate); r.put("st", q.st); r.put("kind", q.kind); r.put("amount", q.amount); r.put("to", q.to);
+        r.put("ids", q.ids); r.put("late", q.late); r.put("first", q.first);
+        r.put("payments", paymentsEnabled);
+        return r;
+    }
+
+    /** The plate's state right now (UNPAID, DAILY, MONTHLY, ORG) and until when. */
+    public String stateOf(String p) { return plateState(p); }
+    public String untilOf(String p) {
+        String st = plateState(p);
+        PlateRecord r = S.plates.get(p);
+        return switch (st) { case "DAILY" -> "7pm today"; case "MONTHLY" -> fmtD(r.monthly.to); case "ORG" -> orgOf(p).name; default -> ""; };
+    }
+    public boolean paidHoursNow() { return paidHours(); }
+    /** The open warnings on a plate, with what each costs now. */
+    public List<Map<String, Object>> openWarnings(String p) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Fine f : openFines(p)) {
+            Map<String, Object> x = new LinkedHashMap<>();
+            x.put("id", f.id); x.put("road", ROADS.get(f.road).name()); x.put("day", f.day); x.put("t", hm(f.t));
+            x.put("owed", fineOwed(f)); x.put("late", fineLate(f)); x.put("due", fineDue(f));
+            out.add(x);
+        }
+        return out;
+    }
+
     /** The road an attendant is on right now (their own, or where they were moved today). */
     public String currentRoad(Officer o) { return roadOf(o); }
 

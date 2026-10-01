@@ -36,7 +36,8 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .dot{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500}
 .dot i{width:10px;height:10px;border-radius:50%;background:var(--green)}
 .cta{align-self:flex-start;display:inline-flex;align-items:center;gap:18px;height:48px;padding:0 20px 0 24px;border-radius:999px;background:var(--yellow);color:var(--ink);font-size:15.5px;font-weight:700;margin-top:6px}
-.g{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.g{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+@media (max-width:1000px){.g{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .g a{background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:8px;min-height:170px;transition:transform .15s}
 .g a:hover{transform:translateY(-2px)}
 .g a i{width:48px;height:48px;border-radius:50%;background:var(--bluesoft);color:var(--navy);display:grid;place-items:center}
@@ -76,9 +77,10 @@ footer img{height:16px}
 <div class="note" id="note" hidden></div>
 <div class="g">
   <a class="hi" id="getDriver" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.driver"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M5 17v-5l2-5h10l2 5v5M5 17v2M19 17v2M4 12h16"/><circle cx="8" cy="14.5" r=".6"/><circle cx="16" cy="14.5" r=".6"/></svg></i><b>SUNU Park for drivers</b><span>Get the app on Google Play. Sign in with your phone number.</span></a>
-  <a href="/org"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5l8-3 8 3v16M4 21h16M9 21v-5h6v5M8 8h2M14 8h2M8 12h2M14 12h2"/></svg></i><b>Organisations</b><span>Fleet cover on one monthly invoice. The billing contact signs in with an SMS code.</span></a>
+  <a href="/org"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5l8-3 8 3v16M4 21h16M9 21v-5h6v5M8 8h2M14 8h2M8 12h2M14 12h2"/></svg></i><b>Organisations</b><span>Fleet cover paid upfront for a year per car. The billing contact signs in with an SMS code.</span></a>
   <a id="getOfficer" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.officer"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v6c0 4.5 3.2 7.8 7.5 9 4.3-1.2 7.5-4.5 7.5-9V6L12 3Z"/><path d="m8.8 12 2.2 2.2 4.2-4.4"/></svg></i><b>Parking attendants</b><span>The SUNU Park Officer app, for attendants registered by their supervisor.</span></a>
   <a href="/admin"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg></i><b>Back office</b><span>For SUNU Park and Council staff.</span></a>
+  <a href="/admin?police"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.8 4.5 5.5V11c0 4.6 3.1 8.3 7.5 10.2 4.4-1.9 7.5-5.6 7.5-10.2V5.5Z"/><path d="m12 7.3 1.3 2.7 2.9.4-2.1 2 .5 2.9-2.6-1.4-2.6 1.4.5-2.9-2.1-2 2.9-.4Z"/></svg></i><b>Police</b><span>Fines tracking: drivers with unpaid warnings and repeat offenders. Sign in with your police account.</span></a>
 </div>
 <div class="pays"><b>Payments supported</b><img src="shared/img/art/payments-strip.webp" alt="Wave, Afrimoney, QMoney, APS Wallet"></div>
 <div class="addr" id="addrRow" hidden><span>Server address for the apps:</span><b id="addr"></b></div>
@@ -94,7 +96,7 @@ fetch("/api/ping").then(function(r){ return r.json(); }).then(function(j){
   if(j.demo){
     var n = document.getElementById("note");
     n.hidden = false;
-    n.innerHTML = "<b>Demo server.</b> Sample data and pretend payments: no real money moves. Organisation portal: sign in as Demo Bank with phone 7101234. The driver and attendant apps also run in the browser: <a href='/driver/'>driver</a> · <a href='/officer/'>attendant</a>.";
+    n.innerHTML = "<b>Demo server.</b> Sample data and pretend payments: no real money moves. Organisation portal: sign in as Demo Bank with phone 7101234. The driver and attendant apps also run in the browser: <a href='/driver/'>driver</a> · <a href='/officer/'>attendant</a>. Police: sign in as <b>police</b> / <b>police-demo</b>." + (j.smsSimulator ? " Try every SMS and USSD flow in the <a href='/sms'>SMS &amp; USSD simulator</a>." : "");
     document.getElementById("addrRow").hidden = false;
   }
 }).catch(function(){});

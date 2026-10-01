@@ -53,12 +53,16 @@ sms.kannel.timeoutMs=5000
 # Only these addresses may call it (the Kannel server's).
 sms.mo.allowedIps=127.0.0.1,::1,0:0:0:0:0:0:0:1
 
-# SMS simulator (https://your-domain/sms): administrators and supervisors send texts as any phone (a driver, an
-# attendant, an organisation contact) and see the replies, to try every SMS flow without a handset.
+# SMS & USSD simulator (https://your-domain/sms): text the short code and dial *<shortcode># as any phone (a driver,
+# an attendant, an organisation contact or a new number), with ready-made use cases. NO SIGN-IN: anyone with the
+# address can use it and read the messages of the numbers they type, so keep it to demo and test servers.
 # Default: on for a demo server or while sms.gateway=simulated, off otherwise. When it is on with Kannel, replies to
 # a number used in the simulator stay in the simulator for 2 hours instead of going to that phone; other messages
 # (e.g. a warning to the driver of a plate) are sent as usual.
 #sms.simulator.enabled=true
+
+# USSD: a USSD gateway (Africa's Talking style: sessionId, phoneNumber, text; answers "CON ..." / "END ...") calls
+# POST /parkna/api/ussd. Only the addresses in sms.mo.allowedIps may call it.
 
 # ---------------------------------------------------------------- sign-in
 # Drivers, attendants and organisation contacts sign in with a 6-digit code sent by SMS (through Kannel).
