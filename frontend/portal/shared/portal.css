@@ -1,5 +1,5 @@
-/* ParkNa portals: back office and organisation portal, in the look of the apps ("ParkNa Final Designs"):
-   Plus Jakarta Sans, pale blue canvas #F6FBFE, ParkNa navy #0B2E63, sun yellow #FEDB46, link blue #035BF0, Banjul illustrations. */
+/* SUNU Park portals: back office and organisation portal, in the look of the apps ("SUNU Park Final Designs"):
+   Plus Jakarta Sans, pale blue canvas #F6FBFE, SUNU Park navy #0B2E63, sun yellow #FEDB46, link blue #035BF0, Banjul illustrations. */
 @font-face{font-family:Jakarta;font-weight:400;font-display:swap;src:url(fonts/jakarta-400.woff2) format('woff2')}
 @font-face{font-family:Jakarta;font-weight:500;font-display:swap;src:url(fonts/jakarta-500.woff2) format('woff2')}
 @font-face{font-family:Jakarta;font-weight:600;font-display:swap;src:url(fonts/jakarta-600.woff2) format('woff2')}
@@ -313,3 +313,12 @@ input,select{font:inherit}
   .ein .kvw span,.ein small,.ein .insub,.ein .wx{color:var(--em)!important}
   .est.hi{transform:none}
 }
+
+/* fines tracking: a plate's warnings */
+.pwh{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.pwr{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;background:rgba(255,255,255,.08);border-radius:12px;padding:8px 10px;font-size:12px}
+.pwr b{font-weight:800}.pwr span{opacity:.85}.pwr em{grid-column:2;font-style:normal;font-weight:700}
+/* terms preview */
+.tterms{font-size:13.5px;line-height:1.6;color:#4D5A80;max-height:70vh;overflow:auto}
+.tterms h3{font-size:15px;font-weight:800;color:var(--ink,#0A1B4D);margin:14px 0 4px}
+.tterms ul{padding-left:18px;margin:4px 0}.tterms p{margin:4px 0}.tterms b{color:#0A1B4D}

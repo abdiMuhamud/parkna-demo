@@ -45,4 +45,4 @@ copyDir(shared, path.join(dist, "shared"), SHARED_ASSETS);
 fs.copyFileSync(path.join(shared, "engine.js"), path.join(dist, "engine.js"));
 for(const app of ["driver", "officer"]) copyDir(path.join(root, "apps", app, "www"), path.join(dist, app));
 
-console.log("Built ParkNa " + version + ": frontend/dist (Nginx document root) and the shared files in apps/driver and apps/officer" + (server ? " (server " + server + ")" : ""));
+console.log("Built SUNU Park " + version + ": frontend/dist (Nginx document root) and the shared files in apps/driver and apps/officer" + (server ? " (server " + server + ")" : ""));

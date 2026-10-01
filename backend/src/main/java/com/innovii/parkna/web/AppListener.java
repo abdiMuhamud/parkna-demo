@@ -20,7 +20,7 @@ import java.util.Collections;
 import java.util.Properties;
 
 /**
- * Starts ParkNa when Tomcat deploys the WAR: reads the property files, opens the MariaDB pool, applies
+ * Starts SUNU Park when Tomcat deploys the WAR: reads the property files, opens the MariaDB pool, applies
  * database migrations, loads the data and starts the clock. If anything is wrong the deployment fails with
  * the reason in catalina.out and parkna.log.
  */
@@ -37,7 +37,7 @@ public class AppListener implements ServletContextListener {
 
     @Override public void contextInitialized(ServletContextEvent sce) {
         ServletContext ctx = sce.getServletContext();
-        log.info("Starting ParkNa back end {} on {}", VERSION, ctx.getServerInfo());
+        log.info("Starting SUNU Park back end {} on {}", VERSION, ctx.getServerInfo());
         try {
             AppConfig cfg = AppConfig.load();
             log.info("Configuration: {}", cfg.summary());
@@ -64,11 +64,11 @@ public class AppListener implements ServletContextListener {
             ctx.setAttribute(SERVICE, service);
             ctx.setAttribute(EVENTS, events);
             ctx.setAttribute(AUTH, auth);
-            log.info("ParkNa is running");
+            log.info("SUNU Park is running");
         } catch (Exception e) {
-            log.error("ParkNa failed to start: {}", e.getMessage(), e);
+            log.error("SUNU Park failed to start: {}", e.getMessage(), e);
             contextDestroyed(sce);
-            throw new IllegalStateException("ParkNa failed to start: " + e.getMessage(), e);
+            throw new IllegalStateException("SUNU Park failed to start: " + e.getMessage(), e);
         }
     }
 
@@ -82,7 +82,7 @@ public class AppListener implements ServletContextListener {
                 try { DriverManager.deregisterDriver(d); } catch (Exception ignored) {}
             }
         }
-        log.info("ParkNa stopped");
+        log.info("SUNU Park stopped");
     }
 
     private static String readVersion() {

@@ -1,4 +1,4 @@
-# ParkNa: application settings
+# SUNU Park: application settings
 # Copy to config.properties next to database.properties. Restart Tomcat after a change.
 
 # ---------------------------------------------------------------- mode
@@ -11,7 +11,7 @@ app.mode=production
 # The address people type into the apps (shown on the landing page and returned by /api/ping)
 server.publicUrl=https://parkna.example.gm
 
-# How drivers, organisations and attendants reach ParkNa: shown in the apps' help, on the landing page
+# How drivers, organisations and attendants reach SUNU Park: shown in the apps' help, on the landing page
 # and in the privacy policy (/privacy.html). Set both before publishing the apps on Google Play.
 support.phone=
 support.email=
@@ -53,6 +53,13 @@ sms.kannel.timeoutMs=5000
 # Only these addresses may call it (the Kannel server's).
 sms.mo.allowedIps=127.0.0.1,::1,0:0:0:0:0:0:0:1
 
+# SMS simulator (https://your-domain/sms): administrators and supervisors send texts as any phone (a driver, an
+# attendant, an organisation contact) and see the replies, to try every SMS flow without a handset.
+# Default: on for a demo server or while sms.gateway=simulated, off otherwise. When it is on with Kannel, replies to
+# a number used in the simulator stay in the simulator for 2 hours instead of going to that phone; other messages
+# (e.g. a warning to the driver of a plate) are sent as usual.
+#sms.simulator.enabled=true
+
 # ---------------------------------------------------------------- sign-in
 # Drivers, attendants and organisation contacts sign in with a 6-digit code sent by SMS (through Kannel).
 # On a test server without working SMS, the code can be shown in the app instead. Only works while
@@ -76,5 +83,5 @@ payments.mode=off
 # The bank account organisations pay their monthly invoice into (shown on the invoice in the organisation portal).
 # Organisations quote the invoice number as the reference; Finance matches the transfer in the back office.
 billing.bank.name=
-billing.bank.accountName=ParkNa Collections
+billing.bank.accountName=SUNU Park Collections
 billing.bank.accountNumber=

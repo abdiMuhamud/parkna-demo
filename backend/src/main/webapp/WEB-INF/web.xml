@@ -3,7 +3,7 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
          version="6.0" metadata-complete="false">
-  <display-name>ParkNa back end</display-name>
+  <display-name>SUNU Park back end</display-name>
   <!-- Servlets and listeners are declared with annotations (com.innovii.parkna.web). No sessions are used. -->
   <session-config>
     <session-timeout>1</session-timeout>

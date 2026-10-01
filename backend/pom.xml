@@ -6,10 +6,10 @@
 
   <groupId>com.innovii</groupId>
   <artifactId>parkna</artifactId>
-  <version>1.1.0</version>
+  <version>1.2.0</version>
   <packaging>war</packaging>
-  <name>ParkNa backend</name>
-  <description>ParkNa back end for Banjul City Council parking (INNOVII). Runs on Apache Tomcat 10.1, stores data in MariaDB.</description>
+  <name>SUNU Park backend</name>
+  <description>SUNU Park back end for Banjul City Council parking (INNOVII). Runs on Apache Tomcat 10.1, stores data in MariaDB.</description>
 
   <properties>
     <!-- the release number shown in /api/health and the apps: CI passes -Dparkna.version=<VERSION file>.<build> -->

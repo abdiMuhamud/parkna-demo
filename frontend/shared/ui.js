@@ -1,4 +1,4 @@
-/* ParkNa app UI kit (driver and officer apps), after "ParkNa Final Designs": icons, formatting and the shared
+/* SUNU Park app UI kit (driver and officer apps), after "SUNU Park Final Designs": icons, formatting and the shared
    sign-in flow: onboarding (driver), log in, sign up (driver), one-time password, name. */
 var UI = (function(){
   var P = {
@@ -45,7 +45,7 @@ var UI = (function(){
   function greet(min){ return min < 720 ? "Good morning" : min < 1020 ? "Good afternoon" : "Good evening"; }
   function mmss(s){ s = Math.max(0, s); return pad(Math.floor(s / 60)) + ":" + pad(s % 60); }
   function crest(){ return '<span class="crest"><img src="assets/img/crest.png" alt="Banjul City Council crest"></span>'; }
-  function bname(){ return '<span class="bname"><small>BANJUL CITY COUNCIL</small><b>ParkNa</b></span>'; }
+  function bname(){ return '<span class="bname"><small>BANJUL CITY COUNCIL</small><b>SUNU Park</b></span>'; }
 
   /* ---------- the shared sign-in flow ---------- */
   function SignIn(o){
@@ -53,6 +53,7 @@ var UI = (function(){
     var driver = o.as === "driver";
     var S = { step: driver && PN.ls("parkna.onboarded") !== "1" ? "onb" : "login", slide: 0, from: "login", phone: "", code: "", name: "", plate: "", agree: true, err: "", busy: false, sentAt: 0, test: null };
     function privacy(){ return (PN.server || "") + "/privacy.html"; }
+    function terms(){ return (PN.server || "") + "/terms.html"; }
     function head(back){ return '<div class="ahead">'+(back ? '<button class="back" data-si="to" data-v="'+back+'" aria-label="Back">'+ic("back", 26, 2.2)+'</button>' : "")+crest()+bname()+'</div>'; }
     function title(icon, eyebrow, h){ return '<div class="atitle"><span class="i">'+ic(icon, 24, 2)+'</span><div><div class="eyebrow">'+eyebrow+'</div><h1>'+h+'</h1></div></div>'; }
     function arrowBtn(si, label, off){ return '<button class="btn" data-si="'+si+'"'+(off ? " disabled" : "")+'>'+label+'<span class="ar">'+ic("arrow", 20, 2.3)+'</span></button>'; }
@@ -71,7 +72,7 @@ var UI = (function(){
     var SLIDES = [
       { img: 1, step: "EASY PARKING", h: "Park smarter in Banjul", lead: "Find, pay and manage parking from your phone—without cash or queues.",
         body: '<div class="feats">'+feat("bolt", "Faster parking")+feat("tag", "Clear prices", true)+feat("receipt", "Digital receipts")+'</div>' },
-      { img: 2, step: "FLEXIBLE PAYMENTS", h: "Pay the way you prefer", lead: "Use Wave, Afrimoney, QMoney or APS for hourly, daily and monthly parking.",
+      { img: 2, step: "FLEXIBLE PAYMENTS", h: "Pay the way you prefer", lead: "Use Wave, Afrimoney, QMoney or APS for daily and monthly parking.",
         body: '<div class="feats">'+feat("grid", "Four trusted options").replace('class="i"', 'class="i" style="color:var(--navy)"')+feat("shield", "Secure confirmation", true)+feat("receipt", "Instant digital receipt").replace('class="i"', 'class="i" style="color:var(--navy)"')+'</div>' },
       { img: 3, step: "A BETTER BANJUL", h: "Better parking. Stronger city.", lead: "Every digital parking payment helps make Banjul easier to move through, fairer to park in and better able to serve its people.",
         body: '<div class="gains"><div class="gain"><div class="gh"><span class="i">'+ic("people", 24)+'</span>People gain</div><ul>'
@@ -99,18 +100,18 @@ var UI = (function(){
           + '<div class="hint"><span class="i">'+ic("shield", 17, 2)+'</span>Your OTP expires after 5 minutes.</div>'
           + err() + arrowBtn("send", S.busy ? "Sending…" : "Send OTP", S.busy)
           + (driver ? '<div class="or">or</div><button class="btn ghost" data-si="to" data-v="signup">Create a new account</button>' : "")
-          + '<p style="font-size:13.5px;color:var(--mute);text-align:center">By continuing, you agree to ParkNa’s <a class="lnk" style="font-weight:500" href="'+esc(privacy())+'" target="_blank" rel="noopener">Terms</a> and <a class="lnk" style="font-weight:500" href="'+esc(privacy())+'" target="_blank" rel="noopener">Privacy Policy</a>.</p>'
+          + '<p style="font-size:13.5px;color:var(--mute);text-align:center">By continuing, you agree to SUNU Park’s <a class="lnk" style="font-weight:500" href="'+esc(terms())+'" target="_blank" rel="noopener">Terms</a> and <a class="lnk" style="font-weight:500" href="'+esc(privacy())+'" target="_blank" rel="noopener">Privacy Policy</a>.</p>'
           + demoList() + paysup() + secure() + '</div></div>';
       },
       signup: function(){
         return '<div class="auth">'+head("login")+'<div class="aform">'
-          + title("user", "NEW ACCOUNT", "Join ParkNa")
+          + title("user", "NEW ACCOUNT", "Join SUNU Park")
           + '<p class="alead">Create your account to pay for parking, manage your plates and keep digital receipts.</p>'
           + '<label class="fld">Full name<div class="box"><span class="lead">'+ic("user", 22, 1.9)+'</span><input id="siName" autocomplete="name" placeholder="Enter your full name" value="'+esc(S.name)+'"></div></label>'
           + '<label class="fld">Phone number'+phoneBox(true)+'</label>'
           + '<label class="fld">Plate number<div class="box"><span class="lead">'+ic("car", 22, 1.9)+'</span><input id="siPlate" autocapitalize="characters" autocomplete="off" placeholder="e.g. BJL 2222" value="'+esc(S.plate)+'"></div></label>'
           + '<div class="hint"><span class="i">'+ic("shield", 17, 2)+'</span>We’ll send an OTP to verify your phone number.</div>'
-          + '<label class="chk"><input type="checkbox" id="siAgree"'+(S.agree ? " checked" : "")+'><span>I agree to the <a href="'+esc(privacy())+'" target="_blank" rel="noopener">Terms</a> and <a href="'+esc(privacy())+'" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>'
+          + '<label class="chk"><input type="checkbox" id="siAgree"'+(S.agree ? " checked" : "")+'><span>I agree to the <a href="'+esc(terms())+'" target="_blank" rel="noopener">Terms</a> and <a href="'+esc(privacy())+'" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>'
           + err() + arrowBtn("send", S.busy ? "Sending…" : "Continue to OTP", S.busy)
           + '<div class="or" style="margin-top:4px">Already registered? <button class="lnk" style="font-weight:500;margin-left:-6px" data-si="to" data-v="login">Log in</button></div>'
           + paysup() + secure() + '</div></div>';
@@ -134,7 +135,7 @@ var UI = (function(){
       name: function(){
         return '<div class="auth">'+head("")+'<div class="aform">'
           + title("user", "NEW ACCOUNT", "Your name")
-          + '<p class="alead">So your receipts and messages greet you properly. Only you and ParkNa staff see it.</p>'
+          + '<p class="alead">So your receipts and messages greet you properly. Only you and SUNU Park staff see it.</p>'
           + '<label class="fld">Full name<div class="box"><span class="lead">'+ic("user", 22, 1.9)+'</span><input id="siName" autocomplete="name" placeholder="Enter your full name" value="'+esc(S.name)+'"></div></label>'
           + err() + arrowBtn("name", S.busy ? "Saving…" : "Continue", S.busy) + secure() + '</div></div>';
       }
@@ -211,6 +212,81 @@ var UI = (function(){
     };
   }
 
+  /* ---------- terms and conditions: read to the end, then agree ----------
+     Shown before signing in (accepted on this phone) and again after signing in whenever an administrator has
+     published a new version (accepted on the account). The text comes from the server. */
+  function Terms(o){
+    /* o: { render() } */
+    var S = { data: null, loading: false, err: "", read: false, agree: false, busy: false };
+    function current(){ return (PN.mode && PN.mode.termsV) || (PN.info && PN.info.termsV) || null; }
+    function load(){
+      if(S.loading) return;
+      S.loading = true; S.err = "";
+      PN.terms().then(function(r){
+        S.loading = false;
+        if(r && r.ok){ if(!S.data || S.data.v !== r.v){ S.read = false; S.agree = false; } S.data = r; }
+        else S.err = (r && r.err) || "Could not load the terms.";
+        o.render();
+      });
+    }
+    function fmtAt(iso){ var d = iso ? new Date(iso) : null; return d && !isNaN(d) ? d.getDate() + " " + MON[d.getMonth()] + " " + d.getFullYear() : ""; }
+    var api = {
+      state: S,
+      /* the version to accept before signing in, if this phone has not accepted it yet */
+      needLocal: function(){ var v = current(); return !!v && PN.ls("parkna.terms") !== v; },
+      /* the version this account still has to accept, if any */
+      needAccount: function(u){ var v = current(); return !!v && !!u && !(u.terms && u.terms.v === v); },
+      /* accepted on this phone just before signing in: recorded on the account without asking again. True while saving. */
+      autoAccept: function(){
+        var v = current();
+        if(!v || PN.ls("parkna.terms") !== v || S.auto === v) return S.saving === v;
+        S.auto = v; S.saving = v;
+        /* on success the screen waits for the account's record to arrive with the next update */
+        PN.act({ type: "terms.accept", v: v }).then(function(r){ if(!r || r.err) S.saving = null; o.render(); });
+        return true;
+      },
+      view: function(again){
+        var v = current();
+        if(!S.data || S.data.v !== v){ load(); }
+        var d = S.data && S.data.v === v ? S.data : null;
+        var body = d ? '<div class="tbox" id="tBox">'+PN.termsHtml(d.body)+'<div class="tend">End of the terms · version '+esc(d.v)+'</div></div>'
+                     : '<div class="tbox center" id="tBox">'+(S.err ? '<p>'+esc(S.err)+'</p><button class="btn ghost" data-tg="retry" style="max-width:220px">Try again</button>' : '<div class="spin"></div>')+'</div>';
+        return '<div class="auth terms"><div class="ahead">'+crest()+bname()+'</div><div class="aform">'
+          + '<div class="atitle"><span class="i">'+ic("doc", 24, 2)+'</span><div><div class="eyebrow">'+(again ? "UPDATED TERMS" : "BEFORE YOU START")+'</div><h1>Terms &amp; Conditions</h1></div></div>'
+          + '<p class="alead">'+(again ? "The terms have changed. Please read the new version to the end and accept it to continue." : "Please read the SUNU Park terms to the end. You need to accept them to continue.")
+          + (d ? ' <small class="tver">Version '+esc(d.v)+(fmtAt(d.at) ? " · " + fmtAt(d.at) : "")+'</small>' : "")+'</p>'
+          + body
+          + (d && !S.read ? '<div class="hint"><span class="i">'+ic("chevD", 17, 2.4)+'</span>Scroll to the end of the terms to continue.</div>' : "")
+          + '<label class="chk'+(S.read ? "" : " off")+'"><input type="checkbox" id="tAgree"'+(S.agree ? " checked" : "")+(S.read ? "" : " disabled")+'><span>I have read and I accept the SUNU Park Terms &amp; Conditions.</span></label>'
+          + (S.err && d ? '<div class="err">'+esc(S.err)+'</div>' : "")
+          + '<button class="btn" data-tg="agree"'+(!d || !S.read || !S.agree || S.busy ? " disabled" : "")+'>'+(S.busy ? "Saving…" : "Accept and continue")+'<span class="ar">'+ic("arrow", 20, 2.3)+'</span></button>'
+          + '<div class="secure">Also at sunupark.gm/terms and at the Council office</div></div></div>';
+      },
+      /* after each paint: a short text that needs no scrolling counts as read */
+      check: function(){
+        var b = document.getElementById("tBox");
+        if(b && S.data && !S.read && b.scrollHeight <= b.clientHeight + 8){ S.read = true; o.render(); }
+      },
+      scroll: function(el){
+        if(el.id !== "tBox" || S.read || !S.data) return false;
+        if(el.scrollTop + el.clientHeight >= el.scrollHeight - 12){ S.read = true; o.render(); }
+        return true;
+      },
+      input: function(t){ if(t.id !== "tAgree") return false; S.agree = t.checked && S.read; o.render(); return true; },
+      /* onAccept(v) returns a promise for an account, or nothing for this phone */
+      click: function(a, onAccept){
+        if(a === "retry"){ S.err = ""; load(); o.render(); return true; }
+        if(a !== "agree" || !S.data || !S.read || !S.agree) return a === "agree";
+        var v = S.data.v, p = onAccept ? onAccept(v) : null;
+        if(!p){ PN.ls("parkna.terms", v); S.agree = false; S.read = false; o.render(); return true; }
+        S.busy = true; S.err = ""; o.render();
+        p.then(function(r){ S.busy = false; if(r && r.err){ S.err = r.err; if(/changed/.test(r.err)) load(); } else { PN.ls("parkna.terms", v); S.auto = v; S.agree = false; S.read = false; } o.render(); });
+        return true;
+      }
+    };
+    return api;
+  }
+
   /* ---------- screen updates without flicker ----------
      The screens are rebuilt as HTML on every change (a keystroke, the OTP countdown, a live update from the server).
      Replacing the whole page would destroy the field being typed in (on Android the keyboard then closes and opens
@@ -237,13 +313,16 @@ var UI = (function(){
     }
     patchChildren(a, b);
   }
-  function patchChildren(parent, next){
-    var a = parent.firstChild, b = next.firstChild, nb;
+  /* the screens themselves (children of the app root) are only reused for the same kind of screen: a new screen
+     (sign-in to home, say) starts at the top instead of keeping the old one's scroll position */
+  function sameScreen(a, b){ return same(a, b) && (a.nodeType !== 1 || a.className === b.className); }
+  function patchChildren(parent, next, top){
+    var a = parent.firstChild, b = next.firstChild, nb, eq = top ? sameScreen : same;
     while(b){
       nb = b.nextSibling;
       if(!a){ parent.appendChild(b); }
-      else if(same(a, b)){ patchNode(a, b); a = a.nextSibling; }
-      else if(a.nextSibling && same(a.nextSibling, b)){ var gone = a; a = a.nextSibling; parent.removeChild(gone); patchNode(a, b); a = a.nextSibling; }
+      else if(eq(a, b)){ patchNode(a, b); a = a.nextSibling; }
+      else if(a.nextSibling && eq(a.nextSibling, b)){ var gone = a; a = a.nextSibling; parent.removeChild(gone); patchNode(a, b); a = a.nextSibling; }
       else { parent.insertBefore(b, a); }
       b = nb;
     }
@@ -252,7 +331,7 @@ var UI = (function(){
   function morph(root, html){
     var t = document.createElement("template");
     t.innerHTML = html;
-    patchChildren(root, t.content);
+    patchChildren(root, t.content, true);
   }
 
   /* ---------- the on-screen keyboard ----------
@@ -276,5 +355,18 @@ var UI = (function(){
     update();
   })();
 
-  return { ic: ic, FLAG: FLAG, initials: initials, phone: phone, money: money, greet: greet, crest: crest, bname: bname, SignIn: SignIn, morph: morph };
+  /* ---------- launch screen ----------
+     #splash (in index.html) shows from the first frame. splashDone() hands over once the app has something real
+     to show, but never before the mark has turned once (about 1.4 s), so it never flashes. */
+  var T0 = Date.now(), splashGone = false;
+  function splashDone(){
+    if(splashGone) return;
+    var el = document.getElementById("splash");
+    if(!el){ splashGone = true; return; }
+    var wait = Math.max(0, 1400 - (Date.now() - T0));
+    splashGone = true;
+    setTimeout(function(){ el.classList.add("out"); setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 800); }, wait);
+  }
+
+  return { splashDone: splashDone, ic: ic, FLAG: FLAG, initials: initials, phone: phone, money: money, greet: greet, crest: crest, bname: bname, SignIn: SignIn, Terms: Terms, morph: morph };
 })();

@@ -215,4 +215,33 @@ class ViewsTest {
         assertFalse(clean.get("MODE").has("demoData"));
         assertFalse(demoServer.get("MODE").has("demoData"));
     }
+
+    /** The police: warnings, plates and who to contact about an unpaid one; no payments, wallets, messages or attendants' phones. */
+    @Test
+    void policeSeeWarningsAndDriversToFollowUpOnly() throws Exception {
+        ParkingEngine e = busy();
+        act(e, "type", "sms", "num", "7300007", "text", "W BJL5678");
+        JsonNode v = view(e, session(Role.POLICE, "police1", null));
+        assertEquals("police", v.get("ME").get("role").asText());
+        assertEquals(1, v.get("FINES").size());
+        assertEquals("BJL5678", v.get("FINES").get(0).get("plate").asText());
+        assertEquals(List.of("3034567"), keys(v.get("NUMS")), "only the phones linked to a plate with an open warning");
+        JsonNode u = v.get("NUMS").get("3034567");
+        assertEquals(List.of("num", "name", "plates"), keys(u), "name, number and the warned plates only");
+        assertEquals(0, v.get("LOG").size());
+        assertEquals(0, v.get("OUT").size());
+        assertEquals(0, v.get("EXC").size());
+        for (JsonNode o : v.get("OFF")) assertFalse(o.has("num"), "attendants' phone numbers are not sent to the police");
+        assertFalse(v.toString().contains("7023456"), "a driver without an open warning leaked into the view");
+        assertFalse(v.toString().contains("\"receipts\"") || v.toString().contains("\"Afrimoney\":"), "receipts or wallets leaked into the police view");
+    }
+
+    @Test
+    void modeTellsTheAppsTheTermsInForce() throws Exception {
+        Views views = new Views(config("demo"));
+        views.termsVersion(() -> "7");
+        JsonNode mode = M.readTree(Json.write(views.mode(ParkingEngine.seeded())));
+        assertEquals("7", mode.get("termsV").asText());
+        assertTrue(mode.get("smsSimulator").asBoolean(), "on by default on a demo server");
+    }
 }

@@ -7,7 +7,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/** A phone number known to ParkNa: drivers, attendants and organisation contacts ("NUMS" in the snapshot). */
+/** A phone number known to SUNU Park: drivers, attendants and organisation contacts ("NUMS" in the snapshot). */
 public class Subscriber {
     public String num;
     public String name;
@@ -21,6 +21,14 @@ public class Subscriber {
     public List<Receipt> receipts = new ArrayList<>();
     public boolean welcomed;
     public String prov = "Wave";
+    /** The terms and conditions this number accepted in the app: version, day and time. */
+    public Terms terms;
     @JsonInclude(JsonInclude.Include.NON_NULL) public Boolean persona;
     @JsonInclude(JsonInclude.Include.NON_NULL) public String note;
+
+    public static class Terms {
+        public String v;
+        public String day;
+        public String t;
+    }
 }

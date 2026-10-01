@@ -46,14 +46,15 @@ import static com.innovii.parkna.engine.Js.trim;
 import static com.innovii.parkna.engine.Js.truthy;
 
 /**
- * ParkNa business rules: payments, passes, attendant checks, organisation invoicing and the SMS lines.
+ * SUNU Park business rules: payments, passes, attendant checks, organisation invoicing and the SMS lines.
  *
  * <p>Ported from the v0.1 JavaScript engine (frontend/shared/engine.js), which the apps still use to
  * read the state. Pilot rules (journey documents v1.2):
  * <ul>
- *   <li>one price for every plate: 200 GMD a day (till 7pm) or 4,420 GMD a month</li>
+ *   <li>one price for every plate: 200 GMD a day (till 7pm) or 4,000 GMD a month (20 paid days)</li>
  *   <li>paid hours 7am-7pm Mon-Sat; the pass follows the plate</li>
- *   <li>unpaid car: the attendant issues a warning; the daily fee is due within 24 hours, then with a 100 GMD fine</li>
+ *   <li>unpaid car: the attendant issues a warning; the daily fee is due within 24 hours, then with a 1,880 GMD fine</li>
+ *   <li>a phone with an unpaid warning on one of its plates settles it before buying any new pass</li>
  *   <li>organisations pay upfront per car per year; cars added later pay the months left; renewal invoice
  *       30 days before the year ends, 5 days' grace</li>
  *   <li>attendants use START, a plate, END from their registered number</li>
@@ -64,6 +65,8 @@ import static com.innovii.parkna.engine.Js.truthy;
  */
 public class ParkingEngine {
     public static final String SHORT_CODE = "7275";
+    /** Where the terms and conditions are published (in SMS). */
+    public static final String TERMS_URL = "sunupark.gm/terms";
     static final String CODE = "482913";
     public static final List<String> PROVIDERS = List.of("Wave", "Afrimoney", "APS", "QMoney");
 
@@ -118,10 +121,10 @@ public class ParkingEngine {
         s.clock.run = true;
         s.seq = 1;
         Tariff t = new Tariff();
-        t.daily = 200; t.monthly = monthlyFor(200); t.annual = t.monthly * 12; t.fine = 100; t.grace = 5; t.walletLimit = 10000;
+        t.daily = 200; t.monthly = monthlyFor(200); t.annual = t.monthly * 12; t.fine = 1880; t.grace = 5; t.walletLimit = 10000;
         t.log.add(new Tariff.Change(fmtD(today) + " " + today.getYear() + " " + hm(minute),
                 "Starting tariff: 200 GMD a day, " + gmd(t.monthly) + " GMD a month, " + gmd(t.annual) + " GMD a car a year for organisations; "
-                        + t.fine + " GMD fine when a warning is not paid within 24 hours. Paid hours 7am–7pm, Mon–Sat.", "ParkNa set-up", "System"));
+                        + gmd(t.fine) + " GMD fine for rule breakers (a warning not paid within 24 hours). Paid hours 7am–7pm, Mon–Sat.", "SUNU Park set-up", "System"));
         s.tariff = t;
         s.ver = 1;
         e.ch = new Changes();
@@ -207,7 +210,7 @@ public class ParkingEngine {
     }
 
     /** Whether a plate is covered right now, for the "pay for a plate" screen. Changes nothing. */
-    public Map<String, Object> plateStatus(Object raw) {
+    public Map<String, Object> plateStatus(Object num, Object raw) {
         String p = normPlate(raw);
         if (p == null) return err("Enter a plate like BJL1234");
         String st = plateState(p);
@@ -236,7 +239,11 @@ public class ParkingEngine {
             r.put("fines", list);
             r.put("fineOwed", owed);
             r.put("fineLate", late);
+        } else {
+            String ff = fineFirst(num == null ? null : String.valueOf(num), p);
+            if (ff != null) { r.put("first", ff); r.put("firstOwed", owed(ff)); }
         }
+        r.put("offences", offences(p));
         return r;
     }
 
@@ -274,11 +281,12 @@ public class ParkingEngine {
     /** What one more car costs now: the months left in the current year, or a full year before the first payment. */
     public int proRata(Organisation o) { return o.coverTo != null && covering(o) ? (int) round((double) carYear(o) * monthsLeft(o, today()) / 12) : carYear(o); }
 
-    static int monthlyFor(double d) { return (int) round(d * 26 * 0.85); }
+    /** 20 paid days: a monthly pass costs 5 days a week instead of 6. */
+    static int monthlyFor(double d) { return (int) round(d * 20); }
 
     private static final Pattern PLATE = Pattern.compile("^[A-Z]{2,4}\\d{1,4}[A-Z]?$");
 
-    /** A plate as ParkNa stores it (BJL1234), or null when it is not a plate. */
+    /** A plate as SUNU Park stores it (BJL1234), or null when it is not a plate. */
     public static String normPlate(Object s) {
         String x = Js.SPACES.matcher(strOr(s, "").replace("-", "")).replaceAll("").toUpperCase(java.util.Locale.ROOT);
         return PLATE.matcher(x).matches() ? x : null;
@@ -303,6 +311,31 @@ public class ParkingEngine {
     private int fineOwed(Fine f) { return f.base + (fineLate(f) ? f.fine : 0); }
 
     private static String fineDue(Fine f) { return hm(f.t) + " on " + fmtD(addDays(Cal.fromDkey(f.day), 1)); }
+
+    /** Another of this phone's plates with an unpaid warning: it is paid before any new pass. */
+    private String fineFirst(String num, String p) {
+        Subscriber u = num == null ? null : S.nums.get(num);
+        if (u == null) return null;
+        for (String x : u.plates) if (!x.equals(p) && !openFines(x).isEmpty()) return x;
+        return null;
+    }
+
+    private int owed(String p) { int n = 0; for (Fine f : openFines(p)) n += fineOwed(f); return n; }
+
+    /** The plate's record: every warning that was not cancelled. */
+    public int offences(String p) { int n = 0; for (Fine f : S.fines) if (f.plate.equals(p) && !f.status.equals("cancelled")) n++; return n; }
+
+    static String nth(int n) {
+        int t = n % 100;
+        String s = t >= 11 && t <= 13 ? "th" : switch (n % 10) { case 1 -> "st"; case 2 -> "nd"; case 3 -> "rd"; default -> "th"; };
+        return n + s;
+    }
+
+    /** First-time or repeat offender, as the attendant and the police read it. */
+    private String offenderLine(String p) {
+        int n = offences(p);
+        return n <= 1 ? "First-time offender." : "Repeat offender: " + nth(n) + " warning for this plate.";
+    }
 
     /** The phones to tell about a plate: the numbers that paid for it, then the numbers that added it. */
     private List<String> plateNums(String p) {
@@ -367,20 +400,20 @@ public class ParkingEngine {
         ch.fines.add(f.id);
         List<String> nums = plateNums(p);
         for (String n : nums) mt(n, msg.warn(f, ROADS.get(f.road).name(), fineDue(f), SHORT_CODE), "Warning");
-        return p + ": WARNING " + f.id + " issued at " + hm(S.clock.min) + ". " + (!nums.isEmpty() ? "The driver has been told by SMS." : "No phone is linked to this plate yet: the warning waits on the plate.")
+        return p + ": WARNING " + f.id + " issued at " + hm(S.clock.min) + ". " + offenderLine(p) + " " + (!nums.isEmpty() ? "The driver has been told by SMS." : "No phone is linked to this plate yet: the warning waits on the plate.")
                 + "\nLeave a Park & Pay card on the windscreen.";
     }
 
     /** What paying this plate would cost right now, or why it can't be paid. */
     private static final class Quote {
-        String err, plate, st, kind;
+        String err, plate, st, kind, first;
         int amount;
         LocalDate to;
         List<String> ids;
         boolean late;
     }
 
-    private Quote quote(Object plate, String kind) {
+    private Quote quote(String num, Object plate, String kind) {
         Quote q = new Quote();
         String p = normPlate(plate);
         if (p == null) { q.err = "Enter a plate like BJL1234"; return q; }
@@ -396,6 +429,8 @@ public class ParkingEngine {
             for (Fine f : fs) { q.amount += fineOwed(f); q.ids.add(f.id); if (fineLate(f)) q.late = true; }
             return q;
         }
+        String ff = fineFirst(num, p);
+        if (ff != null) { q.err = "Pay the unpaid warning on " + ff + " first (" + owed(ff) + " GMD). A warning is settled before any new pass."; q.first = ff; return q; }
         if (st.equals("ORG")) { q.err = p + " is covered by " + orgOf(p).name + " fleet. Nothing to pay."; return q; }
         if (kind.equals("monthly")) {
             LocalDate from = S.clock.date;
@@ -453,7 +488,7 @@ public class ParkingEngine {
     }
 
     private Map<String, Object> pay(String num, Object plate, String kind, String prov) {
-        Quote q = quote(plate, kind);
+        Quote q = quote(num, plate, kind);
         if (q.err != null) return err(q.err);
         if (!paymentsEnabled) return err(q.kind.equals("fine") ? PAYMENTS_OFF + " Warnings can also be paid at the Council office." : PAYMENTS_OFF);
         if (!PROVIDERS.contains(prov)) return err("Choose a payment provider");
@@ -494,7 +529,7 @@ public class ParkingEngine {
         if (u.sms.size() > State.SMS_KEEP) u.sms.subList(0, u.sms.size() - State.SMS_KEEP).clear();
     }
 
-    /** An SMS from ParkNa to a phone. */
+    /** An SMS from SUNU Park to a phone. */
     private String mt(String num, String text, String tag) {
         OutMessage o = new OutMessage();
         o.t = hm(S.clock.min); o.d = fmtD(S.clock.date); o.num = num; o.text = text; o.tag = tag; o.id = ++S.ver;
@@ -506,7 +541,7 @@ public class ParkingEngine {
         return text;
     }
 
-    /** An SMS from a phone to ParkNa. */
+    /** An SMS from a phone to SUNU Park. */
     private void mo(String num, String text) { smsPush(num, SmsEntry.fromPhone(text, hm(S.clock.min)), null); }
 
     private void link(String num, String p) {
@@ -538,10 +573,12 @@ public class ParkingEngine {
         u.pending = null;
         if (U.equals("START") || U.equals("END")) return mt(num, msg.officerOnly(U), null);
         if (U.equals("HELP") || U.equals("INFO")) return mt(num, msg.help(), null);
+        if (U.equals("TERMS") || U.equals("T&C") || U.equals("TC")) return mt(num, msg.terms(), null);
         if (U.equals("M") || MONTHLY_CMD.matcher(U).find()) {
             String mp = U.equals("M") ? (u.last != null ? u.last : (u.plates.isEmpty() ? null : u.plates.get(0))) : normPlate(U.substring(2));
             if (mp == null) return mt(num, U.equals("M") ? "Text M and your plate, e.g. M BJL1234" : msg.bad(), null);
-            Quote qm = quote(mp, "monthly");
+            Quote qm = quote(num, mp, "monthly");
+            if (qm.first != null) return fineFirstOffer(num, qm.first, qm.plate);
             if (qm.err != null) return mt(num, qm.err, null);
             link(num, qm.plate);
             if (!paymentsEnabled) return mt(num, qm.kind.equals("fine") ? fineUnpayable(qm) : "Monthly pass " + qm.plate + ": " + S.tariff.monthly + " GMD. " + PAYMENTS_OFF, null);
@@ -554,13 +591,15 @@ public class ParkingEngine {
         if (p == null) return mt(num, digit ? msg.bad() : msg.welcome(), null);
         String st = plateState(p);
         if (!openFines(p).isEmpty()) {
-            Quote qf = quote(p, "daily");
+            Quote qf = quote(num, p, "daily");
             link(num, p);
             u.welcomed = true;
             if (!paymentsEnabled) return mt(num, fineUnpayable(qf), null);
             u.pending = new Pending(p, "fine");
             return mt(num, msg.foffer(qf.plate, qf.ids, qf.amount, qf.late), null);
         }
+        String f1 = fineFirst(num, p);
+        if (f1 != null) return fineFirstOffer(num, f1, p);
         if (!paidHours()) return mt(num, msg.free(), null);
         if (st.equals("ORG")) { Organisation o = orgOf(p); return mt(num, msg.org(p, o.name, o.id), null); }
         link(num, p);
@@ -570,6 +609,15 @@ public class ParkingEngine {
         if (!paymentsEnabled) return mt(num, p + " is not paid today (" + S.tariff.daily + " GMD till 7pm). " + PAYMENTS_OFF, null);
         u.pending = new Pending(p, "daily");
         return mt(num, msg.offer(p), null);
+    }
+
+    /** Asked about one plate while another of the phone's plates has an unpaid warning: the warning is offered first. */
+    private Object fineFirstOffer(String num, String first, String p) {
+        Subscriber u = N(num);
+        Quote q = quote(num, first, "daily");
+        if (!paymentsEnabled) return mt(num, "Settle your warning before paying for " + p + ". " + fineUnpayable(q), null);
+        u.pending = new Pending(first, "fine");
+        return mt(num, "Settle your warning before paying for " + p + ". " + msg.foffer(q.plate, q.ids, q.amount, q.late), null);
     }
 
     /** While mobile money is off: what the warning costs and where to pay it. */
@@ -605,7 +653,7 @@ public class ParkingEngine {
             o.on = true; o.start = S.clock.min; o.day = dkey(S.clock.date); o.stats = new Officer.ShiftStats(); o.summary = null;
             String road = roadOf(o);
             int h = unpaidEarlier(road, o.id);
-            return mt(num, "ParkNa: shift started " + hm(S.clock.min) + ". Attendant " + o.id + ", " + roadLine(road) + ", " + SHIFTS.get(o.shift).label() + "."
+            return mt(num, "SUNU Park: shift started " + hm(S.clock.min) + ". Attendant " + o.id + ", " + roadLine(road) + ", " + SHIFTS.get(o.shift).label() + "."
                     + (h > 0 ? " " + h + " plate" + (h > 1 ? "s were" : " was") + " unpaid earlier today." : "") + " Text a plate to check it. Text END to finish.", "Shift");
         }
         if (U.equals("END")) {
@@ -658,6 +706,9 @@ public class ParkingEngine {
                 for (Fine f : fs) ids.add(f.id);
                 m += "\nOpen warning " + String.join(", ", ids) + " from " + fmtD(Cal.fromDkey(fs.get(0).day)) + ".";
             }
+            int k = 0;
+            for (Fine f : S.fines) if (f.plate.equals(p) && !f.status.equals("cancelled") && !f.day.equals(d)) k++;
+            m += k > 0 ? "\nRecord: " + k + " earlier warning" + (k > 1 ? "s" : "") + " (repeat offender)." : "\nRecord: no earlier warnings.";
         } else if (st.equals("DAILY")) {
             boolean wasUnpaid = prev.stream().anyMatch(x -> x.st.equals("UNPAID"));
             m = p + ": PAID. Daily pass till 7pm" + (wasUnpaid ? " (paid " + S.plates.get(p).daily.t + ")" : "") + ".";
@@ -678,7 +729,7 @@ public class ParkingEngine {
         Officer.Reassignment re = new Officer.Reassignment();
         re.road = road; re.from = S.clock.min; re.day = dkey(S.clock.date);
         o.re = re;
-        mt(num, "ParkNa: Admin moved you to " + roadLine(road) + " from " + hm(S.clock.min) + " today, until the end of your shift. Your next checks are recorded there.", "Reassigned");
+        mt(num, "SUNU Park: Admin moved you to " + roadLine(road) + " from " + hm(S.clock.min) + " today, until the end of your shift. Your next checks are recorded there.", "Reassigned");
         return ok();
     }
 
@@ -699,7 +750,7 @@ public class ParkingEngine {
         ch.officers.add(ph);
         N(ph, o.name).name = o.name;
         String first = o.name.contains(" ") ? o.name.substring(0, o.name.indexOf(' ')) : o.name;
-        mt(ph, "ParkNa: welcome " + first + ". You are Attendant " + id + " on " + roadLine(o.road) + ", " + SHIFTS.get(o.shift).label() + ". Text START to begin, a plate to check it, END to finish. Never take money.", "Welcome");
+        mt(ph, "SUNU Park: welcome " + first + ". You are Attendant " + id + " on " + roadLine(o.road) + ", " + SHIFTS.get(o.shift).label() + ". Text START to begin, a plate to check it, END to finish. Never take money.", "Welcome");
         Map<String, Object> r = ok();
         r.put("id", id);
         return r;
@@ -746,7 +797,7 @@ public class ParkingEngine {
         String c = o.contact.num;
         if (o.coverTo != null && covering(o)) {
             Organisation.Invoice ni = newInvoice(o, "addon", plates, t, o.coverTo, "To " + fmtY(o.coverTo));
-            mt(c, "ParkNa: invoice " + ni.no + " for " + plates.size() + " more " + (plates.size() == 1 ? "car" : "cars") + " to " + fmtY(o.coverTo) + ": GMD " + gmd(ni.amount)
+            mt(c, "SUNU Park: invoice " + ni.no + " for " + plates.size() + " more " + (plates.size() == 1 ? "car" : "cars") + " to " + fmtY(o.coverTo) + ": GMD " + gmd(ni.amount)
                     + ". The cars are covered once it is paid. Pay in the portal or by bank transfer quoting " + ni.no + ".", "Invoice");
             return ni;
         }
@@ -758,7 +809,7 @@ public class ParkingEngine {
             }
         }
         Organisation.Invoice ai = newInvoice(o, "annual", plates, t, addDays(addYear(t), -1), "12 months from payment");
-        mt(c, "ParkNa: invoice " + ai.no + " for " + cars(plates.size()) + ", one year paid upfront: GMD " + gmd(ai.amount)
+        mt(c, "SUNU Park: invoice " + ai.no + " for " + cars(plates.size()) + ", one year paid upfront: GMD " + gmd(ai.amount)
                 + ". The cars are covered for 12 months from the day it is paid. Pay by bank transfer quoting " + ai.no + ".", "Invoice");
         return ai;
     }
@@ -783,7 +834,7 @@ public class ParkingEngine {
             if (!list.isEmpty()) {
                 LocalDate start = addDays(o.coverTo, 1), end = addDays(addYear(start), -1);
                 Organisation.Invoice ri = newInvoice(o, "renewal", list, start, end, fmtY(start) + " – " + fmtY(end));
-                mt(c, "ParkNa: your fleet cover ends " + fmtY(o.coverTo) + ". Renewal invoice " + ri.no + " for " + cars(list.size()) + ": GMD " + gmd(ri.amount) + ", due " + fmtY(start)
+                mt(c, "SUNU Park: your fleet cover ends " + fmtY(o.coverTo) + ". Renewal invoice " + ri.no + " for " + cars(list.size()) + ": GMD " + gmd(ri.amount) + ", due " + fmtY(start)
                         + ". Pay in the portal, or by bank transfer quoting " + ri.no + ".", "Invoice");
             }
         }
@@ -794,10 +845,10 @@ public class ParkingEngine {
             if (g <= S.tariff.grace) {
                 o.status = "grace";
                 o.graceDay = (int) g;
-                mt(c, "ParkNa: " + inv.no + " is overdue. Grace day " + g + " of " + S.tariff.grace + ": your cars stay covered. Pay now to keep them covered.", "Grace");
+                mt(c, "SUNU Park: " + inv.no + " is overdue. Grace day " + g + " of " + S.tariff.grace + ": your cars stay covered. Pay now to keep them covered.", "Grace");
             } else if (!o.status.equals("reverted")) {
                 o.status = "reverted";
-                mt(c, "ParkNa: " + inv.no + " is still unpaid after " + S.tariff.grace + " days of grace. Your " + cars(activePlates(o, null).size()) + " are now UNPAID and drivers must pay daily. Pay the invoice to restore cover.", "Plates reverted");
+                mt(c, "SUNU Park: " + inv.no + " is still unpaid after " + S.tariff.grace + " days of grace. Your " + cars(activePlates(o, null).size()) + " are now UNPAID and drivers must pay daily. Pay the invoice to restore cover.", "Plates reverted");
             }
         }
     }
@@ -817,7 +868,7 @@ public class ParkingEngine {
         l.t = hm(S.clock.min); l.day = dkey(S.clock.date); l.text = method + " · " + o.id + " " + inv.no; l.amt = "+" + gmd(inv.amount); l.amount = inv.amount; l.src = "org";
         ledger(l);
         int n = activePlates(o, null).size();
-        mt(o.contact.num, "ParkNa: payment received for " + inv.no + ", GMD " + gmd(inv.amount) + ". Thank you." + (wasOff ? " Cover is restored:" : "") + " Your " + cars(n) + " " + (n == 1 ? "is" : "are")
+        mt(o.contact.num, "SUNU Park: payment received for " + inv.no + ", GMD " + gmd(inv.amount) + ". Thank you." + (wasOff ? " Cover is restored:" : "") + " Your " + cars(n) + " " + (n == 1 ? "is" : "are")
                 + " covered to " + fmtY(o.coverTo) + ".", "Payment received");
         return ok();
     }
@@ -840,7 +891,7 @@ public class ParkingEngine {
         S.orga.put(id, o);
         ch.orgs.add(id);
         N(ph, o.contact.name);
-        mt(ph, "Welcome to ParkNa, " + o.name + " (" + id + "). Sign in to the ParkNa organisation portal with this number to add your cars. Cars are paid upfront for a year. Your account manager will help you.", "Welcome");
+        mt(ph, "Welcome to SUNU Park, " + o.name + " (" + id + "). Sign in to the SUNU Park organisation portal with this number to add your cars. Cars are paid upfront for a year. Your account manager will help you.", "Welcome");
         Map<String, Object> r = ok();
         r.put("id", id);
         return r;
@@ -1009,9 +1060,9 @@ public class ParkingEngine {
 
     private void resetTariff() {
         Tariff t = new Tariff();
-        t.daily = 200; t.monthly = 4420; t.annual = 53040; t.fine = 100; t.grace = 5; t.walletLimit = 10000;
-        t.log.add(new Tariff.Change("28 Oct 2026", "Pilot tariff published: 200 GMD a day, 4,420 GMD a month, 53,040 GMD a car a year for organisations; 100 GMD fine when a warning is not paid within 24 hours. Paid hours 7am–7pm, Mon–Sat.",
-                "BCC pilot resolution (reference to confirm)", "Aisha K."));
+        t.daily = 200; t.monthly = 4000; t.annual = 48000; t.fine = 1880; t.grace = 5; t.walletLimit = 10000;
+        t.log.add(new Tariff.Change("28 Oct 2026", "Pilot tariff published: 200 GMD a day, 4,000 GMD a month, 48,000 GMD a car a year for organisations; 1,880 GMD fine for rule breakers (a warning not paid within 24 hours). Paid hours 7am–7pm, Mon–Sat.",
+                "Agreed points with BCC", "Aisha K."));
         S.tariff = t;
     }
 
@@ -1064,9 +1115,9 @@ public class ParkingEngine {
         Organisation.Invoice inv = new Organisation.Invoice();
         inv.no = "INV-014-001"; inv.kind = "annual"; inv.month = "1 Oct 2026 – 30 Sep 2027"; inv.issued = Cal.date(2026, 8, 25); inv.due = Cal.date(2026, 8, 25); inv.end = Cal.date(2027, 8, 30);
         inv.plates = new ArrayList<>(List.of("BJL7001", "BJL7002", "BJL7003", "BJL7009"));
-        inv.lines.add(new Organisation.Line("4 cars × 53,040 GMD a year", 212160));
-        inv.lines.add(new Organisation.Line("Discount 15%", -31824));
-        inv.amount = 180336; inv.status = "paid"; inv.method = "Bank transfer"; inv.paidOn = Cal.date(2026, 9, 1);
+        inv.lines.add(new Organisation.Line("4 cars × 48,000 GMD a year", 192000));
+        inv.lines.add(new Organisation.Line("Discount 15%", -28800));
+        inv.amount = 163200; inv.status = "paid"; inv.method = "Bank transfer"; inv.paidOn = Cal.date(2026, 9, 1);
         o.invoices.add(inv);
         S.orga.put(o.id, o);
         N("7101234", "Mariama S.");
@@ -1080,7 +1131,7 @@ public class ParkingEngine {
         S.ann.add(seedAnnouncement("AN-002", "Event", "Banjul Day clean-up", "Join the Council and your neighbours to clean the city centre. Gloves and bags provided.",
                 "Sat 7 Nov · 8am at Arch 22", "green", Cal.date(2026, 10, 1), Cal.date(2026, 10, 7), Cal.date(2026, 9, 30)));
         S.ann.add(seedAnnouncement("AN-001", "Announcement", "Pay for parking from your phone",
-                "ParkNa is live on Wellington Road, Liberation Avenue, Independence Drive, Leman Street and Russell Street.",
+                "SUNU Park is live on Wellington Road, Liberation Avenue, Independence Drive, Leman Street and Russell Street.",
                 "", "blue", Cal.date(2026, 9, 28), Cal.date(2026, 11, 31), Cal.date(2026, 9, 28)));
         S.ver++;
         ch = new Changes();
@@ -1107,7 +1158,7 @@ public class ParkingEngine {
             case "driver.login": {
                 String num = Js.lastChars(Js.digits(strOr(a.get("num"), "")), 7);
                 if (num.length() != 7) return err("Enter a 7-digit Gambian number.");
-                if (isOfficer(num)) return err("That number is registered to a ParkNa attendant.");
+                if (isOfficer(num)) return err("That number is registered to a SUNU Park attendant.");
                 Subscriber u = S.nums.get(num);
                 if (u == null || u.name.equals("+220 " + num)) {
                     if (trim(strOr(a.get("name"), "")).isEmpty()) { Map<String, Object> r = new LinkedHashMap<>(); r.put("need", "name"); return r; }
@@ -1144,6 +1195,27 @@ public class ParkingEngine {
                 if (num.isEmpty()) return err("Sign in first.");
                 return pay(num, a.get("plate"), strOr(a.get("kind"), "daily"), str(a.get("prov")));
             }
+            case "terms.accept": {
+                String num = str(a.get("num"));
+                if (num.isEmpty()) return err("Sign in first.");
+                String tv = trim(strOr(a.get("v"), ""));
+                if (tv.length() > 20) tv = tv.substring(0, 20);
+                if (tv.isEmpty()) return err("Which terms?");
+                Subscriber tu = N(num);
+                Subscriber.Terms tt = new Subscriber.Terms(); tt.v = tv; tt.day = dkey(S.clock.date); tt.t = hm(S.clock.min);
+                tu.terms = tt;
+                return ok();
+            }
+            case "terms.notify": {
+                String nv = trim(strOr(a.get("v"), ""));
+                if (nv.length() > 20) nv = nv.substring(0, 20);
+                if (nv.isEmpty()) return err("Which terms?");
+                List<String> to = new ArrayList<>();
+                for (Map.Entry<String, Subscriber> e : S.nums.entrySet()) { Subscriber x = e.getValue(); if (x.welcomed || !x.plates.isEmpty() || isOfficer(e.getKey())) to.add(e.getKey()); }
+                java.util.Collections.sort(to);
+                for (String k : to) mt(k, msg.termsNew(nv), "Terms");
+                Map<String, Object> r = ok(); r.put("sent", to.size()); return r;
+            }
             case "sms": {
                 Object reply = smsIn(Js.lastChars(Js.digits(str(a.get("num"))), 7), a.get("text"));
                 Map<String, Object> r = ok();
@@ -1152,7 +1224,7 @@ public class ParkingEngine {
             }
             case "officer.login": {
                 String on = Js.lastChars(Js.digits(strOr(a.get("num"), "")), 7);
-                if (!isOfficer(on)) return err("This number is not a registered ParkNa attendant. Ask your supervisor to register it in the back office.");
+                if (!isOfficer(on)) return err("This number is not a registered SUNU Park attendant. Ask your supervisor to register it in the back office.");
                 Map<String, Object> r = ok(); r.put("num", on); return r;
             }
             case "org.sendCode":
@@ -1160,8 +1232,8 @@ public class ParkingEngine {
                 String ph = Js.lastChars(Js.digits(strOr(a.get("phone"), "")), 7);
                 Organisation org = null;
                 for (Organisation o : S.orga.values()) if (o.contact.num.equals(ph)) org = o;
-                if (org == null) return err("This number is not the contact on a ParkNa organisation account.");
-                if (type.equals("org.sendCode")) mt(ph, "ParkNa portal code: " + CODE + ". It expires in 10 minutes. Do not share it.", "Code");
+                if (org == null) return err("This number is not the contact on a SUNU Park organisation account.");
+                if (type.equals("org.sendCode")) mt(ph, "SUNU Park portal code: " + CODE + ". It expires in 10 minutes. Do not share it.", "Code");
                 else if (!trim(a.containsKey("code") ? str(a.get("code")) : "undefined").equals(CODE)) return err("That code is not right. Check the SMS and try again.");
                 Map<String, Object> r = ok(); r.put("org", org.id); return r;
             }
@@ -1264,7 +1336,7 @@ public class ParkingEngine {
                 l.t = hm(S.clock.min); l.day = dkey(S.clock.date); l.text = "Council office · " + fs.plate + " warning " + fs.id + " · " + ref; l.amt = "+" + gmd(amt); l.amount = amt; l.src = "fine"; l.plate = fs.plate;
                 ledger(l);
                 for (String n : plateNums(fs.plate))
-                    mt(n, "ParkNa: payment of " + amt + " GMD for warning " + fs.id + " (" + fs.plate + ") was received at the Council office. Thank you." + (today2 ? " " + fs.plate + " is PAID till 7pm today." : ""), "Receipt");
+                    mt(n, "SUNU Park: payment of " + amt + " GMD for warning " + fs.id + " (" + fs.plate + ") was received at the Council office. Thank you." + (today2 ? " " + fs.plate + " is PAID till 7pm today." : ""), "Receipt");
                 Map<String, Object> r = ok(); r.put("amount", amt); return r;
             }
             case "back.cancelFine": {
@@ -1275,7 +1347,7 @@ public class ParkingEngine {
                 if (why.isEmpty()) return err("Say why the warning is cancelled.");
                 fc.status = "cancelled"; fc.note = why;
                 ch.fines.add(fc.id);
-                for (String n : plateNums(fc.plate)) mt(n, "ParkNa: warning " + fc.id + " for " + fc.plate + " is cancelled. Nothing to pay.", "Warning");
+                for (String n : plateNums(fc.plate)) mt(n, "SUNU Park: warning " + fc.id + " for " + fc.plate + " is cancelled. Nothing to pay.", "Warning");
                 return ok();
             }
             case "back.announce": return announce(a);

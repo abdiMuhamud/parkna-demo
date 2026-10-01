@@ -1,18 +1,18 @@
-# ParkNa 1.0
+# SUNU Park 1.0
 
-ParkNa, the road-side parking service for Banjul City Council, built by INNOVII.
+SUNU Park, the road-side parking service for Banjul City Council, built by INNOVII.
 
 | Part | What it is | Where it runs |
 |---|---|---|
-| **ParkNa** (driver app) | Sign in with a phone number, add plates, see if a plate is covered, receipts, Council announcements. Paying by mobile money opens when the providers are connected | Android, Google Play (`com.innovii.parkna.driver`) |
-| **ParkNa Officer** | The parking attendant's app: start and end a shift, check a plate (PAID / NOT PAID), messages | Android, Google Play (`com.innovii.parkna.officer`) |
+| **SUNU Park** (driver app) | Sign in with a phone number, add plates, see if a plate is covered, receipts, Council announcements. Paying by mobile money opens when the providers are connected | Android, Google Play (`com.innovii.parkna.driver`) |
+| **SUNU Park Officer** | The parking attendant's app: start and end a shift, check a plate (PAID / NOT PAID), messages | Android, Google Play (`com.innovii.parkna.officer`) |
 | **Organisation portal** | Fleet plates, monthly invoices, attendant checks for a business | Browser: `https://<server>/org` |
 | **Back office** | Attendants, roads, organisations, payments, tariffs, announcements, staff accounts and the audit log | Browser: `https://<server>/admin` |
 
 An attendant's check, an organisation's new plate or a Council announcement reaches every screen straight away.
 
 **Sign-in.** Drivers, attendants and organisation contacts sign in with their mobile number and a 6-digit code sent by
-SMS. ParkNa and Council staff have their own username and password, and see what their role allows:
+SMS. SUNU Park and Council staff have their own username and password, and see what their role allows:
 
 | Role | Sees and does |
 |---|---|
@@ -43,12 +43,12 @@ Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Server installation on Ro
 
 ## Getting a build
 
-Every push builds and tests everything on GitHub (**Actions → Build ParkNa**). Each push to `main` also publishes a
+Every push builds and tests everything on GitHub (**Actions → Build SUNU Park**). Each push to `main` also publishes a
 release (**Releases**) with its own, always higher, release number: the `VERSION` file plus the build number, e.g.
 `1.1.23`. The apps (sign-in screen and Profile), the landing page, the back office and `/api/health` show that number.
 
 - `parkna-1.1.<build>.tar.gz`: the server package (WAR, front end, config templates, deploy scripts, SQL)
-- `ParkNa-Driver-1.1.<build>.aab` and `ParkNa-Officer-1.1.<build>.aab`: for Google Play, and `.apk` files of the same builds to
+- `SUNU-Park-Driver-1.1.<build>.aab` and `SUNU-Park-Officer-1.1.<build>.aab`: for Google Play, and `.apk` files of the same builds to
   install directly on a phone. Until the Play upload key is added to the repository secrets, the build makes
   `...-test.apk` files instead (signed with the shared test key; they install over each other).
 
@@ -89,7 +89,7 @@ and presentations, never for real data.
 | 7045678 | Ebrima | BJL3030, low Wave balance (shows a failed payment) |
 | 7089012 | Kebba | BJL7001, a Demo Bank work car |
 
-**Parking attendants** (tap one on the ParkNa Officer sign-in screen):
+**Parking attendants** (tap one on the SUNU Park Officer sign-in screen):
 
 | Attendant | Name | Number | Road and shift |
 |---|---|---|---|
@@ -124,15 +124,25 @@ A suggested order:
 
 ## Pilot rules
 
-- One price for every plate: GMD 200 a day or GMD 4,420 a month.
+SUNU Park ("our park / our parking", the platform name confirmed by BCC; called ParkNa before 1.2).
+
+- One price for every plate: GMD 200 a day or GMD 4,000 a month (20 paid days: 5 days a week instead of 6). Hourly parking is in the terms but not offered yet.
 - Paid hours: 7am to 7pm, Monday to Saturday.
 - Warnings: an attendant issues a warning to a car parked without paying (in the Officer app, or `W BJL1234` by SMS).
   The driver gets an SMS and an in-app notice and pays the GMD 200 daily fee within 24 hours; after that it is
-  GMD 300 (the GMD 100 fine is added). A warning is paid before any new pass, in the app or by texting the plate;
-  Finance can record one paid at the Council office. No clamping.
-- Organisations pay upfront for a year per car (GMD 53,040 less their discount). Cars are covered from the day the
+  GMD 2,080 (the GMD 1,880 fine for rule breakers is added). A warning is paid before any new pass, in the app or by
+  texting the plate, and a driver with an unpaid warning on any of their plates settles it before paying for another.
+  Finance can record one paid at the Council office. No clamping. Attendants and the police see whether a plate is a
+  first-time or repeat offender.
+- Everyone accepts the terms and conditions (`/terms.html`, and in the apps, which must be read to the end before
+  signing in). They list all fee models: hourly (not offered yet), daily and monthly.
+- Organisations pay upfront for a year per car (GMD 48,000 less their discount). Cars are covered from the day the
   invoice is paid; cars added later pay the months left, so every car ends on the same date. The renewal invoice
   comes 30 days before the year ends, with 5 days' grace; after that the cars revert to normal pricing.
+- The police follow up unpaid fines in the back office (*Fines tracking*, role Police): overdue warnings, repeat
+  offenders and the phone linked to each plate.
+- SMS simulator at `/sms` for administrators and supervisors: text the short code as any driver, attendant or
+  organisation contact and see the replies (`sms.simulator.enabled`).
 - Revenue share: 60% Council, 40% operator.
 - SMS shortcode: `sms.shortcode` in `config.properties` (7275 until the operator confirms the number).
 
@@ -141,7 +151,7 @@ A suggested order:
 ```
 frontend/portal/      landing page, back office (admin.html), organisation portal (org.html)
 frontend/shared/      engine.js (read-side rules the screens use), client.js, fonts, images
-frontend/shared/      also ui.css / ui.js: the apps' design system (Plus Jakarta Sans, pale blue, ParkNa navy, sun yellow; Banjul art in img/art)
+frontend/shared/      also ui.css / ui.js: the apps' design system (Plus Jakarta Sans, pale blue, SUNU Park navy, sun yellow; Banjul art in img/art)
 apps/driver/          driver app (Capacitor): www/ is the app, res/ the icon and splash
 apps/officer/         attendant app (Capacitor)
 store/                Google Play graphics: icons, feature graphics, phone screenshots
@@ -195,4 +205,4 @@ To allow bigger text, raise `MAX_TEXT_ZOOM` in `scripts/prepare-android.js`.
 
 ---
 
-INNOVII · ParkNa 1.0
+INNOVII · SUNU Park 1.0

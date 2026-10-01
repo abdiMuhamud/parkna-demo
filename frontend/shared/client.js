@@ -1,4 +1,4 @@
-/* ParkNa client: talks to the ParkNa server for the apps and the portals.
+/* SUNU Park client: talks to the SUNU Park server for the apps and the portals.
    PN.init({ as: "driver" | "officer" | "org" | "staff" }) first. Then:
      PN.requestCode(phone) / PN.verifyCode(phone, code)   phone sign-in (drivers, attendants, organisation contacts)
      PN.staffLogin(username, password)                    back-office sign-in
@@ -29,7 +29,7 @@ var PN = (function(){
     signedIn: function(){ return !!api.token; },
     setServer: function(u){ u = clean(u); api.server = u; ls("parkna.server", u || null); return u; },
 
-    /* Is there a ParkNa server at this address? Resolves to its info, or null. */
+    /* Is there a SUNU Park server at this address? Resolves to its info, or null. */
     ping: function(u){
       u = clean(u || api.server);
       var ctl = typeof AbortController !== "undefined" ? new AbortController() : null, to = setTimeout(function(){ if(ctl) ctl.abort(); }, 8000);
@@ -48,9 +48,29 @@ var PN = (function(){
           if(r.status === 401 && api.token && path !== "/api/auth/staff" && path !== "/api/auth/verify") api.signOut(true);
           return j;
         }); })
-        .catch(function(){ return { err: "Can’t reach ParkNa. Check your internet connection and try again.", offline: true }; });
+        .catch(function(){ return { err: "Can’t reach SUNU Park. Check your internet connection and try again.", offline: true }; });
     },
     act: function(a){ return api.call("POST", "/api/act", a); },
+
+    /* The terms and conditions in force ({v, title, body, at}), as an administrator published them. */
+    terms: function(){ return api.call("GET", "/api/terms"); },
+    /* The terms' text as HTML: "## " headings, "- " lists, **bold**, blank lines between paragraphs. */
+    termsHtml: function(body){
+      function e(x){ return String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+      function inl(x){ return e(x).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>"); }
+      var out = [], list = null, para = [];
+      function flush(){ if(para.length){ out.push("<p>" + para.map(inl).join(" ") + "</p>"); para = []; } if(list){ out.push("<ul>" + list.join("") + "</ul>"); list = null; } }
+      String(body || "").replace(/\r\n/g, "\n").split("\n").forEach(function(l){
+        var t = l.trim();
+        if(!t){ flush(); return; }
+        if(/^#{1,3}\s/.test(t)){ flush(); out.push("<h3>" + inl(t.replace(/^#+\s*/, "")) + "</h3>"); return; }
+        if(/^[-*]\s/.test(t)){ if(para.length){ var l2 = list; list = null; flush(); list = l2; } (list = list || []).push("<li>" + inl(t.slice(2)) + "</li>"); return; }
+        if(list){ out.push("<ul>" + list.join("") + "</ul>"); list = null; }
+        para.push(t);
+      });
+      flush();
+      return out.join("");
+    },
 
     requestCode: function(phone){ return api.call("POST", "/api/auth/code", { phone: phone, as: api.as }); },
     verifyCode: function(phone, code){

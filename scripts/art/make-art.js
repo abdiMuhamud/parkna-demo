@@ -1,5 +1,5 @@
-/* Draws the app icons, splash screens and Google Play graphics for both apps in the look of "ParkNa Final Designs"
-   (Plus Jakarta Sans, ParkNa navy #0B2E63, sun yellow #FEDB46, pale blue #F6FBFE, the Banjul scene art). Output:
+/* Draws the app icons, splash screens and Google Play graphics for both apps in the look of "SUNU Park Final Designs"
+   (Plus Jakarta Sans, SUNU Park navy #0B2E63, sun yellow #FEDB46, pale blue #F6FBFE, the Banjul scene art). Output:
      apps/<app>/res/...                launcher icons (legacy, round, adaptive foreground) and splash screens
      store/<app>/icon-512.png          Google Play high-res icon
      store/<app>/feature-graphic.png   Google Play feature graphic (1024 x 500)
@@ -20,9 +20,9 @@ const HEAD = `<style>@font-face{font-family:J;font-weight:800;src:url(${font(800
   *{margin:0;box-sizing:border-box}html,body{background:transparent}body{font-family:J,sans-serif}</style>`;
 
 const APPS = {
-  driver: { name: "ParkNa", bg: NAVY, fg: YELLOW, badge: false,
+  driver: { name: "SUNU Park", bg: NAVY, fg: YELLOW, badge: false,
     title: "Park smarter in Banjul", line: "Pay for parking from your phone,<br>without cash or queues.", cta: "Pay for Parking" },
-  officer: { name: "ParkNa Officer", bg: YELLOW, fg: NAVY, badge: true,
+  officer: { name: "SUNU Park Officer", bg: YELLOW, fg: NAVY, badge: true,
     title: "Check plates, not cash", line: "Start your shift, check plates on<br>your road and end your shift.", cta: "Check a plate" }
 };
 
@@ -41,14 +41,17 @@ const icon = {
   foreground: (a, n) => svg(n, mark(a, .82)),
   play: (a, n) => svg(n, `<rect width="108" height="108" fill="${a.bg}"/>${mark(a, 1.08)}`)
 };
+/* the launch screen: the same mark, words and places as the apps' animated launch screen (#splash), so the hand-over
+   from Android's splash to the app is seamless */
 function splash(a, w, h){
-  const u = Math.min(w, h) / 320;
+  const u = Math.min(w, h) / 360;
   return `<div style="width:${w}px;height:${h}px;background:${BG};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${10 * u}px">
-    <div style="width:${86 * u}px;height:${86 * u}px;border-radius:${24 * u}px;background:#fff;display:grid;place-items:center;box-shadow:0 ${8 * u}px ${24 * u}px -${10 * u}px rgba(10,27,77,.3)">
-      <img src="${crest}" style="width:${66 * u}px"></div>
-    <div style="font-weight:700;font-size:${8.5 * u}px;color:${NAVY};letter-spacing:.24em;margin-top:${6 * u}px">BANJUL CITY COUNCIL</div>
-    <div style="font-weight:800;font-size:${30 * u}px;color:${INK};letter-spacing:-.02em;line-height:1;margin-top:-${4 * u}px">${a.name}</div>
-    <div style="width:${34 * u}px;height:${5 * u}px;border-radius:${3 * u}px;background:${YELLOW};margin-top:${4 * u}px"></div></div>`;
+    <div style="width:${132 * u}px;height:${132 * u}px;display:grid;place-items:center;margin-bottom:${8 * u}px">
+      <div style="width:${96 * u}px;height:${96 * u}px;border-radius:${26 * u}px;background:${a.bg};display:grid;place-items:center;box-shadow:0 ${14 * u}px ${30 * u}px -${14 * u}px rgba(10,27,77,.55)">
+        <svg width="${92 * u}" height="${92 * u}" viewBox="0 0 108 108">${mark(Object.assign({}, a, { badge: false }), 1)}</svg></div></div>
+    <div style="font-weight:700;font-size:${11 * u}px;color:${NAVY};letter-spacing:.24em;margin-top:${6 * u}px">BANJUL CITY COUNCIL</div>
+    <div style="font-weight:800;font-size:${34 * u}px;color:${INK};letter-spacing:-.02em;line-height:1">SUNU Park</div>
+    <div style="font-weight:600;font-size:${13 * u}px;color:${MUTED}">Our park · Our parking</div></div>`;
 }
 /* the home screen's navy card: Banjul scene on the right, big white title, yellow call to action */
 function feature(a){

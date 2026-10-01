@@ -1,5 +1,5 @@
-/* ParkNa portals: sign-in, live data from the ParkNa server, and the actions that change it.
-   admin.html (data-role="back"): ParkNa and Council staff sign in with a username and password. The pages each person
+/* SUNU Park portals: sign-in, live data from the SUNU Park server, and the actions that change it.
+   admin.html (data-role="back"): SUNU Park and Council staff sign in with a username and password. The pages each person
      sees follow their role (PAGES below); the server checks every action again.
    org.html (data-role="org"): an organisation's billing contact signs in with a code sent to their phone by SMS. */
 const $ = id => document.getElementById(id);
@@ -7,7 +7,7 @@ const IC = { checkD: '<svg width="14" height="14" viewBox="0 0 24 24"><path d="m
 const ROLE = document.body.dataset.role;            /* "org" or "back" */
 const STAGE = ROLE === "org" ? "stOrg" : "stBack", WEB = ROLE === "org" ? "orgWeb" : "backWeb";
 PN.init({ as: ROLE === "org" ? "org" : "staff" });
-PN.server = location.origin;                        /* the portals are always served by the ParkNa server itself */
+PN.server = location.origin;                        /* the portals are always served by the SUNU Park server itself */
 OS = freshOS(); BS = freshBS();
 let seenOut = null;
 
@@ -15,12 +15,12 @@ let seenOut = null;
 const ME = () => PN.me || {};
 const myRole = () => ME().role || "";
 const isDemo = () => !!(PN.mode && PN.mode.demo);
-const STAFF_ROLES = { admin: "Administrator", supervisor: "Supervisor", finance: "Finance", council: "Council · read-only" };
-const PAGES = { admin: ["dash", "attendants", "orgs", "fines", "payments", "tariff", "ann", "council", "staff"], supervisor: ["dash", "attendants", "fines", "council"],
-  finance: ["dash", "orgs", "fines", "payments", "council"], council: ["council"] };
+const STAFF_ROLES = { admin: "Administrator", supervisor: "Supervisor", finance: "Finance", police: "Police · fines tracking", council: "Council · read-only" };
+const PAGES = { admin: ["dash", "attendants", "orgs", "fines", "police", "payments", "tariff", "ann", "terms", "council", "staff"], supervisor: ["dash", "attendants", "fines", "police", "terms", "council"],
+  finance: ["dash", "orgs", "fines", "police", "payments", "terms", "council"], police: ["police"], council: ["council", "police", "terms"] };
 const pageOf = v => v === "register" ? "attendants" : v === "neworg" ? "orgs" : v;
 const canSee = v => (PAGES[myRole()] || []).includes(pageOf(v));
-const can = what => ({ officers: ["admin", "supervisor"], orgs: ["admin"], money: ["admin", "finance"], payers: ["admin", "finance", "supervisor"] }[what] || []).includes(myRole());
+const can = what => ({ officers: ["admin", "supervisor"], orgs: ["admin"], money: ["admin", "finance"], payers: ["admin", "finance", "supervisor"], terms: ["admin"] }[what] || []).includes(myRole());
 const initialsOf = s => String(s || "?").trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
 const firstName = s => String(s || "").trim().split(/\s+/)[0];
 
@@ -28,12 +28,13 @@ const firstName = s => String(s || "").trim().split(/\s+/)[0];
 const freshAuth = () => ({ phone: "", code: "", sent: false, user: "", pass: "", err: "", note: "", busy: false, test: null });
 const freshPW = () => ({ cur: "", next: "", again: "", err: "", busy: false });
 const freshStaff = () => ({ list: null, audit: null, me: "", sel: null, add: { name: "", username: "", role: "supervisor", err: "" }, role: "", shown: null, err: "", busy: false });
-let AUTH = freshAuth(), PW = freshPW(), STAFF = freshStaff();
+const freshTerms = () => ({ cur: null, hist: null, title: "", body: "", note: "", notify: true, err: "", busy: false });
+let AUTH = freshAuth(), PW = freshPW(), STAFF = freshStaff(), TERMS = freshTerms();
 
 function renderAll(){
   const el = $(WEB);
   if(!PN.signedIn()){ renderDemo(); el.className = "ed"; return paint(el, ROLE === "org" ? orgSignIn() : staffSignIn()); }
-  if(!PN.ready){ el.className = "ed"; return paint(el, `<div class="ewait"><span class="spin"></span>Connecting to the ParkNa server…</div>`); }
+  if(!PN.ready){ el.className = "ed"; return paint(el, `<div class="ewait"><span class="spin"></span>Connecting to the SUNU Park server…</div>`); }
   if(ROLE === "back" && ME().mustChangePassword){ renderDemo(); el.className = "ed"; return paint(el, choosePassword()); }
   if(ROLE === "org") renderOrg(); else renderBack();
   renderDemo();
@@ -50,7 +51,7 @@ function start(){
   renderAll();
 }
 PN.onSignOut = expired => {
-  OS = freshOS(); BS = freshBS(); PW = freshPW(); STAFF = freshStaff(); AUTH = freshAuth();
+  OS = freshOS(); BS = freshBS(); PW = freshPW(); STAFF = freshStaff(); AUTH = freshAuth(); TERMS = freshTerms();
   if(expired) AUTH.note = "You were signed out. Please sign in again.";
   $("conn").hidden = true;
   renderAll();
@@ -163,7 +164,7 @@ async function orgAct(a, v){
         await call({ type: "org.removePlate", org: o.id, plate: v }); return wtoast(STAGE, waiting ? `${v} removed from the invoice` : `${v}: cover stops at midnight`); }
     case "uploadproof": {
       const r = await call({ type: "org.uploadProof", org: o.id, inv: OS.inv });
-      return wtoast(STAGE, r.err || "Thank you · ParkNa Finance will match your transfer and confirm by SMS");
+      return wtoast(STAGE, r.err || "Thank you · SUNU Park Finance will match your transfer and confirm by SMS");
     }
     case "paywallet": { const r = await call({ type: "org.payWallet", org: o.id, inv: OS.inv }); if(r.err) return wtoast(STAGE, r.err); return wtoast(STAGE, "Paid · receipt sent by SMS"); }
     case "download": { OS.inv = v; OS.view = "invoices"; OS.sheet = null; renderOrg(); setTimeout(() => window.print(), 50); return; }
@@ -210,6 +211,7 @@ async function backAct(a, v){
     case "nav":
       if(!canSee(v)) return;
       if(v === "staff" && BS.view !== "staff"){ BS.view = "staff"; BS.sheet = null; BS.bell = false; renderBack(); return loadStaff(); }
+      if(v === "terms" && BS.view !== "terms"){ BS.view = "terms"; BS.sheet = null; BS.bell = false; renderBack(); return loadTerms(); }
       return backActUI(a, v);
     case "register": {
       const F = BS.reg, r = await call({ type: "back.register", name: F.name, staff: F.staff, phone: F.phone, road: F.road, shift: F.shift });
@@ -230,7 +232,7 @@ async function backAct(a, v){
     }
     case "match": {
       const [org, inv] = v.split("|");
-      if(!confirm(`Match the bank transfer to ${inv}? Only do this once the money is in the ParkNa account.`)) return;
+      if(!confirm(`Match the bank transfer to ${inv}? Only do this once the money is in the SUNU Park account.`)) return;
       const r = await call({ type: "back.match", org, inv });
       return wtoast(STAGE, r.err || `${inv} matched · the organisation is told by SMS`);
     }
@@ -272,6 +274,20 @@ async function backAct(a, v){
       const r = await call({ type: "back.announceDelete", id: v });
       return wtoast(STAGE, r.err || "Announcement deleted");
     }
+    case "psel": BS.psel = v; return renderBack();
+    case "pseg": BS.pseg = v; BS.psel = null; return renderBack();
+    case "termsreset": TERMS.title = TERMS.cur.title; TERMS.body = TERMS.cur.body; TERMS.note = ""; TERMS.err = ""; return renderBack();
+    case "termspub": {
+      const F = TERMS;
+      if(F.busy || !F.cur) return;
+      if(!confirm(`Publish version ${+F.cur.v + 1} of the terms? Everyone has to accept it again in the apps${F.notify ? ", and an SMS with the link goes to everyone who uses SUNU Park" : ""}.`)) return;
+      F.busy = true; F.err = ""; renderBack();
+      const r = await PN.call("POST", "/api/terms", { title: F.title, body: F.body, note: F.note, notify: !!F.notify });
+      F.busy = false;
+      if(!r.ok){ F.err = r.err || "Could not publish the terms."; return renderBack(); }
+      await loadTerms(true);
+      return wtoast(STAGE, `Version ${r.v} published · ${r.sent != null ? plural(r.sent, "SMS") + " sent" : "shown in the apps"}`);
+    }
     case "staffsel": { const u = (STAFF.list || []).find(x => x.username === v); STAFF.sel = v; STAFF.role = u ? u.role : ""; STAFF.shown = null; STAFF.err = ""; return renderBack(); }
     case "staffnew": STAFF.sel = null; STAFF.shown = null; STAFF.err = ""; renderBack(); { const i = $("stName"); if(i) i.focus(); } return;
     case "staffadd": {
@@ -310,6 +326,15 @@ async function loadStaff(limit){
   if(a.ok) STAFF.audit = a.entries;
   if(BS.view === "staff") renderBack();
 }
+async function loadTerms(fresh){
+  const [c, h] = await Promise.all([PN.terms(), can("terms") ? PN.call("GET", "/api/terms/history") : Promise.resolve({ ok: true, versions: null })]);
+  if(c.ok){ const keep = TERMS.cur && !fresh && (TERMS.body !== TERMS.cur.body || TERMS.title !== TERMS.cur.title);
+    TERMS.cur = c; if(!keep){ TERMS.title = c.title; TERMS.body = c.body; TERMS.note = ""; } }
+  TERMS.hist = h.ok && h.versions ? h.versions : c.ok ? [c] : [];
+  if(BS.view === "terms") renderBack();
+}
+/* the preview follows the text as it is typed (without redrawing the page, so the cursor stays put) */
+document.addEventListener("input", e => { if(e.target.id === "trBody"){ const p = $("trPrev"); if(p) p.innerHTML = PN.termsHtml(e.target.value); } });
 async function staffUpdate(change, done){
   const u = (STAFF.list || []).find(x => x.username === STAFF.sel);
   if(!u || STAFF.busy) return;

@@ -2,7 +2,7 @@
   "name": "parkna-officer",
   "version": "0.1.0",
   "private": true,
-  "description": "ParkNa Officer app for parking attendants (INNOVII for Banjul City Council)",
+  "description": "SUNU Park Officer app for parking attendants (INNOVII for Banjul City Council)",
   "scripts": {
     "prep": "node ../../scripts/build-frontend.js",
     "android:add": "npx cap add android",

@@ -54,9 +54,9 @@ if(fs.existsSync(synced)){
 /* version and release signing */
 edit(path.join(app, "android", "app", "build.gradle"), /versionCode \d+/, s => {
   s = s.replace(/versionName "[^"]*"/, 'versionName "' + versionName + '"').replace(/versionCode \d+/, "versionCode " + versionCode);
-  if(s.includes("ParkNa: release signing")) return s;
+  if(s.includes("SUNU Park: release signing")) return s;
   return s + `
-// ParkNa: release signing for Google Play, from environment variables (see docs/PLAY_STORE.md).
+// SUNU Park: release signing for Google Play, from environment variables (see docs/PLAY_STORE.md).
 // Without them "gradlew bundleRelease" makes an unsigned bundle.
 if (System.getenv("PARKNA_KEYSTORE")) {
     android {

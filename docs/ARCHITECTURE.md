@@ -1,4 +1,4 @@
-# ParkNa architecture
+# SUNU Park architecture
 
 ```
  Driver app (APK) ─┐                                   ┌──────────────── Tomcat 10.1 ─────────────────┐
@@ -31,7 +31,7 @@ front end, the config templates, `deploy/`, the SQL and these docs into `dist/pa
 
 | Endpoint | Signed in? | Use |
 |---|---|---|
-| `GET /api/ping` | no | "Is this a ParkNa server?", its version, mode and public settings (shortcode, daily price, support contact) |
+| `GET /api/ping` | no | "Is this a SUNU Park server?", its version, mode and public settings (shortcode, daily price, support contact) |
 | `GET /api/health` | no | For monitoring: 200 when MariaDB answers, 503 if not |
 | `POST /api/auth/code`, `/api/auth/verify` | no | Phone sign-in: send a 6-digit SMS code, check it, get a session token |
 | `POST /api/auth/staff` | no | Back-office sign-in with username and password |

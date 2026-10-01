@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ParkNa deployment, following SI/QA manual 2.5.1 and the usual /home/sdf layout. Run as root:
+# SUNU Park deployment, following SI/QA manual 2.5.1 and the usual /home/sdf layout. Run as root:
 #
 #   /home/sdf/deliverables/parkna-<version>/deploy/scripts/deploy.sh /home/sdf/deliverables/parkna-<version>.tar.gz
 #
@@ -89,7 +89,7 @@ fi
 chown -R "$APP_OWNER" "$APP_HOME" 2>/dev/null || true
 chmod 750 "$APP_HOME"; chmod 640 "$APP_HOME"/*.properties
 
-# ParkNa's Tomcat: where the property files are (setenv.sh) and which WAR to run (conf/Catalina/localhost/parkna.xml)
+# SUNU Park's Tomcat: where the property files are (setenv.sh) and which WAR to run (conf/Catalina/localhost/parkna.xml)
 SETENV="$TOMCAT/bin/setenv.sh"
 if [ -f "$SETENV" ] && grep -q "parkna.config.dir=" "$SETENV"; then
   sed -i "s#-Dparkna.config.dir=[^ \"]*#-Dparkna.config.dir=$APP_HOME#" "$SETENV"
@@ -100,7 +100,7 @@ else
 fi
 echo "  $SETENV reads $APP_HOME; Tomcat runs $APPS/parkna.war"
 
-# Nginx serves $WEB_BASE/$WEB_NAME: fix ParkNa's own snippet if it still points at the v0.2 folder
+# Nginx serves $WEB_BASE/$WEB_NAME: fix SUNU Park's own snippet if it still points at the v0.2 folder
 NGX=$(grep -rls "root *$LEGACY_WEB" "$NGINX_CONF" 2>/dev/null || true)
 for f in $NGX; do
   sed -i "s#root *$LEGACY_WEB;#root  $WEB_BASE/$WEB_NAME;#" "$f"
@@ -150,7 +150,7 @@ curl -s -o /dev/null "$HEALTH_URL" && fail "Tomcat is still answering on $HEALTH
 install -m 640 "$WAR" "$APPS/parkna.war"
 # written only now, while Tomcat is stopped: a running Tomcat would redeploy at once and miss the WAR
 mkdir -p "$TOMCAT/conf/Catalina/localhost"
-printf '<?xml version="1.0" encoding="UTF-8"?>\n<!-- ParkNa: written by deploy.sh. Runs the WAR in %s. -->\n<Context docBase="%s/parkna.war" unpackWAR="true" />\n' "$APPS" "$APPS" \
+printf '<?xml version="1.0" encoding="UTF-8"?>\n<!-- SUNU Park: written by deploy.sh. Runs the WAR in %s. -->\n<Context docBase="%s/parkna.war" unpackWAR="true" />\n' "$APPS" "$APPS" \
   > "$TOMCAT/conf/Catalina/localhost/parkna.xml"
 chown "$APP_OWNER" "$APPS/parkna.war" 2>/dev/null || true
 rm -rf "$TOMCAT/webapps/parkna" "$TOMCAT/work/Catalina/localhost/parkna"
@@ -162,11 +162,11 @@ echo "$(date '+%F %T') $VERSION $WAR $DEST" >> "$HIST"
 $TOMCAT_START
 
 # 6. verify ----------------------------------------------------------------
-say "Waiting for ParkNa to answer on $HEALTH_URL"
+say "Waiting for SUNU Park to answer on $HEALTH_URL"
 for i in $(seq 1 "$WAIT_SECONDS"); do
   if curl -fsS "$HEALTH_URL" >/dev/null 2>&1; then
     echo "  $(curl -fsS "$HEALTH_URL")"
-    say "ParkNa $VERSION is live"
+    say "SUNU Park $VERSION is live"
     echo "Check next: the start-up lines in $TOMCAT/logs/catalina.out, then the post-deployment checklist in docs/DEPLOYMENT.md."
     echo "Roll back with: $(dirname "$0")/rollback.sh   (history in $HIST)"
     exit 0
@@ -174,4 +174,4 @@ for i in $(seq 1 "$WAIT_SECONDS"); do
   sleep 1
 done
 echo "---- last lines of catalina.out ----"; tail -n 60 "$TOMCAT/logs/catalina.out" 2>/dev/null || true
-fail "ParkNa did not come up within ${WAIT_SECONDS}s. Read the log above; roll back with $(dirname "$0")/rollback.sh"
+fail "SUNU Park did not come up within ${WAIT_SECONDS}s. Read the log above; roll back with $(dirname "$0")/rollback.sh"

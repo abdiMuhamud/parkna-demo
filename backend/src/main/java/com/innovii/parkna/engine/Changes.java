@@ -35,11 +35,11 @@ public class Changes {
     /** Warnings added or changed, by id. */
     public final Set<String> fines = new LinkedHashSet<>();
 
-    /** A line added to a phone's SMS thread; {@code out} is set for messages ParkNa sends. */
+    /** A line added to a phone's SMS thread; {@code out} is set for messages SUNU Park sends. */
     public record NewSms(String num, SmsEntry entry, OutMessage out) {}
     public record NewReceipt(String num, Receipt receipt) {}
 
-    /** Messages ParkNa sent in this unit of work, for the SMS gateway once the data is saved. */
+    /** Messages SUNU Park sent in this unit of work, for the SMS gateway once the data is saved. */
     public List<OutMessage> outgoing() {
         List<OutMessage> r = new ArrayList<>();
         for (NewSms s : sms) if (s.out() != null) r.add(s.out());

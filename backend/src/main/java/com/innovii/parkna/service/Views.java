@@ -35,11 +35,16 @@ import java.util.Set;
  */
 final class Views {
     private final AppConfig cfg;
+    private java.util.function.Supplier<String> termsV = () -> "1";
 
     Views(AppConfig cfg) { this.cfg = cfg; }
 
+    /** Where the version of the terms in force comes from. */
+    void termsVersion(java.util.function.Supplier<String> v) { this.termsV = v; }
+
     /** The view for one session. {@code full} is the full state JSON, already built once for all staff. */
     String forSession(ParkingEngine e, Session s, String full) {
+        if (s.role() == Role.POLICE) return withHeader(e, s, Json.write(police(e)));
         if (s.staff()) return withHeader(e, s, full);
         String body = switch (s.role()) {
             case DRIVER -> Json.write(driver(e, s.subject()));
@@ -60,6 +65,8 @@ final class Views {
         m.put("otpInApp", cfg.auth.otpInApp());
         m.put("shortcode", cfg.sms.shortCode());
         m.put("daily", e.state().tariff.daily);
+        m.put("termsV", termsV.get());
+        m.put("smsSimulator", cfg.smsSimulator);
         // a production server still holding the demo story (e.g. upgraded from a demo install): the back office warns
         if (cfg.mode == AppConfig.Mode.PRODUCTION && e.state().off.values().stream().anyMatch(o -> o.bg != null)) m.put("demoData", true);
         if (!cfg.supportPhone.isEmpty()) m.put("supportPhone", cfg.supportPhone);
@@ -184,6 +191,45 @@ final class Views {
             if (mineInvoice || fleetPlate) log.add(withoutPayer(l));
         }
         m.put("LOG", log);
+        return m;
+    }
+
+    /**
+     * The police: every warning (open ones and those of the last 62 days), the plates' records, and who to contact:
+     * the name and number of the phones linked to a plate with an open warning. No payments, wallets or messages.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> police(ParkingEngine e) {
+        State st = e.state();
+        Map<String, Object> m = base(e);
+        LocalDate since = st.clock.date.minusDays(62);
+        List<Fine> fines = new ArrayList<>();
+        Set<String> plates = new LinkedHashSet<>(), open = new LinkedHashSet<>();
+        for (Fine f : st.fines) plates.add(f.plate);
+        for (Fine f : st.fines) {
+            if (f.status.equals("open")) open.add(f.plate);
+            if (f.status.equals("open") || !Cal.fromDkey(f.day).isBefore(since)) fines.add(withoutPhone(f));
+        }
+        m.put("FINES", fines);
+        putPlates(st, m, plates);
+        m.put("CHECKS", checksOn(st, plates, 62, 3000));
+        m.put("ORGA", orgsCovering(st, plates));
+        Map<String, Object> nums = (Map<String, Object>) m.get("NUMS");
+        for (Subscriber u : st.nums.values()) {
+            if (st.off.containsKey(u.num)) continue;
+            List<String> mine = new ArrayList<>();
+            for (String p : u.plates) if (open.contains(p)) mine.add(p);
+            if (mine.isEmpty()) continue;
+            Map<String, Object> c = new LinkedHashMap<>();
+            c.put("num", u.num); c.put("name", u.name); c.put("plates", mine);
+            nums.put(u.num, c);
+        }
+        Map<String, Object> off = (Map<String, Object>) m.get("OFF");
+        for (Officer o : st.off.values()) {
+            Map<String, Object> c = new LinkedHashMap<>();
+            c.put("id", o.id); c.put("name", o.name); c.put("road", o.road); c.put("active", o.active);
+            off.put(o.id, c);
+        }
         return m;
     }
 

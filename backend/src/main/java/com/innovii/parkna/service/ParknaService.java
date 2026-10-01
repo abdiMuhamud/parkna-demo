@@ -55,7 +55,9 @@ public final class ParknaService implements AutoCloseable, AuthService.Directory
             Map.entry("driver.focus", EnumSet.of(DRIVER)),
             Map.entry("driver.pay", EnumSet.of(DRIVER)),
             Map.entry("driver.status", EnumSet.of(DRIVER)),
+            Map.entry("terms.accept", EnumSet.of(DRIVER, OFFICER)),
             Map.entry("sms", EnumSet.of(OFFICER)),
+            Map.entry("sim.sms", EnumSet.of(ADMIN, SUPERVISOR)),
             Map.entry("org.addPlate", EnumSet.of(ORG)),
             Map.entry("org.addPlates", EnumSet.of(ORG)),
             Map.entry("org.removePlate", EnumSet.of(ORG)),
@@ -88,6 +90,7 @@ public final class ParknaService implements AutoCloseable, AuthService.Directory
     private final DataSource ds;
     private final SmsGateway sms;
     private final Views views;
+    private final TermsService terms;
     private final StateRepository repo = new StateRepository();
     private final ReentrantLock lock = new ReentrantLock();
     private final List<Listener> listeners = new CopyOnWriteArrayList<>();
@@ -96,7 +99,7 @@ public final class ParknaService implements AutoCloseable, AuthService.Directory
     private ParkingEngine engine;
     /** The full state as JSON, rebuilt after every change and shared by all staff views. */
     private volatile String snapshot;
-    /** Held while this server runs, with a MariaDB lock that stops a second ParkNa from using the same database. */
+    /** Held while this server runs, with a MariaDB lock that stops a second SUNU Park from using the same database. */
     private Connection instanceLock;
 
     public ParknaService(AppConfig cfg, DataSource ds, SmsGateway sms) {
@@ -104,6 +107,8 @@ public final class ParknaService implements AutoCloseable, AuthService.Directory
         this.ds = ds;
         this.sms = sms;
         this.views = new Views(cfg);
+        this.terms = new TermsService(ds);
+        this.views.termsVersion(() -> terms.current().v());
     }
 
     /** Used to write the audit log. */
@@ -122,14 +127,14 @@ public final class ParknaService implements AutoCloseable, AuthService.Directory
                 } else {
                     ZonedDateTime now = ZonedDateTime.now(cfg.timezone);
                     engine = ParkingEngine.empty(now.toLocalDate(), now.getHour() * 60 + now.getMinute());
-                    log.info("Database was empty: started a new ParkNa service with no data (app.mode=production)");
+                    log.info("Database was empty: started a new SUNU Park service with no data (app.mode=production)");
                 }
                 c.setAutoCommit(false);
                 repo.save(c, engine.state(), engine.takeChanges());
                 c.commit();
             } else {
                 engine = new ParkingEngine(s);
-                log.info("Loaded ParkNa data from the database: {} phone numbers, {} plates, {} attendants, {} organisations, clock {} {}",
+                log.info("Loaded SUNU Park data from the database: {} phone numbers, {} plates, {} attendants, {} organisations, clock {} {}",
                         s.nums.size(), s.plates.size(), s.off.size(), s.orga.size(), s.clock.date, Cal.hm(s.clock.min));
                 if (cfg.mode == AppConfig.Mode.PRODUCTION && s.off.values().stream().anyMatch(o -> o.bg != null))
                     log.warn("app.mode=production, but this database holds the DEMO story (sample drivers, attendants, Demo Bank). "
@@ -159,7 +164,7 @@ public final class ParknaService implements AutoCloseable, AuthService.Directory
             if (rs.next() && rs.getInt(1) == 1) { instanceLock = c; return; }
         }
         c.close();
-        throw new IllegalStateException("Another ParkNa server is already running on this database. Stop it first (two servers would overwrite each other's data).");
+        throw new IllegalStateException("Another SUNU Park server is already running on this database. Stop it first (two servers would overwrite each other's data).");
     }
 
     private void startAtToday(State s) {
@@ -193,9 +198,9 @@ public final class ParknaService implements AutoCloseable, AuthService.Directory
         lock.lock();
         try {
             return switch (role) {
-                case OFFICER -> engine.isOfficer(num) ? null : "This number is not a registered ParkNa attendant. Ask your supervisor to register it in the back office.";
-                case ORG -> engine.orgForContact(num) != null ? null : "This number is not the contact on a ParkNa organisation account.";
-                case DRIVER -> engine.isOfficer(num) ? "This number belongs to a ParkNa attendant. Use the ParkNa Officer app." : null;
+                case OFFICER -> engine.isOfficer(num) ? null : "This number is not a registered SUNU Park attendant. Ask your supervisor to register it in the back office.";
+                case ORG -> engine.orgForContact(num) != null ? null : "This number is not the contact on a SUNU Park organisation account.";
+                case DRIVER -> engine.isOfficer(num) ? "This number belongs to a SUNU Park attendant. Use the SUNU Park Officer app." : null;
                 default -> "Staff sign in with a username and password.";
             };
         } finally {
@@ -218,7 +223,7 @@ public final class ParknaService implements AutoCloseable, AuthService.Directory
         Set<Role> allowed = ALLOWED.get(type);
         if (allowed == null || !allowed.contains(s.role())) {
             if (s.staff() && auth != null) auth.audit(s.name(), s.role(), type, null, "refused", "not allowed for this role", ip);
-            return error(s.role() == Role.COUNCIL ? "The Council view is read-only." : "You are not allowed to do that.");
+            return error(s.role() == Role.COUNCIL ? "The Council view is read-only." : s.role() == Role.POLICE ? "The police view is read-only." : "You are not allowed to do that.");
         }
         if (s.staff() && s.mustChangePassword()) return error("Choose a new password first.");
         if (type.startsWith("clock.") || type.equals("demo.reset")) {
@@ -237,9 +242,12 @@ public final class ParknaService implements AutoCloseable, AuthService.Directory
             }
             default -> a.put("_actor", s.name());
         }
+        if (type.equals("sim.sms")) return simulatedSms(s, a, ip);
+        if (type.equals("terms.accept") && !terms.current().v().equals(String.valueOf(a.get("v"))))
+            return error("The terms have changed. Read the new version first.");
         if (type.equals("driver.status")) {
             lock.lock();
-            try { return engine.plateStatus(a.get("plate")); }
+            try { return engine.plateStatus(a.get("num"), a.get("plate")); }
             finally { lock.unlock(); }
         }
         Map<String, Object> r = run(a, s.who());
@@ -251,6 +259,63 @@ public final class ParknaService implements AutoCloseable, AuthService.Directory
         lock.lock();
         try { return engine.isOfficer(num); }
         finally { lock.unlock(); }
+    }
+
+    public TermsService terms() { return terms; }
+
+    /** Numbers used in the SMS simulator, and until when the replies to them stay in the simulator. */
+    private final Map<String, Long> simulated = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** A text typed in the SMS simulator, handled exactly as if it came from that phone through Kannel. */
+    private Map<String, Object> simulatedSms(Session s, Map<String, Object> a, String ip) {
+        if (!cfg.smsSimulator) return error("The SMS simulator is switched off on this server (sms.simulator.enabled).");
+        String from = String.valueOf(a.getOrDefault("from", "")).replaceAll("[^0-9]", "");
+        if (from.length() > 7) from = from.substring(from.length() - 7);
+        String text = String.valueOf(a.getOrDefault("text", "")).trim();
+        if (from.length() != 7) return error("Enter a 7-digit phone number.");
+        if (text.isEmpty()) return error("Type a message.");
+        if (text.length() > 160) return error("Keep it to one SMS (160 characters).");
+        simulated.put(from, System.currentTimeMillis() + 2 * 3600_000L);
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("type", "sms");
+        m.put("num", from);
+        m.put("text", text);
+        Map<String, Object> r = run(m, "SMS simulator (" + s.name() + ") as +220 " + from);
+        if (auth != null) auth.audit(s.name(), s.role(), "sim.sms", from, r.containsKey("err") ? "refused" : "ok", text, ip);
+        return r;
+    }
+
+    /**
+     * An administrator publishes a new version of the terms. Every open screen gets the new version number (the apps
+     * then ask for it to be accepted); with {@code notify}, every phone that uses SUNU Park also gets an SMS with the link.
+     */
+    public Map<String, Object> publishTerms(Session s, String title, String body, String note, boolean notify, String ip) {
+        Map<String, Object> r;
+        TermsService.Terms t;
+        try {
+            t = terms.publish(title, body, note, s.name());
+        } catch (IllegalArgumentException e) {
+            if (auth != null) auth.audit(s.name(), s.role(), "terms.publish", null, "refused", e.getMessage(), ip);
+            return error(e.getMessage());
+        } catch (SQLException e) {
+            log.error("Could not save the terms", e);
+            return error("Could not save that. Please try again.");
+        }
+        if (auth != null) auth.audit(s.name(), s.role(), "terms.publish", "v=" + t.v(), "ok", note, ip);
+        if (notify) {
+            Map<String, Object> a = new LinkedHashMap<>();
+            a.put("type", "terms.notify");
+            a.put("v", t.v());
+            r = run(a, s.name());
+            if (r.containsKey("err")) return r;
+        } else {
+            r = new LinkedHashMap<>();
+            r.put("ok", true);
+            lock.lock();
+            try { publish(List.of()); } finally { lock.unlock(); }
+        }
+        r.put("v", t.v());
+        return r;
     }
 
     /** An SMS that arrived from a real phone through Kannel (the phone network vouches for the number). */
@@ -364,7 +429,10 @@ public final class ParknaService implements AutoCloseable, AuthService.Directory
 
     /** Hands new SMS to the gateway and tells the screens. Both only queue work, so this runs under the lock and keeps the order. */
     private void publish(List<OutMessage> outgoing) {
+        long now = System.currentTimeMillis();
         for (OutMessage m : outgoing) {
+            Long until = simulated.get(m.num);
+            if (until != null) { if (until > now) continue; simulated.remove(m.num); }
             try { sms.send(m); } catch (RuntimeException e) { log.error("SMS gateway error", e); }
         }
         Function<Session, String> viewFor = s -> views.forSession(engine, s, snapshot);

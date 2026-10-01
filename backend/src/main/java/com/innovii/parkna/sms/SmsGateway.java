@@ -4,7 +4,7 @@ import com.innovii.parkna.config.AppConfig;
 import com.innovii.parkna.model.OutMessage;
 
 /**
- * Where ParkNa's outgoing SMS go (config.properties: sms.gateway). Messages always appear in the apps' SMS
+ * Where SUNU Park's outgoing SMS go (config.properties: sms.gateway). Messages always appear in the apps' SMS
  * threads; a gateway also delivers them to real phones. Called after the change is saved; must not block.
  */
 public interface SmsGateway extends AutoCloseable {

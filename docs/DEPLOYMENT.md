@@ -1,6 +1,6 @@
-# ParkNa deployment runbook (Rocky Linux 9)
+# SUNU Park deployment runbook (Rocky Linux 9)
 
-This runbook installs ParkNa on a Rocky Linux / RHEL 9 cloud server with the INNOVII standard stack. It follows the
+This runbook installs SUNU Park on a Rocky Linux / RHEL 9 cloud server with the INNOVII standard stack. It follows the
 SI/QA Training Manual v2.0: each step is **Installation → Configuration → Verification**, and a step is only done
 when its verification passes. Commands run as root unless a step says otherwise. Replace `<values>` with your own.
 
@@ -28,7 +28,7 @@ when its verification passes. Commands run as root unless a step says otherwise.
 | Running WAR | `/home/sdf/applications/parkna.war` |
 | Front end (Nginx root) | `/usr/share/nginx/html/parkna-web` → `parkna-web-v<version>/` |
 | Tomcat | `/opt/tomcat/current` → `install/apache-tomcat-10.1.x` |
-| Logs | `/opt/tomcat/logs/` (Tomcat and ParkNa), `/var/log/nginx/`, `/var/log/mariadb/` |
+| Logs | `/opt/tomcat/logs/` (Tomcat and SUNU Park), `/var/log/nginx/`, `/var/log/mariadb/` |
 | Database backups | `/backup/parkna/` |
 
 The release package is `parkna-<version>.tar.gz` from the GitHub release (or `scripts/package-release.sh`). It holds
@@ -73,7 +73,7 @@ systemctl enable --now mariadb
 mysql_secure_installation                     # root password, remove test DB, no remote root
 ```
 
-**Configuration.** One database and one user for ParkNa, never root (2.2.3):
+**Configuration.** One database and one user for SUNU Park, never root (2.2.3):
 ```sql
 mysql -u root -p
 CREATE DATABASE parkna CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
@@ -82,7 +82,7 @@ CREATE USER 'parkna'@'localhost' IDENTIFIED BY '<strong-password>';
 GRANT ALL PRIVILEGES ON parkna.* TO 'parkna'@'127.0.0.1', 'parkna'@'localhost';
 FLUSH PRIVILEGES;
 ```
-ParkNa creates its tables itself on first start (`db.migrate=true`). If your DBA prefers to apply SQL by hand, run
+SUNU Park creates its tables itself on first start (`db.migrate=true`). If your DBA prefers to apply SQL by hand, run
 `db/V*.sql` in order, set `db.migrate=false`, and the account only needs `SELECT, INSERT, UPDATE, DELETE`.
 
 For the backup scripts, give root a client config:
@@ -99,7 +99,7 @@ chmod 600 /root/.my.cnf
 
 ## 3. Java 17 and Tomcat 10.1 (manual 2.3, 2.4)
 
-ParkNa is built for **Java 17 and Tomcat 10.1** (Jakarta Servlet 6). It does not run on Tomcat 9.
+SUNU Park is built for **Java 17 and Tomcat 10.1** (Jakarta Servlet 6). It does not run on Tomcat 9.
 
 **Installation.**
 ```bash
@@ -125,7 +125,7 @@ REL=/home/sdf/deliverables/parkna-<version>       # unpack the release there fir
 sed -i 's#<Connector port="8080" protocol="HTTP/1.1"#<Connector port="8080" address="127.0.0.1" protocol="HTTP/1.1"#' /opt/tomcat/current/conf/server.xml
 # startup options: where the property files are, memory
 install -o tomcat -g tomcat -m 750 $REL/deploy/tomcat/setenv.sh /opt/tomcat/current/bin/setenv.sh
-# the ParkNa context: runs /home/sdf/applications/parkna.war (deploy.sh rewrites it on every deployment)
+# the SUNU Park context: runs /home/sdf/applications/parkna.war (deploy.sh rewrites it on every deployment)
 install -d -o tomcat -g tomcat /opt/tomcat/current/conf/Catalina/localhost
 install -o tomcat -g tomcat -m 640 $REL/deploy/tomcat/parkna.xml /opt/tomcat/current/conf/Catalina/localhost/parkna.xml
 # systemd unit (check JAVA_HOME in it against the path noted above)
@@ -135,7 +135,7 @@ systemctl daemon-reload && systemctl enable tomcat
 
 **Verification.** `java -version` shows 17. Tomcat is started by the deploy script in step 6.
 
-## 4. ParkNa property files
+## 4. SUNU Park property files
 
 Both files live outside the WAR, so one build runs everywhere. Tomcat finds them through `-Dparkna.config.dir` in `setenv.sh`.
 
@@ -159,7 +159,7 @@ codes by SMS. `app.mode=demo` loads the demo story (sample drivers, attendants a
 pretend wallets, for training and sales demos. Never point a demo server and a production server at the same database.
 
 Any change needs `systemctl restart tomcat`. A missing or wrong setting stops the deployment with the reason in
-`catalina.out` and `parkna.log` (e.g. `ParkNa failed to start: database.properties: db.url is required`).
+`catalina.out` and `parkna.log` (e.g. `SUNU Park failed to start: database.properties: db.url is required`).
 
 ## 5. Nginx, firewall, HTTPS (manual 2.6, 1.4.2)
 
@@ -190,32 +190,32 @@ No domain yet? Use `parkna-http.conf` instead (plain HTTP by IP address) and rem
 
 **Verification.** `nginx -t` says *syntax is ok*; then `systemctl start nginx`.
 
-## 6. Deploy ParkNa (manual 2.5.1)
+## 6. Deploy SUNU Park (manual 2.5.1)
 
 ```bash
 /home/sdf/deliverables/parkna-<version>/deploy/scripts/deploy.sh /home/sdf/deliverables/parkna-<version>.tar.gz
 ```
 The script copies the WAR to `deliverables/parkna-<version>.war`, backs up the database, puts the front end in
 `/usr/share/nginx/html/parkna-web-v<version>` and points `parkna-web` at it, puts the WAR in `applications/parkna.war`
-(Tomcat stop/start), records the version in `/home/sdf/parkna/deploy-history` and waits until ParkNa answers `/api/health`.
+(Tomcat stop/start), records the version in `/home/sdf/parkna/deploy-history` and waits until SUNU Park answers `/api/health`.
 The first time on a v0.2 server it also moves the property files from `applications/parkna/conf` to `/home/sdf/parkna`,
 points Nginx at the new front-end folder and moves the old `applications/parkna` folder to `deliverables/`. On the first
-deployment ParkNa creates the tables. In production mode it starts empty and creates the first back-office account:
+deployment SUNU Park creates the tables. In production mode it starts empty and creates the first back-office account:
 
 ```bash
 grep -A2 "First start" /opt/tomcat/logs/parkna.log
 #  First start: created the back-office account 'admin'
 #  Password: xxxxxxxxxxxxxx   (shown only this once)
 ```
-Sign in at `https://<your-domain>/admin` with `admin` and that password; ParkNa asks you to choose your own password
+Sign in at `https://<your-domain>/admin` with `admin` and that password; SUNU Park asks you to choose your own password
 straight away. Then, in **Staff & audit**, add an account for each person (administrator, supervisor, finance or Council)
 and give each their temporary password in person. Nobody should share the `admin` account.
 
 **Verification (post-deployment checklist, manual 2.5.3):**
-- `grep ParkNa /opt/tomcat/logs/catalina.out | tail` ends with `ParkNa is running`, and no stack traces.
+- `grep SUNU Park /opt/tomcat/logs/catalina.out | tail` ends with `SUNU Park is running`, and no stack traces.
 - `curl -s https://<your-domain>/api/health` → `{"ok":true,"database":"up",...}` (through Nginx, not only on 8080).
 - `https://<your-domain>/admin` shows the back office, and `/org` the organisation portal.
-- Register a test attendant in the back office, sign in to the ParkNa Officer app with that number and send START: the
+- Register a test attendant in the back office, sign in to the SUNU Park Officer app with that number and send START: the
   attendant shows as on shift in the back office within a second or two (proves SMS codes and live updates work
   through Nginx). Switch the test attendant off afterwards.
 - `/home/sdf/parkna/deploy-history` lists the new version under the previous one (the rollback point).
@@ -232,10 +232,10 @@ Who signs in how:
 
 | Who | Where | How |
 |---|---|---|
-| Drivers | ParkNa app | their mobile number, then the 6-digit code sent by SMS |
-| Parking attendants | ParkNa Officer app | the number registered for them in the back office (Attendants → Register officer), then the SMS code |
+| Drivers | SUNU Park app | their mobile number, then the 6-digit code sent by SMS |
+| Parking attendants | SUNU Park Officer app | the number registered for them in the back office (Attendants → Register officer), then the SMS code |
 | Organisations | `https://<your-domain>/org` | the billing contact's number set when the organisation was created, then the SMS code |
-| ParkNa and Council staff | `https://<your-domain>/admin` | their own username and password (Staff & audit) |
+| SUNU Park and Council staff | `https://<your-domain>/admin` | their own username and password (Staff & audit) |
 
 ## 8. SMS through Kannel (manual 2.1)
 
@@ -254,8 +254,8 @@ Then follow the message in Kannel's `access_core.log`. Incoming SMS never pass t
 
 | Log | What is in it |
 |---|---|
-| `/opt/tomcat/logs/catalina.out` | Tomcat and everything ParkNa writes: startup, configuration summary, errors |
-| `/opt/tomcat/logs/parkna.log` | ParkNa only: every action (`driver.pay num=7012345 -> ok (14 ms)`), refused actions with the reason, database problems. Daily files, 30 days kept |
+| `/opt/tomcat/logs/catalina.out` | Tomcat and everything SUNU Park writes: startup, configuration summary, errors |
+| `/opt/tomcat/logs/parkna.log` | SUNU Park only: every action (`driver.pay num=7012345 -> ok (14 ms)`), refused actions with the reason, database problems. Daily files, 30 days kept |
 | `/opt/tomcat/logs/parkna-sms.log` | SMS gateway: each SMS accepted or rejected by Kannel. 90 days kept |
 | `/opt/tomcat/logs/localhost_access_log.*.txt` | Every HTTP request Tomcat served |
 | `/var/log/nginx/parkna.access.log`, `parkna.error.log` | Requests from the internet, proxy errors (502 = Tomcat down) |
@@ -266,16 +266,16 @@ Then follow the message in Kannel's `access_core.log`. Incoming SMS never pass t
 - More detail while investigating: uncomment `-Dparkna.log.level=DEBUG` in `setenv.sh` and restart Tomcat.
 - Nightly backup (manual 1.5.5): `crontab -e` as root:
   `0 2 * * * /home/sdf/deliverables/parkna-<version>/deploy/scripts/backup-db.sh >> /backup/parkna/backup.log 2>&1`
-- Only **one** ParkNa may run against a database. A second Tomcat pointed at the same database refuses to start
-  (`Another ParkNa server is already running on this database`).
+- Only **one** SUNU Park may run against a database. A second Tomcat pointed at the same database refuses to start
+  (`Another SUNU Park server is already running on this database`).
 
 | Symptom | Look at |
 |---|---|
-| Apps say "Can't reach the ParkNa server" | `curl -I https://<domain>/api/ping`; Nginx error log; `systemctl status tomcat` |
+| Apps say "Can't reach the SUNU Park server" | `curl -I https://<domain>/api/ping`; Nginx error log; `systemctl status tomcat` |
 | 502 Bad Gateway | Tomcat is down or still starting: `catalina.out` |
 | 403 from Nginx on /api | SELinux boolean `httpd_can_network_connect` (step 5) |
 | Back office does not update live | the `/api/events` block in the Nginx snippet (buffering must be off) |
-| Deployment fails at start-up | first ParkNa ERROR line in `parkna.log` (usually a property file or the database password) |
+| Deployment fails at start-up | first SUNU Park ERROR line in `parkna.log` (usually a property file or the database password) |
 
 ## 10. Upgrades and rollback
 
@@ -293,10 +293,30 @@ deploy/scripts/rollback.sh
 ```
 
 **Upgrading from 1.0 to 1.1** (warnings and fines, organisations paying a year upfront per car): deploy the new
-package as usual. ParkNa updates the database itself on start (migration V4: the new `fine` table, the yearly price
+package as usual. SUNU Park updates the database itself on start (migration V4: the new `fine` table, the yearly price
 and fine in the tariff, and the paid year of each organisation). Organisations from 1.0 stay covered to the end of
 their last paid month; after that they get an invoice for a year per car. The release number (e.g. 1.1.23) shows in
 `/api/health`, the back office, the landing page and the apps.
+
+**Upgrading from 1.1 to 1.2 (SUNU Park)**: deploy the new package as usual; install the new APKs over the old ones
+(same app IDs, so the phones keep their sign-in). On start, migration V5:
+- moves a tariff still at the 1.1 starting prices to the agreed points: GMD 200 a day, GMD 4,000 a month, GMD 1,880 fine
+  for rule breakers, GMD 48,000 a car a year for organisations (a tariff already changed in the back office is left as
+  it is; the change is in the tariff history). Warnings issued before keep the fine they were issued with;
+- adds the terms and conditions: table `terms_version` and the accepted version on each phone number.
+
+After the upgrade:
+- **Terms & conditions** (back office, administrators): the built-in first version is in force until you publish your
+  own. Each published version shows in both apps at once (everyone reads it to the end and accepts it again), at
+  `https://your-domain/terms` and, if ticked, goes out by SMS with the link. The SMS texts use the address
+  `sunupark.gm/terms`: point that domain at this server (or ask for the address to be changed).
+- **Police**: create staff accounts with the role *Police* (Staff & audit). They see only *Fines tracking*: drivers
+  with unpaid warnings, overdue fines, first-time and repeat offenders, and the phone linked to each plate.
+- **SMS simulator** (`https://your-domain/sms`): administrators and supervisors text the short code as any phone.
+  On by default on a demo server or with `sms.gateway=simulated`; with Kannel, set `sms.simulator.enabled=true` in
+  `config.properties` to use it (replies to the numbers used there stay in the simulator for 2 hours).
+- Internal names stay as they were: the database `parkna`, the WAR `parkna.war`, `/home/sdf/parkna`, the
+  `tomcat-parkna` service, the Android app IDs. Only what people see is called SUNU Park.
 
 ## 11. Before real use (go-live checklist)
 
@@ -340,7 +360,7 @@ systemctl start tomcat          # creates the tables and the first 'admin' accou
 ## 12. Beside another Tomcat on a shared server
 
 When the server already runs another application's Tomcat (for example SDF on Tomcat 8.5 as the `tomcat` service),
-give ParkNa its own Tomcat 10.1 and leave the other one untouched:
+give SUNU Park its own Tomcat 10.1 and leave the other one untouched:
 - Install it in its own folder (e.g. `/opt/tomcat-parkna`), with its own systemd unit (e.g. `tomcat-parkna.service`).
 - In its `conf/server.xml` use free ports: shutdown `8006` instead of `8005`, HTTP connector `127.0.0.1:8081` instead of 8080.
 - In the Nginx files change `server 127.0.0.1:8080;` in `upstream parkna_tomcat` to `127.0.0.1:8081`.
