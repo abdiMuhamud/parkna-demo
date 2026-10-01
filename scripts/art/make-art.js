@@ -44,14 +44,14 @@ const icon = {
 /* the launch screen: the same mark, words and places as the apps' animated launch screen (#splash), so the hand-over
    from Android's splash to the app is seamless */
 function splash(a, w, h){
-  const u = Math.min(w, h) / 360;
-  return `<div style="width:${w}px;height:${h}px;background:${BG};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${10 * u}px">
-    <div style="width:${132 * u}px;height:${132 * u}px;display:grid;place-items:center;margin-bottom:${8 * u}px">
-      <div style="width:${96 * u}px;height:${96 * u}px;border-radius:${26 * u}px;background:${a.bg};display:grid;place-items:center;box-shadow:0 ${14 * u}px ${30 * u}px -${14 * u}px rgba(10,27,77,.55)">
-        <svg width="${92 * u}" height="${92 * u}" viewBox="0 0 108 108">${mark(Object.assign({}, a, { badge: false }), 1)}</svg></div></div>
-    <div style="font-weight:700;font-size:${11 * u}px;color:${NAVY};letter-spacing:.24em;margin-top:${6 * u}px">BANJUL CITY COUNCIL</div>
-    <div style="font-weight:800;font-size:${34 * u}px;color:${INK};letter-spacing:-.02em;line-height:1">SUNU Park</div>
-    <div style="font-weight:600;font-size:${13 * u}px;color:${MUTED}">Our park · Our parking</div></div>`;
+  const u = Math.min(w, h) / 360, officer = a.bg === YELLOW;
+  return `<div style="width:${w}px;height:${h}px;background:radial-gradient(110% 75% at 50% 40%,#FFFFFF 0%,${BG} 45%,#E6F0FA 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${10 * u}px">
+    <div style="width:${176 * u}px;height:${176 * u}px;display:grid;place-items:center;margin-bottom:${16 * u}px;border-radius:50%;background:radial-gradient(circle,rgba(254,219,70,.4) 0,transparent 66%)">
+      <div style="width:${104 * u}px;height:${104 * u}px;border-radius:${30 * u}px;background:${a.bg};display:grid;place-items:center;box-shadow:0 ${18 * u}px ${36 * u}px -${16 * u}px rgba(10,27,77,.55)">
+        <svg width="${98 * u}" height="${98 * u}" viewBox="0 0 108 108"><text x="52.5" y="73" text-anchor="middle" font-family="J" font-weight="800" font-size="56" fill="${a.fg}">P</text><rect x="38" y="78" width="29" height="4.5" rx="2.25" fill="${a.fg}"/></svg></div></div>
+    <div style="font-weight:700;font-size:${11 * u}px;color:${NAVY};letter-spacing:.3em">BANJUL CITY COUNCIL</div>
+    <div style="font-weight:800;font-size:${40 * u}px;letter-spacing:-.02em;line-height:1.05;color:${INK}">SUNU Park</div>
+    <div style="font-weight:500;font-size:${13.5 * u}px;color:${MUTED}">${officer ? "Attendant · Our park, our parking" : "Our park · Our parking"}</div></div>`;
 }
 /* the home screen's navy card: Banjul scene on the right, big white title, yellow call to action */
 function feature(a){

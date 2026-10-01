@@ -329,31 +329,81 @@ html.kb .sheet{max-height:100%}
 .chk.off{opacity:.55}
 html.kb .tbox{height:30vh}
 
-/* launch screen: the SUNU Park mark spins while the app starts, then grows and fades into the first screen */
-.splash{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;transition:opacity .55s ease .1s,visibility 0s linear .65s}
-.sp-stage{position:relative;width:132px;height:132px;display:grid;place-items:center;margin-bottom:8px}
-.sp-tile{width:96px;height:96px;border-radius:26px;background:var(--navy);color:var(--yellow);display:grid;place-items:center;box-shadow:0 14px 30px -14px rgba(10,27,77,.55);
-  animation:spSpin 1.7s cubic-bezier(.65,0,.35,1) infinite;transform-style:preserve-3d;backface-visibility:visible}
-.sp-tile svg{width:92px;height:92px}
-.splash.officer .sp-tile{background:var(--yellow);color:var(--navy)}
-.sp-ring{position:absolute;inset:0;width:132px;height:132px;animation:spRing 1.1s linear infinite}
-.sp-ring circle{fill:none;stroke:var(--yellow);stroke-width:5;stroke-linecap:round;stroke-dasharray:110 300}
-.splash.officer .sp-ring circle{stroke:var(--navy)}
-.sp-bc{font-weight:700;font-size:11px;letter-spacing:.24em;color:var(--navy);margin-top:6px}
-.sp-name{font-weight:800;font-size:34px;letter-spacing:-.02em;color:var(--ink);line-height:1}
-.sp-tag{font-size:13px;color:var(--mute);font-weight:500}
-.sp-bc,.sp-name,.sp-tag{animation:spIn .6s ease both}
-.sp-name{animation-delay:.08s}.sp-tag{animation-delay:.16s}
-@keyframes spSpin{0%{transform:perspective(500px) rotateY(0)}55%,100%{transform:perspective(500px) rotateY(360deg)}}
+/* ---------- launch screen: a slow, calm celebration in the app's own colours (pale blue, navy, SUNU yellow) ----------
+   0.0s  the yellow dust rises, the soft light rays turn, the ring draws itself
+   0.4s  the P tile spins in (two slow 3D turns, about 3 s) and lands with a yellow burst and a glint across its face
+   1.8s  "SUNU Park" appears in navy with a yellow shimmer, then the line and the loading thread
+   out   (not before about 5 s) the screen closes slowly in a circle around the mark; the app's parts rise into place */
+.splash{--y:#FEDB46;--y2:#FFF0A8;--y3:#E9B800;position:fixed;inset:0;z-index:100;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  background:radial-gradient(110% 75% at 50% 40%,#FFFFFF 0%,#F6FBFE 45%,#E6F0FA 100%);color:var(--ink);clip-path:circle(150% at 50% 41%);
+  transition:clip-path 1.4s cubic-bezier(.65,0,.3,1),visibility 0s linear 1.4s}
+.sp-rays{position:absolute;left:50%;top:41%;width:220vmax;height:220vmax;margin:-110vmax 0 0 -110vmax;opacity:.55;
+  background:repeating-conic-gradient(from 0deg,rgba(254,219,70,.16) 0deg 5deg,transparent 5deg 18deg);
+  -webkit-mask:radial-gradient(circle,#000 0,rgba(0,0,0,.6) 18%,transparent 55%);mask:radial-gradient(circle,#000 0,rgba(0,0,0,.6) 18%,transparent 55%);
+  animation:spRays 60s linear infinite,spFade 2.5s ease both}
+.sp-dust{position:absolute;inset:0;pointer-events:none}
+.sp-dust i{position:absolute;bottom:-12px;width:var(--s);height:var(--s);border-radius:50%;background:radial-gradient(circle,#FFF8D6 0,var(--y) 45%,rgba(254,219,70,0) 72%);
+  opacity:0;animation:spDust var(--d) linear var(--w) infinite}
+.sp-stage{position:relative;width:176px;height:176px;display:grid;place-items:center;margin-bottom:16px}
+.sp-halo{position:absolute;inset:-34px;border-radius:50%;background:radial-gradient(circle,rgba(254,219,70,.45) 0,rgba(254,219,70,.14) 38%,transparent 66%);animation:spHalo 4.5s ease-in-out infinite,spFade 2s ease .3s both}
+.sp-ring{position:absolute;inset:0;border-radius:50%;padding:4px;background:conic-gradient(from 0deg,transparent 0 8%,var(--navy) 26%,var(--y3) 46%,var(--y) 66%,transparent 92%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;
+  animation:spRing 3.2s linear infinite,spIn 1.6s ease both}
+.sp-ring2{position:absolute;inset:14px;border-radius:50%;border:1.5px dashed rgba(11,46,99,.25);animation:spRing 18s linear infinite reverse,spIn 1.8s ease .3s both}
+.sp-tile{position:relative;width:104px;height:104px;border-radius:30px;display:grid;place-items:center;overflow:hidden;color:var(--y);background:var(--navy);
+  box-shadow:0 18px 36px -16px rgba(10,27,77,.55),0 0 42px -8px rgba(254,219,70,.7);
+  animation:spEnter 3s cubic-bezier(.2,.8,.2,1) .4s both,spFloat 5s ease-in-out 3.5s infinite}
+.sp-tile svg{width:98px;height:98px}
+.sp-tile text,.sp-tile rect{fill:var(--y)}
+.sp-glint{position:absolute;inset:-40% -60%;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.6) 50%,transparent 60%);transform:translateX(-120%);animation:spGlint 4.5s ease-in-out 3s infinite}
+.splash.officer .sp-tile{background:var(--y);box-shadow:0 18px 36px -16px rgba(10,27,77,.45),0 0 42px -8px rgba(254,219,70,.8)}
+.splash.officer .sp-tile text,.splash.officer .sp-tile rect{fill:var(--navy)}
+.splash.officer .sp-ring{background:conic-gradient(from 0deg,transparent 0 8%,var(--y3) 26%,var(--navy) 50%,var(--navy2) 66%,transparent 92%)}
+.sp-burst{position:absolute;inset:0;pointer-events:none}
+.sp-burst i{position:absolute;left:50%;top:50%;width:3px;height:22px;margin:-11px 0 0 -1.5px;border-radius:2px;background:linear-gradient(var(--y3),rgba(254,219,70,0));
+  transform:rotate(var(--a)) translateY(-60px) scaleY(0);opacity:0;animation:spBurst 1.8s cubic-bezier(.2,.8,.2,1) 3s both}
+.sp-burst b{position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;border-radius:50%;background:var(--y);box-shadow:0 0 8px var(--y3);
+  transform:rotate(var(--a)) translateY(0);opacity:0;animation:spSpark 2.2s cubic-bezier(.15,.75,.3,1) 3s both}
+.sp-bc{font-weight:700;font-size:11px;letter-spacing:.3em;color:var(--navy);animation:spUp 1.4s ease 1.6s both}
+.sp-name{font-weight:800;font-size:40px;letter-spacing:-.02em;line-height:1.05;
+  background:linear-gradient(100deg,var(--ink) 0%,var(--ink) 30%,var(--y3) 42%,var(--y) 48%,var(--y3) 54%,var(--ink) 66%,var(--ink) 100%);background-size:260% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;
+  animation:spUp 1.6s cubic-bezier(.2,.8,.2,1) 1.9s both,spShimmer 5s ease-in-out 3.2s infinite}
+.sp-tag{font-size:13.5px;font-weight:500;color:var(--mute);letter-spacing:.02em;animation:spUp 1.4s ease 2.3s both}
+.sp-load{position:absolute;bottom:calc(56px + env(safe-area-inset-bottom,0px));width:120px;height:3px;border-radius:3px;background:rgba(11,46,99,.1);overflow:hidden;animation:spUp 1s ease 2.8s both}
+.sp-load i{position:absolute;inset:0;width:40%;border-radius:3px;background:linear-gradient(90deg,transparent,var(--y3),transparent);animation:spLoad 2.2s ease-in-out infinite}
+@keyframes spRays{to{transform:rotate(360deg)}}
+@keyframes spFade{from{opacity:0}}
+@keyframes spDust{0%{transform:translate(0,0) scale(.6);opacity:0}12%{opacity:var(--o)}80%{opacity:var(--o)}100%{transform:translate(var(--x),-108vh) scale(1);opacity:0}}
+@keyframes spHalo{0%,100%{transform:scale(.92);opacity:.75}50%{transform:scale(1.06);opacity:1}}
 @keyframes spRing{to{transform:rotate(360deg)}}
-@keyframes spIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
-/* the hand-over: one last turn, the mark grows, everything fades to the app */
-.splash.out{opacity:0;visibility:hidden;pointer-events:none}
-.splash.out .sp-tile{animation:spOut .65s cubic-bezier(.5,0,.2,1) forwards}
-.splash.out .sp-ring{opacity:0;transition:opacity .2s}
-.splash.out .sp-bc,.splash.out .sp-name,.splash.out .sp-tag{opacity:0;transform:translateY(-6px);transition:all .3s}
-@keyframes spOut{0%{transform:perspective(500px) rotateY(0) scale(1)}100%{transform:perspective(500px) rotateY(180deg) scale(1.7);opacity:0}}
-@media (prefers-reduced-motion:reduce){.sp-tile,.sp-ring{animation:none}.splash.out .sp-tile{animation:none}}
+@keyframes spIn{from{opacity:0;transform:scale(.6)}}
+@keyframes spEnter{0%{transform:perspective(600px) rotateY(-720deg) scale(.25);opacity:0}30%{opacity:1}100%{transform:perspective(600px) rotateY(0) scale(1)}}
+@keyframes spFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+@keyframes spGlint{0%{transform:translateX(-120%)}50%,100%{transform:translateX(120%)}}
+@keyframes spBurst{0%{transform:rotate(var(--a)) translateY(-56px) scaleY(0);opacity:0}25%{opacity:1}100%{transform:rotate(var(--a)) translateY(-118px) scaleY(1);opacity:0}}
+@keyframes spSpark{0%{transform:rotate(var(--a)) translateY(-50px);opacity:0}20%{opacity:1}100%{transform:rotate(var(--a)) translateY(var(--r));opacity:0}}
+@keyframes spUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes spShimmer{0%{background-position:100% 0}60%,100%{background-position:-60% 0}}
+@keyframes spLoad{from{transform:translateX(-110%)}to{transform:translateX(260%)}}
+/* the hand-over: the screen closes slowly in a circle around the mark */
+.splash.out{clip-path:circle(0% at 50% 41%);visibility:hidden;pointer-events:none}
+.splash.out .sp-tile{animation:spOutTile 1.4s cubic-bezier(.6,0,.3,1) forwards}
+.splash.out .sp-halo{animation:none;transform:scale(1.6);opacity:1;transition:transform 1s,opacity 1s}
+@keyframes spOutTile{0%{transform:perspective(600px) rotateY(0) scale(1)}100%{transform:perspective(600px) rotateY(360deg) scale(.4)}}
+/* the first screen after the launch screen: its parts rise slowly into place one after another */
+html.reveal .scr>*,html.reveal .auth .aform>*,html.reveal .onb>*,html.reveal .tabs{animation:rvUp 1.1s cubic-bezier(.2,.8,.2,1) both}
+html.reveal .scr>*:nth-child(2),html.reveal .aform>*:nth-child(2),html.reveal .onb>*:nth-child(2){animation-delay:.12s}
+html.reveal .scr>*:nth-child(3),html.reveal .aform>*:nth-child(3),html.reveal .onb>*:nth-child(3){animation-delay:.24s}
+html.reveal .scr>*:nth-child(4),html.reveal .aform>*:nth-child(4),html.reveal .onb>*:nth-child(4){animation-delay:.36s}
+html.reveal .scr>*:nth-child(5),html.reveal .aform>*:nth-child(5),html.reveal .onb>*:nth-child(5){animation-delay:.48s}
+html.reveal .scr>*:nth-child(n+6),html.reveal .aform>*:nth-child(n+6),html.reveal .onb>*:nth-child(n+6){animation-delay:.6s}
+html.reveal .tabs{animation-name:rvTabs;animation-delay:.4s}
+html.reveal .hcard{animation:rvCard 1.5s cubic-bezier(.2,.8,.2,1) .1s both}
+@keyframes rvUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:none}}
+@keyframes rvTabs{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
+@keyframes rvCard{from{opacity:0;transform:translateY(26px) scale(.96);box-shadow:0 0 0 2px rgba(254,219,70,.9),0 0 40px rgba(254,219,70,.55)}60%{box-shadow:0 0 0 2px rgba(254,219,70,.5),0 0 30px rgba(254,219,70,.3)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.sp-rays,.sp-dust,.sp-burst,.sp-glint,.sp-load{display:none}.sp-tile,.sp-ring,.sp-ring2,.sp-halo,.sp-name{animation:none}.splash{transition:opacity .3s}.splash.out{clip-path:none;opacity:0}.splash.out .sp-tile{animation:none}html.reveal *{animation:none!important}}
 
 /* attendant answer: is this plate a first-time or repeat offender */
 .offb{align-self:flex-start;display:inline-flex;align-items:center;gap:7px;margin-top:6px;padding:6px 12px;border-radius:999px;font-size:13px;font-weight:800;letter-spacing:.01em}
