@@ -22,14 +22,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * The ParkNa API. Behind Nginx these are https://your-domain/api/...; Tomcat serves them at /parkna/api/...
+ * The SUNU Park API. Behind Nginx these are https://your-domain/api/...; Tomcat serves them at /parkna/api/...
  * <pre>
  * Open to everyone
- *   GET  /api/ping              is this a ParkNa server, and what does it offer
+ *   GET  /api/ping              is this a SUNU Park server, and what does it offer
  *   GET  /api/health            200 when the server and MariaDB are up, 503 if not (for monitoring)
  *   POST /api/auth/code         {phone, as: driver|officer|org}  send a sign-in code by SMS
  *   POST /api/auth/verify       {phone, as, code}                 check it, returns {token}
  *   POST /api/auth/staff        {username, password}              staff sign-in, returns {token}
+ *   GET  /api/terms             the terms and conditions in force {v, title, body, at}
  *   GET  /api/sms/mo            incoming SMS from Kannel (?from=%p&amp;text=%a), allowed IPs only
  * With "Authorization: Bearer &lt;token&gt;"
  *   GET  /api/state             your view of the data
@@ -38,6 +39,7 @@ import java.util.Map;
  *   GET  /api/auth/me, POST /api/auth/logout, POST /api/auth/password {current, next}
  *   GET  /api/staff, POST /api/staff {username, name, role}, POST /api/staff/update   (admins)
  *   GET  /api/audit             the latest audit log entries (admins)
+ *   GET  /api/terms/history, POST /api/terms {title, body, note, notify}   publish new terms (admins)
  * </pre>
  */
 @WebServlet(urlPatterns = "/api/*", asyncSupported = true, loadOnStartup = 1)
@@ -62,7 +64,7 @@ public class ApiServlet extends HttpServlet {
                 case "/ping" -> {
                     Map<String, Object> r = new LinkedHashMap<>();
                     r.put("ok", true);
-                    r.put("name", "ParkNa server");
+                    r.put("name", "SUNU Park server");
                     r.put("version", AppListener.VERSION);
                     r.put("addresses", config().publicUrl.isEmpty() ? List.of() : List.of(config().publicUrl));
                     r.putAll(service().mode());
@@ -78,6 +80,17 @@ public class ApiServlet extends HttpServlet {
                     json(resp, db ? 200 : 503, r);
                 }
                 case "/sms/mo" -> incomingSms(req, resp);
+                case "/terms" -> {
+                    Map<String, Object> r = new LinkedHashMap<>();
+                    r.put("ok", true);
+                    r.putAll(service().terms().current().toMap(true));
+                    json(resp, 200, r);
+                }
+                case "/terms/history" -> {
+                    admin(req);
+                    try { json(resp, 200, Map.of("ok", true, "versions", service().terms().history())); }
+                    catch (java.sql.SQLException e) { json(resp, 500, Map.of("err", "Could not read the terms history.")); }
+                }
                 case "/events" -> {
                     Session s = auth().redeemTicket(req.getParameter("ticket"));
                     if (s == null) throw AuthException.unauthorized();
@@ -124,6 +137,8 @@ public class ApiServlet extends HttpServlet {
                 case "/auth/logout" -> { auth().logout(session(req)); json(resp, 200, Map.of("ok", true)); }
                 case "/auth/password" -> { auth().changePassword(session(req), str(body.get("current")), str(body.get("next"))); json(resp, 200, Map.of("ok", true)); }
                 case "/act" -> json(resp, 200, service().act(session(req), body, ip));
+                case "/terms" -> json(resp, 200, service().publishTerms(admin(req), str(body.get("title")), str(body.get("body")), str(body.get("note")),
+                        Boolean.TRUE.equals(body.get("notify")), ip));
                 case "/staff" -> json(resp, 200, auth().createStaff(admin(req), str(body.get("username")), str(body.get("name")), str(body.get("role"))));
                 case "/staff/update" -> {
                     Object active = body.get("active");

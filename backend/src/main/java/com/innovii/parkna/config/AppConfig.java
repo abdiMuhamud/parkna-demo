@@ -45,8 +45,10 @@ public final class AppConfig {
     public final PaymentsMode payments;
     public final Auth auth;
     public final Billing billing;
-    /** How people reach ParkNa (help screens, landing page, privacy policy). Empty until set. */
+    /** How people reach SUNU Park (help screens, landing page, privacy policy). Empty until set. */
     public final String supportPhone, supportEmail;
+    /** The SMS simulator page (/sms.html): administrators and supervisors send texts as any phone. */
+    public final boolean smsSimulator;
 
     /** Where organisations pay their invoices by bank transfer (printed on the invoice screen). Empty until set. */
     public record Billing(String bankName, String accountName, String accountNumber) {
@@ -117,15 +119,16 @@ public final class AppConfig {
         if (!review.isEmpty()) log.warn("auth.reviewNumbers: {} sign in with a fixed code and get no SMS. For Google Play review only: remove them afterwards", review.keySet());
         this.auth = new Auth(inApp, integer(cfg, "auth.phoneSessionDays", 180), integer(cfg, "auth.staffSessionHours", 12), integer(cfg, "auth.otpMinutes", 5), Map.copyOf(review));
         this.billing = new Billing(cfg.getProperty("billing.bank.name", "").trim(),
-                cfg.getProperty("billing.bank.accountName", "ParkNa Collections").trim(),
+                cfg.getProperty("billing.bank.accountName", "SUNU Park Collections").trim(),
                 cfg.getProperty("billing.bank.accountNumber", "").trim());
         this.supportPhone = cfg.getProperty("support.phone", "").trim();
         this.supportEmail = cfg.getProperty("support.email", "").trim();
+        this.smsSimulator = bool(cfg, "sms.simulator.enabled", demo || sms.mode() == SmsMode.SIMULATED);
     }
 
     public static AppConfig load() {
         Path dir = findDir();
-        log.info("Reading ParkNa configuration from {}", dir);
+        log.info("Reading SUNU Park configuration from {}", dir);
         Properties dbp = read(dir.resolve("database.properties"), true);
         Properties cfg = read(dir.resolve("config.properties"), false);
         return new AppConfig(dir, dbp, cfg);
@@ -182,7 +185,7 @@ public final class AppConfig {
     /** One line for the startup log (never includes passwords). */
     public String summary() {
         return "mode=" + mode.name().toLowerCase() + ", db=" + db.url() + " user=" + db.username() + ", clock=" + clockMode.name().toLowerCase() + " (" + timezone + ")"
-                + ", demoControls=" + demoControls + ", sms=" + sms.mode().name().toLowerCase()
+                + ", demoControls=" + demoControls + ", sms=" + sms.mode().name().toLowerCase() + ", smsSimulator=" + smsSimulator
                 + (sms.mode() == SmsMode.KANNEL ? " via " + sms.sendSmsUrl() : "") + ", payments=" + payments.name().toLowerCase()
                 + (auth.otpInApp() ? ", sign-in codes shown in app" : "") + ", publicUrl=" + (publicUrl.isEmpty() ? "(not set)" : publicUrl);
     }

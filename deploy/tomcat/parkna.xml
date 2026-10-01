@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ParkNa context: Tomcat runs the WAR from /home/sdf/applications (SI/QA manual 2.5.1). The API is then at /parkna/api/...
-  deploy.sh writes this file to <ParkNa Tomcat>/conf/Catalina/localhost/parkna.xml on every deployment.
+  SUNU Park context: Tomcat runs the WAR from /home/sdf/applications (SI/QA manual 2.5.1). The API is then at /parkna/api/...
+  deploy.sh writes this file to <SUNU Park Tomcat>/conf/Catalina/localhost/parkna.xml on every deployment.
 -->
 <Context docBase="/home/sdf/applications/parkna.war" unpackWAR="true" />

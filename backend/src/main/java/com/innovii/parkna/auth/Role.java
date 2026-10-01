@@ -1,6 +1,6 @@
 package com.innovii.parkna.auth;
 
-/** Who someone is to ParkNa. Phone roles sign in with an SMS code; staff roles with a username and password. */
+/** Who someone is to SUNU Park. Phone roles sign in with an SMS code; staff roles with a username and password. */
 public enum Role {
     /** Pays for parking, manages their plates. */
     DRIVER(false),
@@ -14,6 +14,8 @@ public enum Role {
     SUPERVISOR(true),
     /** Payments: matches bank transfers, handles exceptions. */
     FINANCE(true),
+    /** Police: follows up drivers with unpaid warnings and fines, and a plate's record of offences. Changes nothing. */
+    POLICE(true),
     /** Banjul City Council: sees everything, changes nothing. */
     COUNCIL(true);
 

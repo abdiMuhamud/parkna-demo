@@ -84,6 +84,21 @@ function story(){
   /* warnings: issue, repeat, paid plate, no plate, not on shift; the driver pays within 24 hours */
   A({ type: "driver.addPlate", num: "7045678", plate: "BJL4040" });
   for(const t of ["W BJL9191", "W BJL7777", "W BJL7001", "W", "W 12", "W BJL6006", "BJL6006", "W BJL2211", "w bjl2211", "WARN BJL4040", "BJL2211"]) A({ type: "sms", num: "7300007", text: t });
+  /* a warning on one of the phone's plates is settled before paying for another plate */
+  A({ type: "sms", num: "3034567", text: "BJL5678" });
+  A({ type: "sms", num: "3034567", text: "M BJL5678" });
+  A({ type: "sms", num: "3034567", text: "M" });
+  A({ type: "driver.pay", num: "3034567", plate: "BJL5678", prov: "Wave" });
+  A({ type: "driver.pay", num: "3034567", plate: "BJL5678", kind: "monthly", prov: "Wave" });
+  A({ type: "driver.pay", num: "7023456", plate: "BJL2211", prov: "QMoney" });
+  A({ type: "terms.accept", num: "3034567", v: "2026-10" });
+  A({ type: "terms.accept", num: "3034567", v: " " });
+  A({ type: "terms.accept", num: "7300007", v: "x".repeat(30) });
+  A({ type: "terms.accept", num: "7123456", v: "2026-10" });
+  A({ type: "sms", num: "7012345", text: "terms" });
+  A({ type: "sms", num: "7099999", text: "T&C" });
+  A({ type: "terms.notify", v: "" });
+  A({ type: "terms.notify", v: "2" });
   A({ type: "sms", num: "7300012", text: "W BJL5678" });
   A({ type: "sms", num: "3034567", text: "BJL2211" });
   A({ type: "sms", num: "3034567", text: "M BJL2211" });
@@ -231,7 +246,7 @@ function randomRun(n){
   const officerNum = () => pick(Object.keys(S().OFF));
   const orgId = () => chance(0.95) ? pick(Object.keys(S().ORGA)) : "ORG-999";
   const invOf = id => { const o = S().ORGA[id]; return o && o.invoices.length ? pick(o.invoices).no : "INV-NONE"; };
-  const smsText = () => pick([plate(), plate(), String(int(0, 5)), String(int(0, 5)), "START", "END", "HELP", "INFO", "M", "M " + plate(), "m " + pick(PLATES), "hello", "  ", "12", "stop"]);
+  const smsText = () => pick([plate(), plate(), String(int(0, 5)), String(int(0, 5)), "START", "END", "HELP", "INFO", "M", "M " + plate(), "m " + pick(PLATES), "hello", "  ", "12", "stop", "TERMS"]);
   const acts = [
     [8, () => ({ type: "sms", num: driverNum(), text: smsText() })],
     [8, () => ({ type: "sms", num: officerNum(), text: pick(["START", "END", plate(), plate(), plate(), "x", "9", "W " + plate(), "W " + pick(PLATES)]) })],
@@ -264,6 +279,8 @@ function randomRun(n){
     [1, () => ({ type: "clock.add", min: pick([-60, 60, 30, -600, 900]) })],
     [2.5, () => ({ type: "clock.nextDay" })],
     [0.5, () => ({ type: "clock.run", on: chance(0.7) })],
+    [0.5, () => ({ type: "terms.accept", num: chance(0.8) ? driverNum() : officerNum(), v: pick(["2026-10", "", "1.2 ", "y".repeat(25)]) })],
+    [0.1, () => ({ type: "terms.notify", v: pick(["3", ""]) })],
     [0.1, () => ({ type: "demo.reset" })],
   ];
   const total = acts.reduce((s, a) => s + a[0], 0);

@@ -1,4 +1,4 @@
-/* ParkNa Officer: the parking attendant's app. Start and end the shift, check plates, see today's work.
+/* SUNU Park Officer: the parking attendant's app. Start and end the shift, check plates, see today's work.
    Signs in with a one-time SMS code on the number registered in the back office. Every action is the same
    as the SMS line (START, a plate, END to the short code), so the SMS line keeps working on phones without data. */
 (function(){
@@ -14,6 +14,7 @@ var SI = UI.SignIn({
   demo: function(){ return OFFSEED.filter(function(o){ return !o.bg; }).map(function(o){ return { num: o.num, name: o.name, note: "Attendant " + o.id }; }); },
   render: render, onDone: function(){ start(); }
 });
+var TG = UI.Terms({ render: render });
 
 /* ---------- helpers ---------- */
 function me(){ return PN.me && OFF[PN.me.num]; }
@@ -35,10 +36,13 @@ function warnedToday(o){ var d = dkey(B.date); return (typeof FINES !== "undefin
 function render(){
   var h;
   if(!PN.server) h = setupView();
-  else if(!PN.signedIn()) h = SI.view();
+  else if(!PN.signedIn()) h = TG.needLocal() ? TG.view(false) : SI.view();
   else if(!PN.ready || !PN.me || !me()) h = loadingView();
+  else if(TG.needAccount(NUMS[PN.me.num])) h = TG.autoAccept() ? loadingView() : TG.view(true);
   else h = mainView();
   paint(h);
+  TG.check();
+  if(V.booted && (!PN.signedIn() || PN.ready || V.slow)) UI.splashDone();
 }
 /* updates only what changed (UI.morph): the field being typed in and the keyboard stay, sheets do not animate again */
 function paint(h){
@@ -48,15 +52,15 @@ function paint(h){
 }
 function loadingView(){
   var off = PN.ready && PN.me && !me();
-  if(off) return '<div class="center">'+UI.crest()+'<h2 style="font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.02em">Account switched off</h2><p>This number is no longer an active ParkNa attendant. Ask your supervisor.</p><button class="btn ghost" style="max-width:260px" data-a="signout">Sign out</button></div>';
-  return '<div class="center">'+UI.crest()+'<div class="spin"></div><p>'+(V.slow ? "Can’t reach ParkNa yet. Check your internet connection. The SMS line still works: text START to " + shortcode() + "." : "Loading your shift…")+'</p>'
+  if(off) return '<div class="center">'+UI.crest()+'<h2 style="font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.02em">Account switched off</h2><p>This number is no longer an active SUNU Park attendant. Ask your supervisor.</p><button class="btn ghost" style="max-width:260px" data-a="signout">Sign out</button></div>';
+  return '<div class="center">'+UI.crest()+'<div class="spin"></div><p>'+(V.slow ? "Can’t reach SUNU Park yet. Check your internet connection. The SMS line still works: text START to " + shortcode() + "." : "Loading your shift…")+'</p>'
     + (V.slow ? '<button class="btn ghost" style="max-width:260px" data-a="signout">Sign out</button>' : "") + '</div>';
 }
 function setupView(){
   var S = V.setup;
   return '<div class="auth"><div class="ahead">'+UI.crest()+UI.bname()+'</div><div class="aform">'
-    + '<div class="atitle"><span class="i">'+ic("wifi", 22, 2)+'</span><div><div class="eyebrow">FIRST START</div><h1>Connect to ParkNa</h1></div></div>'
-    + '<p class="alead">Enter the ParkNa server address your supervisor gave you, for example <b>https://parkna.gm</b>.</p>'
+    + '<div class="atitle"><span class="i">'+ic("wifi", 22, 2)+'</span><div><div class="eyebrow">FIRST START</div><h1>Connect to SUNU Park</h1></div></div>'
+    + '<p class="alead">Enter the SUNU Park server address your supervisor gave you, for example <b>https://parkna.gm</b>.</p>'
     + '<label class="fld">Server address<div class="box solo"><input id="srv" inputmode="url" autocapitalize="off" placeholder="https://parkna.gm" value="'+esc(S.url)+'"></div></label>'
     + (S.err ? '<div class="err">'+esc(S.err)+'</div>' : "")
     + '<button class="btn" data-a="connect"'+(S.busy ? " disabled" : "")+'>'+(S.busy ? "Connecting…" : "Connect")+'<span class="ar">'+ic("arrow", 20, 2.3)+'</span></button>'
@@ -166,9 +170,10 @@ function profileView(){
     + kv("doc", "Staff number", esc(o.staff))+kv("user", "Supervisor", esc(o.super || "—"))+'</div></div>'
     + '<div class="card tight"><div class="menu">'
     + '<button data-a="help"><span class="mi">'+ic("help", 20, 2)+'</span><span>How checks work<small>Paid, not paid, organisation plates</small></span>'+ic("chevR", 18, 2)+'</button>'
+    + '<a href="'+esc(PN.server + "/terms.html")+'" target="_blank" rel="noopener"><span class="mi">'+ic("doc", 20, 2)+'</span><span>Terms &amp; conditions</span>'+ic("chevR", 18, 2)+'</a>'
     + '<a href="'+esc(PN.server + "/privacy.html")+'" target="_blank" rel="noopener"><span class="mi">'+ic("lock", 20, 2)+'</span><span>Privacy</span>'+ic("chevR", 18, 2)+'</a>'
     + '<button data-a="signout"><span class="mi">'+ic("out", 20, 2)+'</span><span class="red">Sign out</span>'+ic("chevR", 18, 2)+'</button></div></div>'
-    + '<div class="foot"><img src="assets/img/innovii-navy.png" alt="INNOVII">ParkNa Officer v'+VERSION+'</div></div>';
+    + '<div class="foot"><img src="assets/img/innovii-navy.png" alt="INNOVII">SUNU Park Officer v'+VERSION+'</div></div>';
 }
 
 /* ---------- sheets ---------- */
@@ -191,24 +196,37 @@ function checkSheet(){
   h += '<button class="btn" data-a="docheck"'+(C.busy || !normPlate(C.plate) ? " disabled" : "")+'>'+(C.busy ? "Checking…" : ic("scan", 20, 2.2)+"Check")+'</button>';
   return h;
 }
+/* the plate's record in the answer ("Record: 2 earlier warnings", "First-time offender."), shown as a badge */
+function offender(lines){
+  var b = "";
+  lines = lines.map(function(l){
+    var m = /^Record: (no earlier warnings|(\d+) earlier warnings?)[^.]*\.\s*/.exec(l) || /^(First-time offender|Repeat offender: (\d+)\w\w warning for this plate)\.\s*/.exec(l);
+    if(!m) return l;
+    var first = /no earlier|First-time/.test(m[1]), n = m[2] ? +m[2] : 0;
+    b = first ? '<span class="offb first">'+ic("check", 15, 2.8)+'First-time offender</span>'
+              : '<span class="offb rep">'+ic("info", 15, 2.4)+'Repeat offender · '+(/Record/.test(l) ? n+" earlier warning"+(n > 1 ? "s" : "") : nth(n)+" warning")+'</span>';
+    return l.slice(m[0].length);
+  }).filter(Boolean);
+  return { badge: b, lines: lines };
+}
 /* the answer is the same text the SMS line sends: "BJL1234: PAID. Daily pass till 7pm." */
 function result(txt){
   var w = /^([A-Z0-9]+): WARNING (W-\d+) issued at ([0-9:]+)\.\s*([\s\S]*)$/.exec(txt);
   if(w) return '<div class="res unpaid"><div class="rt"><span class="plate">'+plateTxt(w[1])+'</span>'+ic("info", 30, 2.6)+'</div><h2>WARNING</h2>'
     + '<p><b>'+w[2]+'</b> issued at '+w[3]+'. The driver pays '+gmd(T.daily)+' GMD within 24 hours, or '+gmd(T.daily + T.fine)+' GMD with the fine.</p>'
-    + w[4].split("\n").filter(Boolean).map(function(l){ return '<p>'+esc(l)+'</p>'; }).join("")+'</div>';
+    + (function(){ var x = offender(w[4].split("\n").filter(Boolean)); return x.badge + x.lines.map(function(l){ return '<p>'+esc(l)+'</p>'; }).join(""); })()+'</div>';
   var m = /^([A-Z0-9]+): (PAID|UNPAID)\.\s*([\s\S]*)$/.exec(txt);
   if(!m) return '<div class="note">'+ic("info", 18, 2)+'<span>'+esc(txt)+'</span></div>';
   var paid = m[2] === "PAID", org = paid && /Organisation/.test(m[3]);
-  var lines = m[3].split("\n").filter(Boolean);
+  var x = offender(m[3].split("\n").filter(Boolean)), lines = x.lines;
   return '<div class="res '+(paid ? (org ? "org" : "paid") : "unpaid")+'"><div class="rt"><span class="plate">'+plateTxt(m[1])+'</span>'+ic(paid ? "check" : "x", 30, 3)+'</div>'
     + '<h2>'+(paid ? (org ? "PAID · Organisation" : "PAID") : "NOT PAID")+'</h2>'
-    + lines.map(function(l){ return '<p>'+esc(l)+'</p>'; }).join("")+'</div>';
+    + lines.map(function(l){ return '<p>'+esc(l)+'</p>'; }).join("")+x.badge+'</div>';
 }
 function helpSheet(){
   return head("How checks work") + '<div class="rows">'
     + [["play", "Start your shift", "Tap Start shift when you arrive on your road. Checks only count during your shift."],
-       ["scan", "Check each car", "Tap the yellow Check button and enter the plate. ParkNa answers PAID or NOT PAID at once."],
+       ["scan", "Check each car", "Tap the yellow Check button and enter the plate. SUNU Park answers PAID or NOT PAID at once."],
        ["x", "Not paid?", "If the driver is there, show the Park & Pay card. If not, tap Issue warning and leave a card on the windscreen. Never take money."],
        ["info", "Warnings", "The driver gets an SMS: pay the "+gmd(T.daily)+" GMD daily fee within 24 hours, or "+gmd(T.daily + T.fine)+" GMD with the "+gmd(T.fine)+" GMD fine. One warning per car per day. By SMS: text W and the plate."],
        ["shield", "Organisation plates", "Company cars are covered by their organisation. Nothing to do."],
@@ -254,6 +272,8 @@ function doCheck(){
   });
 }
 APP.addEventListener("click", function(e){
+  var tg = e.target.closest("[data-tg]");
+  if(tg && TG.click(tg.dataset.tg, PN.signedIn() ? function(v){ return PN.act({ type: "terms.accept", v: v }); } : null)) return;
   var si = e.target.closest("[data-si]");
   if(si && SI.click(si.dataset.si, si.dataset.v)) return;
   var t = e.target.closest("[data-a]"); if(!t) return;
@@ -271,20 +291,22 @@ APP.addEventListener("click", function(e){
     case "warn": return warn(v);
     case "start": return shift("START");
     case "end": if(!confirm("End your shift now?")) return; return shift("END");
-    case "signout": if(!confirm("Sign out of ParkNa Officer on this phone?")) return; return PN.logout();
+    case "signout": if(!confirm("Sign out of SUNU Park Officer on this phone?")) return; return PN.logout();
     case "connect": {
       var S = V.setup; S.url = (document.getElementById("srv") || {}).value || S.url; S.busy = true; S.err = ""; render();
-      PN.ping(S.url).then(function(info){ S.busy = false; if(!info){ S.err = "No ParkNa server at that address."; return render(); } PN.setServer(info.url); boot(); });
+      PN.ping(S.url).then(function(info){ S.busy = false; if(!info){ S.err = "No SUNU Park server at that address."; return render(); } PN.setServer(info.url); boot(); });
       return;
     }
   }
 });
 APP.addEventListener("input", function(e){
   var t = e.target;
+  if(TG.input(t)) return;
   if(SI.input(t)) return;
   if(t.id === "chkPlate"){ V.check.plate = t.value.toUpperCase(); var b = APP.querySelector('[data-a="docheck"]'); if(b) b.disabled = !normPlate(V.check.plate) || V.check.busy; }
   else if(t.id === "srv") V.setup.url = t.value;
 });
+APP.addEventListener("scroll", function(e){ TG.scroll(e.target); }, true);
 APP.addEventListener("keydown", function(e){
   if(e.key !== "Enter") return;
   var t = e.target;
@@ -300,9 +322,10 @@ function start(){
   clearTimeout(start.t); start.t = setTimeout(function(){ if(!PN.ready){ V.slow = true; render(); } }, 8000);
   PN.connect(function(){ if(!V.check.busy) render(); }, function(){ render(); });
 }
+/* the launch screen stays until the server has answered (or the phone has no server yet) */
 function boot(){
-  if(!PN.server) return render();
-  PN.ping().then(function(){ if(PN.signedIn()) start(); else render(); });
+  if(!PN.server){ V.booted = true; return render(); }
+  PN.ping().then(function(){ V.booted = true; if(PN.signedIn()) start(); else render(); });
   render();
 }
 boot();

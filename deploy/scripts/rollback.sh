@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ParkNa rollback: goes back to the version deployed before the current one (from /home/sdf/parkna/deploy-history).
+# SUNU Park rollback: goes back to the version deployed before the current one (from /home/sdf/parkna/deploy-history).
 # Run as root, with the same variables you give deploy.sh (TOMCAT, HEALTH_URL, TOMCAT_STOP, TOMCAT_START).
 # The database is NOT rolled back: if the new version changed it, restore the pre-deploy dump from /backup/parkna
 # first (docs/DEPLOYMENT.md, section 10).

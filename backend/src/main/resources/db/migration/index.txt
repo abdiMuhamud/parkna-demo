@@ -2,3 +2,4 @@ V1__initial_schema.sql
 V2__announcements.sql
 V3__sign_in.sql
 V4__fines_and_annual_fleet.sql
+V5__sunu_park_terms_and_tariff.sql

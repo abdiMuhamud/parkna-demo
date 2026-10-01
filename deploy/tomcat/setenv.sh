@@ -1,4 +1,4 @@
-# ParkNa: Tomcat startup options, in ParkNa's Tomcat bin/setenv.sh (deploy.sh installs it if missing and keeps the
+# SUNU Park: Tomcat startup options, in SUNU Park's Tomcat bin/setenv.sh (deploy.sh installs it if missing and keeps the
 # config folder line up to date).
 # Tomcat reads this file on every start.
 

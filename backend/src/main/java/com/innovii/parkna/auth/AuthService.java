@@ -114,7 +114,7 @@ public final class AuthService {
                 OutMessage m = new OutMessage();
                 m.num = num;
                 m.tag = "Code";
-                m.text = "ParkNa code: " + code + ". It expires in " + cfg.auth.otpMinutes() + " minutes. Never share it with anyone.";
+                m.text = "SUNU Park code: " + code + ". It expires in " + cfg.auth.otpMinutes() + " minutes. Never share it with anyone.";
                 sms.send(m);
                 log.info("Sign-in code sent to +220 {} ({})", num, role.name().toLowerCase());
             }

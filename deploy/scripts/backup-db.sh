@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Nightly ParkNa database backup to /backup (SI/QA manual 1.5.5). Credentials come from /root/.my.cnf.
+# Nightly SUNU Park database backup to /backup (SI/QA manual 1.5.5). Credentials come from /root/.my.cnf.
 # Copy it once:  install -m 750 deploy/scripts/backup-db.sh /home/sdf/parkna/backup-db.sh
 # crontab -e (as root):   0 2 * * *  /home/sdf/parkna/backup-db.sh >> /backup/parkna/backup.log 2>&1
 set -euo pipefail

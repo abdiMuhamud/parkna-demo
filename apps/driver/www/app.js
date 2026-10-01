@@ -1,4 +1,4 @@
-/* ParkNa driver app: pay for street parking in Banjul, keep receipts, get Council news.
+/* SUNU Park driver app: pay for street parking in Banjul, keep receipts, get Council news.
    Signs in with a one-time SMS code; the server sends this driver their own data only. */
 (function(){
 var APP = document.getElementById("app");
@@ -18,11 +18,13 @@ var SI = UI.SignIn({
   demo: function(){ return PERSONAS.map(function(p){ return { num: p.num, name: p.name, note: p.note }; }); },
   render: render, onDone: function(){ start(); }
 });
+var TG = UI.Terms({ render: render });
 
 /* ---------- helpers ---------- */
 function me(){ return PN.me && NUMS[PN.me.num]; }
 function payOn(){ return !!(PN.mode && PN.mode.payments); }
-function focusPlate(u){ return V.focus && u.plates.indexOf(V.focus) >= 0 ? V.focus : (u.last && u.plates.indexOf(u.last) >= 0 ? u.last : u.plates[0]); }
+/* the plate on the home screen: the one picked, else one with an unpaid warning (settled first), else the last used */
+function focusPlate(u){ return V.focus && u.plates.indexOf(V.focus) >= 0 ? V.focus : (u.plates.filter(function(x){ return warnings(x).length; })[0] || (u.last && u.plates.indexOf(u.last) >= 0 ? u.last : u.plates[0])); }
 function fromKey(k){ var p = k.split("-").map(Number); return new Date(p[0], p[1], p[2]); }
 function dayLabel(d){ var n = daysBetween(d, B.date); return n === 0 ? "Today" : n === 1 ? "Yesterday" : DOW[d.getDay()] + " " + fmtD(d); }
 function plateTxt(p){ return p.replace(/^([A-Z]+)(\d)/, "$1 $2"); }
@@ -40,13 +42,16 @@ function logo(n){ return '<img src="assets/img/art/pay-'+LOGO[n]+'.webp" alt="'+
 function render(){
   var h;
   if(!PN.server) h = setupView();
-  else if(!PN.signedIn()) h = SI.view();
+  else if(!PN.signedIn()) h = SI.state.step !== "onb" && TG.needLocal() ? TG.view(false) : SI.view();
   else if(SI.state.step === "name") h = SI.view();
   else if(!PN.ready || !PN.me) h = loadingView();
   else if(PN.me.needName){ SI.askName(); h = SI.view(); }
   else if(!me()) h = loadingView();
+  else if(TG.needAccount(me())) h = TG.autoAccept() ? loadingView() : TG.view(true);
   else h = mainView();
   paint(h);
+  TG.check();
+  if(V.booted && (!PN.signedIn() || PN.ready || V.slow)) UI.splashDone();
 }
 /* updates only what changed (UI.morph): the field being typed in and the keyboard stay, sheets do not animate again */
 function paint(h){
@@ -55,14 +60,14 @@ function paint(h){
   if(id && document.activeElement !== a){ var n = document.getElementById(id); if(n && n !== document.activeElement) n.focus(); }
 }
 function loadingView(){
-  return '<div class="center">'+UI.crest()+'<div class="spin"></div><p>'+(V.slow ? "Can’t reach ParkNa yet. Check your internet connection." : "Loading your account…")+'</p>'
+  return '<div class="center">'+UI.crest()+'<div class="spin"></div><p>'+(V.slow ? "Can’t reach SUNU Park yet. Check your internet connection." : "Loading your account…")+'</p>'
     + (V.slow ? '<button class="btn ghost" style="max-width:260px" data-a="signout">Sign out</button>' : "") + '</div>';
 }
 function setupView(){
   var S = V.setup;
   return '<div class="auth"><div class="ahead">'+UI.crest()+UI.bname()+'</div><div class="aform">'
-    + '<div class="atitle"><span class="i">'+ic("wifi", 22, 2)+'</span><div><div class="eyebrow">FIRST START</div><h1>Connect to ParkNa</h1></div></div>'
-    + '<p class="alead">Enter the ParkNa server address, for example <b>https://parkna.gm</b>.</p>'
+    + '<div class="atitle"><span class="i">'+ic("wifi", 22, 2)+'</span><div><div class="eyebrow">FIRST START</div><h1>Connect to SUNU Park</h1></div></div>'
+    + '<p class="alead">Enter the SUNU Park server address, for example <b>https://parkna.gm</b>.</p>'
     + '<label class="fld">Server address<div class="box solo"><input id="srv" inputmode="url" autocapitalize="off" placeholder="https://parkna.gm" value="'+esc(S.url)+'"></div></label>'
     + (S.err ? '<div class="err">'+esc(S.err)+'</div>' : "")
     + '<button class="btn" data-a="connect"'+(S.busy ? " disabled" : "")+'>'+(S.busy ? "Connecting…" : "Connect")+'<span class="ar">'+ic("arrow", 20, 2.3)+'</span></button>'
@@ -183,7 +188,7 @@ function activityView(){
   if(V.act === "check"){
     var cs = feed(u).filter(function(e){ return e.k === "check"; }), unp = cs.filter(function(e){ return e.c.st === "UNPAID"; }).length;
     h += '<div class="two"><div class="stat"><small>Checks</small><b>'+cs.length+'</b></div><div class="stat"><small>Not paid'+(unp ? '<i class="down">'+Math.round(unp*100/Math.max(1, cs.length))+'%</i>' : "")+'</small><b>'+unp+'</b></div></div>'
-      + '<div class="note">'+ic("info", 18, 2)+'<span>Attendants check plates in ParkNa bays during paid hours. A car checked unpaid gets a warning: pay the daily fee within 24 hours, or it is charged with the fine.</span></div>'
+      + '<div class="note">'+ic("info", 18, 2)+'<span>Attendants check plates in SUNU Park bays during paid hours. A car checked unpaid gets a warning: pay the daily fee within 24 hours, or it is charged with the fine.</span></div>'
       + '<div class="card tight">'+(cs.length ? '<div class="rows">'+grouped(cs)+'</div>' : '<div class="empty">No checks on your plates yet.</div>')+'</div>';
     return h + '</div>';
   }
@@ -193,7 +198,7 @@ function activityView(){
     + '<span class="cb">'+ic("up", 22, 2.2)+'</span></div>'
     + '<div class="rng" style="margin-top:16px">'+["D","W","M","Y"].map(function(k){ return '<button class="'+(V.range === k ? "on" : "")+'" data-a="range" data-v="'+k+'">'+k+'</button>'; }).join("")+'</div>'
     + ch.html + '</div>'
-    + '<div class="tip"><span class="ti">'+ic("cal", 24, 2)+'</span><span><b>Save 15% with a monthly pass</b><small>'+gmd(T.monthly)+' GMD for 30 days, any ParkNa bay.</small></span><button class="go" data-a="monthly">Get pass</button></div>'
+    + '<div class="tip"><span class="ti">'+ic("cal", 24, 2)+'</span><span><b>Pay 5 days, park 6 with a monthly pass</b><small>'+gmd(T.monthly)+' GMD for 30 days, any SUNU Park bay.</small></span><button class="go" data-a="monthly">Get pass</button></div>'
     + '<div class="two"><div class="stat"><small>Daily passes</small><b>'+ch.daily+'</b></div><div class="stat"><small>Monthly passes</small><b>'+ch.monthly+'</b></div></div>'
     + '<div class="sh"><h2>Receipts</h2><span></span></div>'
     + '<div class="card tight">'+(pays.length ? '<div class="rows">'+grouped(pays)+'</div>' : '<div class="empty">No payments yet. Every receipt also arrives by SMS.</div>')+'</div>';
@@ -252,13 +257,14 @@ function profileView(){
   return '<div class="scr">'+topbar("Profile", '<button class="cb" data-a="tab" data-v="home" aria-label="Back">'+ic("back", 22, 2.2)+'</button>')
     + '<div class="prof"><span class="av">'+esc(UI.initials(u.name))+'</span><b>'+esc(u.name)+'</b><small>'+UI.phone(u.num)+' · '+u.plates.length+' plate'+(u.plates.length === 1 ? "" : "s")+'</small></div>'
     + '<div class="card tight"><div class="menu">'
-    + item("sheet", "inbox", "sms", "Messages from ParkNa", n ? n + " new" : "Receipts, reminders and news")
+    + item("sheet", "inbox", "sms", "Messages from SUNU Park", n ? n + " new" : "Receipts, reminders and news")
     + item("sheet", "news", "mega", "Council announcements", "Events and notices from Banjul City Council")
-    + item("sheet", "help", "help", "How ParkNa works", "Paid hours, prices, passes")
-    + '<a href="'+esc(privacy)+'" target="_blank" rel="noopener"><span class="mi">'+ic("lock", 20, 2)+'</span><span>Privacy<small>How ParkNa uses your number and data</small></span>'+ic("chevR", 18, 2)+'</a>'
+    + item("sheet", "help", "help", "How SUNU Park works", "Paid hours, prices, passes")
+    + '<a href="'+esc(PN.server + "/terms.html")+'" target="_blank" rel="noopener"><span class="mi">'+ic("doc", 20, 2)+'</span><span>Terms &amp; conditions<small>Version '+esc((u.terms && u.terms.v) || "—")+' accepted'+(u.terms && u.terms.day ? " on " + fmtD(fromKey(u.terms.day)) : "")+'</small></span>'+ic("chevR", 18, 2)+'</a>'
+    + '<a href="'+esc(privacy)+'" target="_blank" rel="noopener"><span class="mi">'+ic("lock", 20, 2)+'</span><span>Privacy<small>How SUNU Park uses your number and data</small></span>'+ic("chevR", 18, 2)+'</a>'
     + '</div></div>'
     + '<div class="card tight"><div class="menu">'+item("signout", null, "out", "Sign out", "", "red")+'</div></div>'
-    + '<div class="foot"><img src="assets/img/innovii-navy.png" alt="INNOVII">ParkNa v'+VERSION+' · Banjul City Council'+(PN.mode && PN.mode.demo ? " · demo" : "")+'</div></div>';
+    + '<div class="foot"><img src="assets/img/innovii-navy.png" alt="INNOVII">SUNU Park v'+VERSION+' · Banjul City Council'+(PN.mode && PN.mode.demo ? " · demo" : "")+'</div></div>';
 }
 
 /* ---------- sheets ---------- */
@@ -279,6 +285,13 @@ function paySheet(){
       return '<b>Warning '+f.id+'.</b> '+f.line+'. '+(f.late ? "Paid after 24 hours: "+gmd(f.base)+" GMD with the "+gmd(f.fine)+" GMD fine." : "Pay "+gmd(f.base)+" GMD by "+f.due+". After that it is "+gmd(f.base + f.fine)+" GMD with the fine.");
     }).join("<br>")+'</span></div>';
   }
+  /* another of my plates has an unpaid warning: it is settled before any new pass */
+  var firstP = !fine && plateOk ? ((st && st.plate === normPlate(S.plate) && st.first) || u.plates.filter(function(x){ return x !== normPlate(S.plate) && warnings(x).length; })[0]) : null;
+  if(firstP){
+    blocked = true;
+    note = '<div class="note" style="background:var(--badbg);color:#7A1F18">'+ic("info", 18, 2)+'<span><b>Settle your warning first.</b> '+plateTxt(firstP)+' has an unpaid warning ('+gmd(owedOn(firstP) || (st && st.firstOwed) || 0)+' GMD). Unpaid warnings and fines are paid before any new daily or monthly pass.</span></div>'
+      + '<button class="btn danger" data-a="payfill" data-v="'+firstP+'">'+ic("info", 20, 2.2)+'Pay the warning on '+plateTxt(firstP)+'</button>';
+  }
   else if(st && st.plate === normPlate(S.plate)){
     if(st.err) { note = '<div class="err">'+esc(st.err)+'</div>'; blocked = true; }
     else if(st.st === "ORG"){ note = '<div class="note">'+ic("shield", 18, 2)+'<span>'+plateTxt(st.plate)+' is covered by <b>'+esc(st.org)+'</b>. Nothing to pay.</span></div>'; blocked = true; }
@@ -297,7 +310,7 @@ function paySheet(){
     + '<button class="btn" data-a="dopay"'+(!on || S.busy || !plateOk || blocked ? " disabled" : "")+'>'
     + (!on ? "Payments open soon" : S.busy ? "Paying…" : "Pay "+gmd(amount)+" GMD with "+prov)+'</button>'
     + (fine ? '<p style="font-size:12.5px;color:var(--mute);text-align:center">Pay the warning first. A warning from today also makes the car PAID until 7:00 pm.</p>'
-       : S.kind === "daily" ? '<p style="font-size:12.5px;color:var(--mute);text-align:center">Valid until 7:00 pm today in any marked ParkNa bay.</p>' : '<p style="font-size:12.5px;color:var(--mute);text-align:center">30 days in any marked ParkNa bay. We remind you 3 days before it ends.</p>');
+       : S.kind === "daily" ? '<p style="font-size:12.5px;color:var(--mute);text-align:center">Valid until 7:00 pm today in any marked SUNU Park bay.</p>' : '<p style="font-size:12.5px;color:var(--mute);text-align:center">30 days in any marked SUNU Park bay. We remind you 3 days before it ends.</p>');
 }
 function platesSheet(){
   var u = me(), p = focusPlate(u);
@@ -324,15 +337,15 @@ function newsSheet(){
   return head("From the Council") + (list.length ? list.map(function(x){ return promo(x).replace('class="promo', 'style="flex-basis:auto" class="promo'); }).join("") : '<div class="empty">No announcements right now.</div>');
 }
 function helpSheet(){
-  return head("How ParkNa works") + '<div class="rows">'
+  return head("How SUNU Park works") + '<div class="rows">'
     + [["clock", "Paid hours", "7am to 7pm, Monday to Saturday. Sundays and evenings are free."],
-       ["pay", "Daily pass", gmd(T.daily) + " GMD, valid until 7pm the same day in any marked ParkNa bay."],
-       ["cal", "Monthly pass", gmd(T.monthly) + " GMD for 30 days (26 paid days less 15%). Renew up to 3 days before it ends, with no gap."],
+       ["pay", "Daily pass", gmd(T.daily) + " GMD, valid until 7pm the same day in any marked SUNU Park bay."],
+       ["cal", "Monthly pass", gmd(T.monthly) + " GMD for 30 days: 20 paid days, so you pay for 5 days a week instead of 6. Renew up to 3 days before it ends, with no gap."],
        ["car", "The pass follows the plate", "Pay for your own car or anyone else’s. Attendants check the plate, not the phone."],
        ["shield", "Attendants", "Attendants check plates and never take cash. They leave a Park & Pay card on a car that is not paid."],
        ["info", "Warnings", "An unpaid car gets a warning by SMS and in the app. Pay the " + gmd(T.daily) + " GMD daily fee within 24 hours; after that it is " + gmd(T.daily + T.fine) + " GMD with the " + gmd(T.fine) + " GMD fine. A warning is paid before any new pass."],
        ["sms", "No data?", "Text your plate to " + ((PN.mode && PN.mode.shortcode) || SC) + " to check it, the same pass and price."]]
-      .concat(PN.mode && (PN.mode.supportPhone || PN.mode.supportEmail) ? [["help", "Need help?", "ParkNa support: " + [PN.mode.supportPhone, PN.mode.supportEmail].filter(Boolean).join(" · ")]] : []).map(function(r){
+      .concat(PN.mode && (PN.mode.supportPhone || PN.mode.supportEmail) ? [["help", "Need help?", "SUNU Park support: " + [PN.mode.supportPhone, PN.mode.supportEmail].filter(Boolean).join(" · ")]] : []).map(function(r){
         return '<div class="row" style="align-items:flex-start"><span class="av">'+ic(r[0], 20, 2)+'</span><span class="t"><b>'+r[1]+'</b><small style="line-height:1.5">'+esc(r[2])+'</small></span><span></span></div>'; }).join("")+'</div>';
 }
 function doneView(){
@@ -377,6 +390,8 @@ function doPay(){
   });
 }
 APP.addEventListener("click", function(e){
+  var tg = e.target.closest("[data-tg]");
+  if(tg && TG.click(tg.dataset.tg, PN.signedIn() ? function(v){ return PN.act({ type: "terms.accept", v: v }); } : null)) return;
   var si = e.target.closest("[data-si]");
   if(si && SI.click(si.dataset.si, si.dataset.v)) return;
   var t = e.target.closest("[data-a]"); if(!t) return;
@@ -402,16 +417,17 @@ APP.addEventListener("click", function(e){
     case "actseg": V.act = v; return render();
     case "range": V.range = v; return render();
     case "donex": V.done = null; V.tab = "home"; return render();
-    case "signout": if(!confirm("Sign out of ParkNa on this phone?")) return; return PN.logout();
+    case "signout": if(!confirm("Sign out of SUNU Park on this phone?")) return; return PN.logout();
     case "connect": {
       var S = V.setup; S.url = (document.getElementById("srv") || {}).value || S.url; S.busy = true; S.err = ""; render();
-      PN.ping(S.url).then(function(info){ S.busy = false; if(!info){ S.err = "No ParkNa server at that address. Check it and your internet connection."; return render(); } PN.setServer(info.url); boot(); });
+      PN.ping(S.url).then(function(info){ S.busy = false; if(!info){ S.err = "No SUNU Park server at that address. Check it and your internet connection."; return render(); } PN.setServer(info.url); boot(); });
       return;
     }
   }
 });
 APP.addEventListener("input", function(e){
   var t = e.target;
+  if(TG.input(t)) return;
   if(SI.input(t)) return;
   if(t.id === "payPlate"){ V.pay.plate = t.value.toUpperCase(); V.pay.err = ""; status(); render(); }
   else if(t.id === "addPlate"){ V.add.plate = t.value.toUpperCase(); V.add.err = ""; }
@@ -426,6 +442,7 @@ APP.addEventListener("keydown", function(e){
 });
 APP.addEventListener("scroll", function(e){
   var el = e.target;
+  if(TG.scroll(el)) return;
   if(!el.classList || !el.classList.contains("promos")) return;
   V.annX = el.scrollLeft;
   var i = Math.round(el.scrollLeft / (el.firstChild ? el.firstChild.offsetWidth + 12 : 1));
@@ -439,9 +456,10 @@ function start(){
   clearTimeout(start.t); start.t = setTimeout(function(){ if(!PN.ready){ V.slow = true; render(); } }, 8000);
   PN.connect(function(){ render(); }, function(){ render(); });
 }
+/* the launch screen stays until the server has answered (or the phone has no server yet) */
 function boot(){
-  if(!PN.server) return render();
-  PN.ping().then(function(){ if(PN.signedIn()) start(); else render(); });
+  if(!PN.server){ V.booted = true; return render(); }
+  PN.ping().then(function(){ V.booted = true; if(PN.signedIn()) start(); else render(); });
   render();
 }
 boot();

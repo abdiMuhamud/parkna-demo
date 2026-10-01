@@ -1,11 +1,11 @@
-# Publishing ParkNa on Google Play
+# Publishing SUNU Park on Google Play
 
 Two apps, published separately:
 
 | App | Package name (permanent) | For |
 |---|---|---|
-| **ParkNa** | `com.innovii.parkna.driver` | drivers |
-| **ParkNa Officer** | `com.innovii.parkna.officer` | Banjul City Council parking attendants |
+| **SUNU Park** | `com.innovii.parkna.driver` | drivers |
+| **SUNU Park Officer** | `com.innovii.parkna.officer` | Banjul City Council parking attendants |
 
 GitHub builds both on every push. Once the steps below are done, each release on GitHub has an `.aab` per app to
 upload to Google Play (and an `.apk` of the same build for direct installs).
@@ -19,7 +19,7 @@ upload to Google Play (and an `.apk` of the same build for direct installs).
 - A **Google Play Console organisation account** for INNOVII (play.google.com/console, one-time USD 25). An organisation
   account needs a D-U-N-S number and takes a few days to verify. Personal accounts must first run a closed test with
   12 testers for 14 days before they may publish, so use the organisation account.
-- **A letter from Banjul City Council** authorising INNOVII to publish ParkNa for the Council. The apps carry the
+- **A letter from Banjul City Council** authorising INNOVII to publish SUNU Park for the Council. The apps carry the
   Council's name and crest, and Google Play asks government-related apps for this proof (App content → Government apps).
 
 ## 1. The upload key (once)
@@ -48,8 +48,8 @@ Repository **Settings → Secrets and variables → Actions**:
 | Secret | `ANDROID_KEY_PASSWORD` | the key password (the same as the keystore password if you pressed Enter at that prompt) |
 | Variable | `PARKNA_SERVER_URL` | `https://<your-domain>`, e.g. `https://parkna.gm` |
 
-Then run **Actions → Build ParkNa → Run workflow** on `main` (or push to `main`). The release it publishes holds
-`ParkNa-Driver-1.1.<build>.aab`, `ParkNa-Officer-1.1.<build>.aab` and the matching `.apk` files.
+Then run **Actions → Build SUNU Park → Run workflow** on `main` (or push to `main`). The release it publishes holds
+`SUNU-Park-Driver-1.1.<build>.aab`, `SUNU-Park-Officer-1.1.<build>.aab` and the matching `.apk` files.
 
 - The server address is built into the apps: people never type it. With `https://` the apps refuse plain HTTP.
 - Every build gets a higher version code (the build number), which Google Play needs for each upload, and a release
@@ -60,14 +60,14 @@ Then run **Actions → Build ParkNa → Run workflow** on `main` (or push to `ma
 
 ## 3. Create the two apps in Play Console
 
-For each app: **Create app** → name (`ParkNa` or `ParkNa Officer`), default language English (United Kingdom), *App*,
+For each app: **Create app** → name (`SUNU Park` or `SUNU Park Officer`), default language English (United Kingdom), *App*,
 *Free*, accept the declarations. Then **Test and release → Setup → App signing**: keep Google's app signing (the default).
 
 ## 4. Store listing
 
 **Grow users → Store presence → Main store listing**. The graphics are in this repository:
 
-| Item | ParkNa | ParkNa Officer |
+| Item | SUNU Park | SUNU Park Officer |
 |---|---|---|
 | App icon (512 × 512) | `store/driver/icon-512.png` | `store/officer/icon-512.png` |
 | Feature graphic (1024 × 500) | `store/driver/feature-graphic.png` | `store/officer/feature-graphic.png` |
@@ -77,11 +77,11 @@ For each app: **Create app** → name (`ParkNa` or `ParkNa Officer`), default la
 
 Contact details: the support email and phone from `config.properties`, website `https://<your-domain>`.
 
-**ParkNa: short description** (80 characters at most)
+**SUNU Park: short description** (80 characters at most)
 > Street parking in Banjul: check your plate, keep receipts, get Council news.
 
-**ParkNa: full description**
-> ParkNa is the street parking service of Banjul City Council.
+**SUNU Park: full description**
+> SUNU Park is the street parking service of Banjul City Council.
 >
 > • Sign in with your mobile number: we send you a code by SMS. No password to remember.
 > • Add your car's number plate, or several: the pass follows the plate, not the phone.
@@ -94,20 +94,20 @@ Contact details: the support email and phone from `config.properties`, website `
 >
 > Paying by mobile money (Wave, Afrimoney, APS, QMoney) opens soon: you will get an SMS when it does.
 >
-> No smartphone data? Text your plate to the ParkNa short code for the same service by SMS.
+> No smartphone data? Text your plate to the SUNU Park short code for the same service by SMS.
 
-**ParkNa Officer: short description**
+**SUNU Park Officer: short description**
 > For Banjul City Council parking attendants: run your shift and check plates.
 
-**ParkNa Officer: full description**
-> ParkNa Officer is the work app of Banjul City Council's parking attendants.
+**SUNU Park Officer: full description**
+> SUNU Park Officer is the work app of Banjul City Council's parking attendants.
 >
 > • Sign in with the phone number your supervisor registered, with a code sent by SMS.
 > • Start and end your shift on your road with one tap.
 > • Check a plate and see at once: PAID (daily or monthly pass, or organisation cover) or NOT PAID.
 > • See your checks for the day and messages from your supervisor.
 >
-> Only registered ParkNa attendants can sign in. Attendants never take money: drivers pay on their own phones.
+> Only registered SUNU Park attendants can sign in. Attendants never take money: drivers pay on their own phones.
 
 ## 5. App content (Policy → App content)
 
@@ -130,13 +130,13 @@ that always takes the same code and never sends an SMS:
 2. In `config.properties`: `auth.reviewNumbers=7000001:246810,7000002:135790`, then restart Tomcat. `parkna.log`
    shows a warning listing them.
 3. In the back office, register `7000002` as an attendant (name "Play Review", any road and shift).
-4. In Play Console → App access, for **ParkNa**: "Enter phone number 7000001, tap Send code, enter 246810."
-   For **ParkNa Officer**: "Enter phone number 7000002, tap Send code, enter 135790. Tap Start shift, then check plate
+4. In Play Console → App access, for **SUNU Park**: "Enter phone number 7000001, tap Send code, enter 246810."
+   For **SUNU Park Officer**: "Enter phone number 7000002, tap Send code, enter 135790. Tap Start shift, then check plate
    BJL1234. Outside 7am to 7pm Banjul time (GMT) the app answers that parking is free."
 5. When the review is approved, remove the line, restart Tomcat, and switch the "Play Review" attendant off. Put both
    back before submitting an update for review.
 
-**Data safety.** What ParkNa 1.0 collects (see the privacy policy):
+**Data safety.** What SUNU Park 1.0 collects (see the privacy policy):
 
 | Data type | Collected | Shared | Why | Optional |
 |---|---|---|---|---|

@@ -14,7 +14,7 @@ public class SmsEntry {
     public String o;
     public String tag;
     public String t;
-    /** For messages from ParkNa: the outbox number. Stored, not sent to the screens. */
+    /** For messages from SUNU Park: the outbox number. Stored, not sent to the screens. */
     @JsonIgnore public Long outId;
 
     public static SmsEntry dayHeader(String d) { SmsEntry e = new SmsEntry(); e.d = d; return e; }

@@ -1,6 +1,6 @@
-# /etc/systemd/system/tomcat.service: Tomcat 10.1 for ParkNa (SI/QA manual 2.4.2, updated for JDK 17)
+# /etc/systemd/system/tomcat.service: Tomcat 10.1 for SUNU Park (SI/QA manual 2.4.2, updated for JDK 17)
 [Unit]
-Description=Apache Tomcat (ParkNa)
+Description=Apache Tomcat (SUNU Park)
 After=network.target mariadb.service
 Wants=mariadb.service
 

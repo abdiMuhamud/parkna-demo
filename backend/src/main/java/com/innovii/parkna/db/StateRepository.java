@@ -137,7 +137,7 @@ public final class StateRepository {
     }
 
     private void loadSubscribers(Statement st, State s) throws SQLException {
-        try (ResultSet rs = st.executeQuery("SELECT msisdn, name, last_plate, pending_plate, pending_kind, last_sms_day, welcomed, preferred_provider, persona, persona_note FROM subscriber ORDER BY id")) {
+        try (ResultSet rs = st.executeQuery("SELECT msisdn, name, last_plate, pending_plate, pending_kind, last_sms_day, welcomed, preferred_provider, persona, persona_note, terms_version, terms_day, terms_time FROM subscriber ORDER BY id")) {
             while (rs.next()) {
                 Subscriber u = new Subscriber();
                 u.num = rs.getString(1); u.name = rs.getString(2); u.last = rs.getString(3);
@@ -147,6 +147,7 @@ public final class StateRepository {
                 u.welcomed = rs.getBoolean(7); u.prov = rs.getString(8);
                 boolean persona = rs.getBoolean(9); u.persona = rs.wasNull() ? null : persona;
                 u.note = rs.getString(10);
+                if (rs.getString(11) != null) { u.terms = new Subscriber.Terms(); u.terms.v = rs.getString(11); u.terms.day = dkey(rs.getDate(12)); u.terms.t = rs.getString(13); }
                 s.nums.put(u.num, u);
             }
         }
@@ -362,11 +363,12 @@ public final class StateRepository {
     }
 
     private void saveSubscriber(Connection c, Subscriber u) throws SQLException {
-        try (PreparedStatement ps = c.prepareStatement("INSERT INTO subscriber (msisdn, name, last_plate, pending_plate, pending_kind, last_sms_day, welcomed, preferred_provider, persona, persona_note)"
-                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), last_plate = VALUES(last_plate), pending_plate = VALUES(pending_plate),"
+        try (PreparedStatement ps = c.prepareStatement("INSERT INTO subscriber (msisdn, name, last_plate, pending_plate, pending_kind, last_sms_day, welcomed, preferred_provider, persona, persona_note, terms_version, terms_day, terms_time)"
+                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name), last_plate = VALUES(last_plate), pending_plate = VALUES(pending_plate),"
                 + " pending_kind = VALUES(pending_kind), last_sms_day = VALUES(last_sms_day), welcomed = VALUES(welcomed), preferred_provider = VALUES(preferred_provider),"
-                + " persona = VALUES(persona), persona_note = VALUES(persona_note)")) {
-            set(ps, u.num, u.name, u.last, u.pending == null ? null : u.pending.plate, u.pending == null ? null : u.pending.kind, day(u.lastD), u.welcomed, u.prov, u.persona, u.note);
+                + " persona = VALUES(persona), persona_note = VALUES(persona_note), terms_version = VALUES(terms_version), terms_day = VALUES(terms_day), terms_time = VALUES(terms_time)")) {
+            set(ps, u.num, u.name, u.last, u.pending == null ? null : u.pending.plate, u.pending == null ? null : u.pending.kind, day(u.lastD), u.welcomed, u.prov, u.persona, u.note,
+                    u.terms == null ? null : u.terms.v, u.terms == null ? null : day(u.terms.day), u.terms == null ? null : u.terms.t);
             ps.executeUpdate();
         }
         try (PreparedStatement del = c.prepareStatement("DELETE FROM subscriber_plate WHERE msisdn = ?")) { set(del, u.num); del.executeUpdate(); }

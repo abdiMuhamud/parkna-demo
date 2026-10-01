@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ParkNa logging. By default everything goes to Tomcat's logs folder:
+  SUNU Park logging. By default everything goes to Tomcat's logs folder:
     catalina.out        (console output, everything)
-    parkna.log          ParkNa messages: startup, every action, database problems
+    parkna.log          SUNU Park messages: startup, every action, database problems
     parkna-sms.log      SMS gateway traffic (Kannel accepted/rejected)
   Change the folder with -Dparkna.log.dir=... and the level with -Dparkna.log.level=DEBUG in bin/setenv.sh,
   or use your own file with -Dlog4j2.configurationFile=/path/to/log4j2.xml.
