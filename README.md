@@ -170,7 +170,8 @@ config/               database.properties and config.properties templates
 deploy/               Nginx, Tomcat and Kannel files; deploy, rollback and backup scripts
 docs/                 ARCHITECTURE.md, DEPLOYMENT.md, PLAY_STORE.md
 scripts/              build-frontend.js, prepare-android.js, package-release.sh, parity/ (engine parity tests),
-                      art/make-art.js (draws the icons, splash screens and Play graphics)
+                      art/make-art.js (draws the icons, splash screens and Play graphics),
+                      art/scene.js (the Banjul scene as sharp vector art for the web pages)
 build/                the shared test signing key (test builds only; Play builds use the upload key from the secrets)
 .github/workflows/    the build
 ```
