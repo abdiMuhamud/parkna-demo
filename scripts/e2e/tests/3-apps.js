@@ -11,10 +11,10 @@ run("apps", async ({ b, watch, shot }) => {
   /* the launch screen and the terms before signing in */
   const ph = await phone(b, watch, "phone"), off = await ph.page();
   await off.goto(BASE + "/officer/"); await off.waitForTimeout(500);
-  check(!!(await off.$("#splash .sp-tile")), "the launch screen shows the spinning mark");
+  check(!!(await off.$("#splash .sp-tile")) && !!(await off.$("#splash .sp-top")) && !!(await off.$("#splash .sp-bot")), "the launch screen shows the mark on its two halves");
   await shot(off, "launch");
   await openApp(off, "officer");
-  check(!(await off.$("#splash")), "the launch screen hands over to the app");
+  check(await off.waitForFunction(() => !document.getElementById("splash"), null, { timeout: 10000 }).then(() => true, () => false), "the launch screen hands over to the app");
 
   /* attendant: a first-time warning */
   await signIn(off, "officer", "7300007");
