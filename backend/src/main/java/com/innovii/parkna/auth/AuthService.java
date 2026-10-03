@@ -393,7 +393,7 @@ public final class AuthService {
             ps.setString(1, user); ps.setString(2, name); ps.setString(3, role); ps.setString(4, Passwords.hash(password));
             ps.executeUpdate();
         }
-        log.info("Demo server: created the {} account '{}' (password {})", role.toLowerCase(), user, password);
+        log.info("Demo server: created the {} account '{}' (its password is on the home page's sign-in card)", role.toLowerCase(), user);
     }
 
     public void bootstrap() {
