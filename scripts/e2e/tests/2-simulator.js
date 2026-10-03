@@ -37,7 +37,10 @@ run("simulator", async ({ b, watch, shot }) => {
   check(!(await w.$('a[href^="/driver"], a[href^="/officer"]')), "no browser copies of the driver and attendant apps");
   check((await w.textContent("#pMonthly")).includes("4,000") && (await w.textContent("#pFine")).includes("1,880") && (await w.textContent("#pAnnual")).includes("48,000"), "prices come from the tariff");
   check((await w.getAttribute("#getDriver", "href")).endsWith("/SUNU-Park-Driver.apk") && (await w.getAttribute("#getOfficer", "href")).endsWith("/SUNU-Park-Officer.apk"), "a demo server offers the newest Android apps");
-  check((await w.textContent("#portal + .g")).includes("police-demo"), "the demo sign-ins are on the portal cards");
+  check((await w.textContent("#portal")).includes("police-demo"), "the demo sign-ins are on the portal cards");
+  const firstScreen = await w.evaluate(() => { const r = document.getElementById("portal").getBoundingClientRect(), h = document.querySelector(".hero").getBoundingClientRect(); return r.left > h.right - 2 && r.top < 200; });
+  check(firstScreen, "wide screens: the portal sign-ins sit beside the hero (landscape)");
+  check(await w.$eval(".hero .scene", x => x.complete && x.naturalWidth > 0 && /\.svg$/.test(x.getAttribute("src"))), "the hero art is the vector Banjul scene");
   await w.screenshot({ path: require("path").join(OUT, "simulator-home.png"), fullPage: true });
   await w.setViewportSize({ width: 390, height: 844 }); await w.waitForTimeout(300);
   check(await w.evaluate(() => document.documentElement.scrollWidth <= innerWidth), "the home page fits a phone screen");

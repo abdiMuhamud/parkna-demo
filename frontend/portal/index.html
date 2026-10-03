@@ -7,180 +7,279 @@
 <meta name="description" content="SUNU Park is Banjul City Council's street parking: pay in the app, by SMS or by USSD. Administrators, organisations and the police sign in to the portal.">
 <meta name="theme-color" content="#F6FBFE">
 <link rel="icon" href="shared/img/crest.png">
+<link rel="preload" href="shared/img/art/banjul-scene.svg" as="image">
 <style>
-/* the look of the SUNU Park apps ("SUNU Park Final Designs"): pale blue, SUNU Park navy, sun yellow, link blue, Banjul scenes */
+/* the look of the SUNU Park apps ("SUNU Park Final Designs"): pale blue, SUNU Park navy, sun yellow, link blue, the
+   Banjul scene (vector art, sharp on every screen). Wide screens get a landscape page: the hero beside the portal
+   sign-ins, then one row each for drivers, prices and attendants. */
 @font-face{font-family:Jakarta;font-weight:400;font-display:swap;src:url(shared/fonts/jakarta-400.woff2) format('woff2')}
 @font-face{font-family:Jakarta;font-weight:500;font-display:swap;src:url(shared/fonts/jakarta-500.woff2) format('woff2')}
+@font-face{font-family:Jakarta;font-weight:600;font-display:swap;src:url(shared/fonts/jakarta-600.woff2) format('woff2')}
 @font-face{font-family:Jakarta;font-weight:700;font-display:swap;src:url(shared/fonts/jakarta-700.woff2) format('woff2')}
 @font-face{font-family:Jakarta;font-weight:800;font-display:swap;src:url(shared/fonts/jakarta-800.woff2) format('woff2')}
-:root{--bg:#F6FBFE;--ink:#0A1B4D;--navy:#0B2E63;--hero:#0D2F5D;--yellow:#FEDB46;--yellow2:#FEE166;--blue:#035BF0;--bluesoft:#DFF1FC;--mute:#63709E;--line:#E8EEF5;--green:#5FD98A}
+@font-face{font-family:RMono;font-weight:600;font-display:swap;src:url(shared/fonts/rmono-600.woff2) format('woff2')}
+:root{--bg:#F6FBFE;--ink:#0A1B4D;--navy:#0B2E63;--hero:#0D2F5D;--yellow:#FEDB46;--yellow2:#FEE166;--blue:#035BF0;--bluesoft:#DFF1FC;--mute:#63709E;--line:#E8EEF5;--green:#5FD98A;
+  --shadow:0 24px 48px -32px rgba(11,46,99,.45);--mono:RMono,ui-monospace,Consolas,monospace}
 *{box-sizing:border-box;margin:0}
 [hidden]{display:none!important}
 html{scroll-behavior:smooth}
-body{min-height:100vh;font-family:Jakarta,system-ui,sans-serif;word-spacing:.07em;color:var(--ink);background:var(--bg);padding:24px 16px 40px}
+body{min-height:100vh;font-family:Jakarta,system-ui,sans-serif;word-spacing:.07em;color:var(--ink);background:var(--bg);padding:22px 0 34px;-webkit-font-smoothing:antialiased}
 a{color:var(--blue);text-decoration:none}
-.w{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+.w{max-width:1440px;margin:0 auto;padding:0 40px;display:flex;flex-direction:column;gap:24px}
 section{scroll-margin-top:18px}
-header{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.brand{display:flex;align-items:center;gap:12px;color:var(--ink)}
-.brand span{width:56px;height:56px;border-radius:15px;background:#fff;display:grid;place-items:center;box-shadow:0 6px 18px -8px rgba(10,27,77,.25)}
-.brand img{width:44px}
-.brand small{display:block;font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--navy);font-weight:700}
-.brand b{font-size:27px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
-.staff{color:var(--ink);font-weight:700;font-size:14px;background:#fff;border:1.5px solid var(--navy);border-radius:999px;padding:10px 18px;white-space:nowrap}
-.hero{position:relative;overflow:hidden;background:var(--hero);color:#fff;border-radius:26px;padding:40px 36px;min-height:360px;display:flex;flex-direction:column;justify-content:center;gap:14px;box-shadow:0 20px 40px -26px rgba(11,46,99,.8)}
-.hero .scene{position:absolute;right:-8px;top:-8px;height:calc(100% + 16px);width:60%;object-fit:cover;object-position:right top;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 34%);mask-image:linear-gradient(90deg,transparent 0,#000 34%)}
-.hero>*:not(.scene){position:relative;z-index:1;max-width:520px}
-.eyebrow{font-size:11px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:#E6ECF6}
-.eyebrow em{font-style:normal;color:var(--yellow)}
-.hero h1{font-size:48px;font-weight:800;letter-spacing:-.04em;line-height:1.05}
-.hero p{color:#E6ECF6;line-height:1.55;font-size:16.5px;max-width:440px}
-.dot{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500}
-.dot i{width:10px;height:10px;border-radius:50%;background:var(--green)}
-.ctas{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
-.cta{display:inline-flex;align-items:center;gap:18px;height:48px;padding:0 20px 0 24px;border-radius:999px;background:var(--yellow);color:var(--ink);font-size:15.5px;font-weight:700}
-.cta2{display:inline-flex;align-items:center;height:48px;padding:0 22px;border-radius:999px;border:1.5px solid rgba(255,255,255,.55);color:#fff;font-size:15px;font-weight:700}
-/* a section's heading: the step line, title and text of the app's onboarding screens */
-.sh{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .step{font-size:11px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:var(--ink)}
 .step em{font-style:normal;color:var(--blue)}
-h2{font-size:32px;font-weight:800;letter-spacing:-.035em;line-height:1.1}
-.sh p,.pay .txt>p{color:var(--mute);font-size:15.5px;line-height:1.55;max-width:640px}
-.kbd{font-family:ui-monospace,Consolas,monospace;font-size:.92em;font-weight:700;background:var(--bluesoft);color:var(--navy);border-radius:7px;padding:1px 6px;white-space:nowrap}
-.g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.g a{background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:8px;min-height:170px;transition:transform .15s}
-.g a:hover{transform:translateY(-2px)}
-.g a i{width:48px;height:48px;border-radius:50%;background:var(--bluesoft);color:var(--navy);display:grid;place-items:center}
-.g a b{font-size:17px;font-weight:800;letter-spacing:-.01em;margin-top:auto}
-.g a span{font-size:13.5px;color:var(--mute);line-height:1.45}
-.arr{flex:none;width:38px;height:38px;border-radius:50%;background:var(--yellow);color:var(--ink);display:grid;place-items:center;transition:transform .15s}
-/* the three portal doors */
-.g a.door{padding:20px;gap:10px}
-.door .top{display:flex;align-items:center;justify-content:space-between}
-.g a.door:hover .arr{transform:translateX(3px)}
-.g a.door b{font-size:19px;margin-top:4px}
-.door .how{margin-top:auto;padding-top:12px;border-top:1px solid var(--line);display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--navy)}
-.door .demo{background:#FFF3D6;color:#6B4E00;border-radius:10px;padding:8px 10px;font-size:12.5px;line-height:1.45}
-.g a.door .demo b{font-size:12.5px;margin:0;letter-spacing:0}
-/* drivers: the onboarding art next to the three ways to pay */
-.pay{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:28px;align-items:center;margin-top:10px}
-.pay .art{background:#fff;border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 20px 40px -30px rgba(11,46,99,.6)}
-.pay .art img{display:block;width:100%;height:auto}
-.pay .txt{display:flex;flex-direction:column;gap:8px}
-.rows{display:flex;flex-direction:column;gap:10px;margin-top:8px}
-.row{display:flex;align-items:center;gap:14px;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
-.row i{flex:none;width:48px;height:48px;border-radius:50%;background:var(--bluesoft);color:var(--navy);display:grid;place-items:center}
-.row b{display:block;font-size:16px;font-weight:800;letter-spacing:-.01em}
-.row small{display:block;font-size:13.5px;color:var(--mute);line-height:1.45;margin-top:2px}
-.row.hi{background:var(--yellow2);border-color:var(--yellow2);transition:transform .15s}
-.row.hi:hover{transform:translateY(-2px)}
-.row.hi i{background:#fff}
-.row.hi small{color:#4D5A80}
-.row.hi .arr{margin-left:auto;background:var(--navy);color:var(--yellow)}
-.pays{background:#fff;border:1px solid var(--line);border-radius:18px;padding:12px 16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
-.pays b{font-size:15px;font-weight:700}
-.pays img{height:46px;max-width:100%;object-fit:contain}
-/* prices from the tariff on the server */
-.prices{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
-.pr{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:6px}
-.pr small{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--navy)}
-.pr b{font-size:26px;font-weight:800;letter-spacing:-.03em;line-height:1.15}
-.pr span{font-size:13.5px;color:var(--mute);line-height:1.45}
+h2{font-size:34px;font-weight:800;letter-spacing:-.035em;line-height:1.08}
+.lead-p{color:var(--mute);font-size:15px;line-height:1.55}
+.kbd{font-family:var(--mono);font-size:.9em;font-weight:600;background:var(--bluesoft);color:var(--navy);border-radius:7px;padding:1px 7px;white-space:nowrap}
+.arr{flex:none;width:38px;height:38px;border-radius:50%;background:var(--yellow);color:var(--ink);display:grid;place-items:center;transition:transform .2s}
+.ico{flex:none;width:48px;height:48px;border-radius:50%;background:var(--bluesoft);color:var(--navy);display:grid;place-items:center}
+
+/* header */
+header{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.brand{display:flex;align-items:center;gap:12px;color:var(--ink)}
+.brand span{width:54px;height:54px;border-radius:15px;background:#fff;display:grid;place-items:center;box-shadow:0 6px 18px -8px rgba(10,27,77,.25)}
+.brand img{width:42px;height:auto}
+.brand small{display:block;font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--navy);font-weight:700}
+.brand b{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+nav{display:flex;align-items:center;gap:6px}
+nav a{color:var(--ink);font-weight:600;font-size:14.5px;padding:10px 14px;border-radius:999px}
+nav a:hover{background:#fff}
+nav .staff{font-weight:700;background:#fff;border:1.5px solid var(--navy);padding:9px 20px;margin-left:8px}
+nav .staff:hover{background:var(--navy);color:#fff}
+
+/* first screen: the hero beside the portal sign-ins */
+.lead{display:grid;grid-template-columns:minmax(0,1.62fr) minmax(380px,1fr);gap:24px}
+.hero{position:relative;overflow:hidden;background:var(--hero);color:#fff;border-radius:28px;padding:46px 44px 34px;min-height:540px;display:flex;flex-direction:column;justify-content:center;gap:16px;box-shadow:0 24px 48px -26px rgba(11,46,99,.75);isolation:isolate}
+.hero .scene{position:absolute;right:0;top:0;height:100%;width:64%;object-fit:cover;object-position:right bottom;z-index:-2;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0,rgba(0,0,0,.4) 22%,#000 50%);mask-image:linear-gradient(90deg,transparent 0,rgba(0,0,0,.4) 22%,#000 50%)}
+.hero::before{content:"";position:absolute;inset:0;z-index:-1;background:linear-gradient(90deg,var(--hero) 0,rgba(13,47,93,.9) 30%,rgba(13,47,93,.35) 48%,rgba(13,47,93,0) 62%)}
+.hero>*:not(.scene){max-width:450px}
+.hero>.ctas,.hero>.chips{max-width:none}
+.eyebrow{font-size:11px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:#E6ECF6}
+.eyebrow em{font-style:normal;color:var(--yellow)}
+.hero h1{font-size:clamp(36px,3.7vw,58px);font-weight:800;letter-spacing:-.045em;line-height:1.02}
+.hero p{color:#E6ECF6;line-height:1.6;font-size:16.5px;max-width:440px}
+.dot{display:flex;align-items:center;gap:10px;font-size:14.5px;font-weight:500}
+.dot i{width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 0 5px rgba(95,217,138,.18)}
+.ctas{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.cta{display:inline-flex;align-items:center;gap:18px;height:52px;padding:0 22px 0 26px;border-radius:999px;background:var(--yellow);color:var(--ink);font-size:16px;font-weight:700;transition:transform .2s,box-shadow .2s}
+.cta:hover{transform:translateY(-2px);box-shadow:0 14px 26px -14px rgba(254,219,70,.8)}
+.cta2{display:inline-flex;align-items:center;height:52px;padding:0 24px;border-radius:999px;border:1.5px solid rgba(255,255,255,.55);color:#fff;font-size:15.5px;font-weight:700;background:rgba(13,47,93,.35);backdrop-filter:blur(6px)}
+.cta2:hover{background:rgba(255,255,255,.12)}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:18px}
+.chips>span{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;border:1px solid rgba(255,255,255,.28);border-radius:12px;padding:9px 12px;background:rgba(13,47,93,.72);backdrop-filter:blur(6px)}
+.chips svg{color:var(--yellow)}
+
+.portal{background:#fff;border:1px solid var(--line);border-radius:28px;padding:28px 24px 22px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow)}
+.portal h2{font-size:30px}
+.doors{display:flex;flex-direction:column;gap:9px;margin-top:auto}
+.door{display:grid;grid-template-columns:48px minmax(0,1fr) 38px;gap:14px;align-items:center;border:1px solid var(--line);border-radius:18px;padding:13px 14px 13px 15px;color:var(--ink);background:#fff;transition:border-color .2s,background .2s,transform .2s}
+.door:hover{border-color:#BFD9F5;background:#FAFDFF;transform:translateY(-1px)}
+.door:hover .arr{transform:translateX(3px)}
+.door b{display:block;font-size:17px;font-weight:800;letter-spacing:-.01em}
+.door .d{display:block;font-size:13px;color:var(--mute);line-height:1.45;margin-top:2px}
+.door .how{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:7px;font-size:12px;font-weight:700;color:var(--navy)}
+.door .how>span:first-child{display:inline-flex;align-items:center;gap:6px}
+.door .demo{display:inline-block;background:#FFF3D6;color:#6B4E00;border-radius:8px;padding:3px 8px;font-weight:600;line-height:1.5}
+.door .demo b{display:inline;font-size:12px;font-weight:800;letter-spacing:0;white-space:nowrap}
+
+.note{background:#FFF3D6;color:#6B4E00;border-radius:16px;padding:13px 18px;font-size:14px;line-height:1.5}
+.note a{font-weight:700}
+
+/* drivers: the three ways to pay, each with a small preview */
+.pay{display:grid;grid-template-columns:minmax(0,1.12fr) repeat(3,minmax(0,1fr));gap:16px;align-items:stretch}
+.pay .intro{display:flex;flex-direction:column;gap:10px;padding:8px 8px 4px 2px}
+.logos{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:auto;padding-top:10px}
+.logos small{width:100%;font-size:12px;font-weight:700;color:var(--navy);letter-spacing:.04em}
+.logos img{width:52px;height:52px;border-radius:14px;object-fit:cover;box-shadow:0 8px 18px -10px rgba(10,27,77,.45);border:1px solid var(--line);background:#fff}
+.way{background:#fff;border:1px solid var(--line);border-radius:24px;padding:22px;display:flex;flex-direction:column;gap:10px;color:var(--ink);box-shadow:var(--shadow)}
+.way h3{font-size:19px;font-weight:800;letter-spacing:-.02em;margin-top:4px}
+.way p{font-size:13.5px;color:var(--mute);line-height:1.5}
+.way.hi{background:var(--yellow2);border-color:var(--yellow2);transition:transform .2s}
+.way.hi:hover{transform:translateY(-2px)}
+.way.hi .ico{background:#fff}
+.way.hi p{color:#4D5A80}
+.prev{margin-top:auto;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:7px;font-size:12px;line-height:1.4}
+.prev.app{background:#fff;box-shadow:0 10px 22px -16px rgba(10,27,77,.6)}
+.pass{display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--hero);color:#fff;border-radius:12px;padding:10px 12px}
+.pass small{display:block;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:#C9D6EC;font-weight:700}
+.pass b{font-family:var(--mono);font-size:15px;letter-spacing:.06em}
+.paid{display:inline-flex;align-items:center;gap:5px;background:var(--green);color:#063A1C;font-weight:800;font-size:11px;border-radius:999px;padding:4px 9px}
+.getapp{display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:14px;color:var(--ink);padding:2px 2px 0}
+.getapp .arr{width:34px;height:34px;background:var(--navy);color:var(--yellow)}
+.prev.sms{background:#F1F5FA}
+.bub{max-width:88%;padding:8px 11px;border-radius:14px;background:#fff;color:#2A3A66;box-shadow:0 1px 0 rgba(10,27,77,.06)}
+.bub.out{align-self:flex-end;background:var(--blue);color:#fff;border-bottom-right-radius:5px;font-weight:600}
+.bub.in{border-bottom-left-radius:5px}
+.prev.ussd{background:var(--hero);color:#E6ECF6;font-family:var(--mono);font-size:12px;gap:3px;padding:14px 14px 12px}
+.prev.ussd b{color:#fff;font-size:12.5px}
+.prev.ussd .reply{margin-top:8px;display:flex;gap:6px}
+.prev.ussd .reply span{flex:1;border-radius:8px;background:rgba(255,255,255,.12);padding:6px 8px;color:#fff}
+.prev.ussd .reply em{font-style:normal;border-radius:8px;background:var(--yellow);color:var(--ink);font-family:Jakarta,sans-serif;font-weight:800;padding:6px 10px}
+
+/* prices and attendants */
+.row2{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:24px}
+.card{background:#fff;border:1px solid var(--line);border-radius:28px;padding:28px;box-shadow:var(--shadow)}
+.prices .top{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:end;gap:12px 32px}
+.prices .top .lead-p{max-width:520px}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:22px}
+.pr{background:var(--bg);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;flex-direction:column;gap:6px}
+.pr small{font-size:10.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--navy)}
+.pr b{font-size:clamp(20px,1.75vw,27px);font-weight:800;letter-spacing:-.03em;line-height:1.15;white-space:nowrap}
+.pr span{font-size:13px;color:var(--mute);line-height:1.45}
 .pr.hi{background:var(--yellow2);border-color:var(--yellow2)}
 .pr.hi span{color:#4D5A80}
-/* parking attendants */
-.att{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;align-items:center;gap:18px}
-.att>i{flex:none;width:56px;height:56px;border-radius:50%;background:var(--bluesoft);color:var(--navy);display:grid;place-items:center}
-.att>div{display:flex;flex-direction:column;gap:6px;flex:1}
-.att h3{font-size:19px;font-weight:800;letter-spacing:-.02em}
-.att p{font-size:14px;color:var(--mute);line-height:1.6}
-.out{flex:none;display:inline-flex;align-items:center;gap:10px;color:var(--ink);font-weight:700;font-size:14px;background:#fff;border:1.5px solid var(--navy);border-radius:999px;padding:11px 18px;white-space:nowrap}
-.note{background:#FFF3D6;color:#6B4E00;border-radius:16px;padding:14px 16px;font-size:14px;line-height:1.5}
-.note a{font-weight:700}
-.addr{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13.5px;color:var(--mute)}
-.addr b{font-family:ui-monospace,Consolas,monospace;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 10px}
-footer{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:center;color:var(--mute);font-size:13px}
+.att{position:relative;overflow:hidden;background:var(--hero);color:#fff;border-radius:28px;padding:28px;display:flex;flex-direction:column;gap:12px;box-shadow:0 24px 48px -26px rgba(11,46,99,.75)}
+.att .step{color:#E6ECF6}
+.att .step em{color:var(--yellow)}
+.att h3{font-size:24px;font-weight:800;letter-spacing:-.03em;line-height:1.15}
+.att p{font-size:14px;color:#D6DFEE;line-height:1.65}
+.att .kbd{background:rgba(255,255,255,.14);color:#fff}
+.att .ico{background:var(--yellow);color:var(--navy)}
+.att .out{align-self:flex-start;margin-top:auto;display:inline-flex;align-items:center;gap:10px;height:46px;padding:0 20px;border-radius:999px;background:var(--yellow);color:var(--ink);font-weight:700;font-size:14.5px}
+
+/* footer */
+footer{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 24px;border-top:1px solid var(--line);padding-top:20px;color:var(--mute);font-size:13px}
+footer .who{display:flex;align-items:center;gap:12px}
+footer img{height:18px;width:auto}
+footer .links{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px}
 footer a{font-weight:600}
-footer img{height:16px}
-.secure{align-self:center;background:#EBF0F6;border-radius:12px;padding:9px 22px;font-size:12.5px;color:var(--mute)}
-@media (max-width:860px){.g{grid-template-columns:1fr}.g a{min-height:0}.pay{grid-template-columns:1fr;gap:18px}.pay .art{max-width:520px}.prices{grid-template-columns:1fr 1fr}.att{flex-direction:column;align-items:flex-start}}
-@media (max-width:640px){.hero{padding:26px 20px;min-height:0}.hero h1{font-size:34px}.hero .scene{width:100%;opacity:.2}h2{font-size:26px}.brand b{font-size:22px}.brand small{letter-spacing:.14em;white-space:nowrap}.brand span{width:48px;height:48px}.brand img{width:38px}.staff{padding:9px 14px;font-size:13px}.prices{grid-template-columns:1fr}}
+.secure{background:#EBF0F6;border-radius:12px;padding:8px 16px;font-size:12.5px;color:var(--mute)}
+.addr{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px}
+.addr b{font-family:var(--mono);font-weight:600;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:10px;padding:5px 9px;margin-left:6px}
+
+/* smaller screens */
+@media (max-width:1180px){
+  .lead{grid-template-columns:1fr}
+  .doors{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .door{grid-template-columns:1fr;align-content:start}
+  .door .arr{display:none}
+  .pay{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .pay .intro{grid-column:1/-1}
+  .row2{grid-template-columns:1fr}
+}
+@media (max-width:860px){
+  .w{padding:0 16px;gap:18px}
+  nav a:not(.staff){display:none}
+  .hero{padding:28px 22px 230px;min-height:0}
+  .hero .scene{top:auto;bottom:0;height:250px;width:100%;-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 38%);mask-image:linear-gradient(180deg,transparent 0,#000 38%)}
+  .chips{display:none}
+  .doors,.pay{grid-template-columns:1fr}
+  .door{grid-template-columns:48px minmax(0,1fr) 38px}
+  .door .arr{display:grid}
+  .tiles{grid-template-columns:1fr 1fr}
+  .prices .top{grid-template-columns:1fr}
+  .prices h2{white-space:normal!important}
+  h2{font-size:28px}
+  .portal,.card,.att{padding:22px 18px;border-radius:24px}
+  .brand b{font-size:22px}.brand small{letter-spacing:.14em;white-space:nowrap}.brand span{width:48px;height:48px}.brand img{width:38px}
+  footer{flex-direction:column;align-items:flex-start}
+}
+@media (max-width:420px){.tiles{grid-template-columns:1fr}.cta,.cta2{width:100%;justify-content:space-between}}
 </style>
 </head>
 <body><div class="w">
 <header>
   <a class="brand" href="/"><span><img src="shared/img/crest.png" alt="Banjul City Council crest"></span><div><small>Banjul City Council</small><b>SUNU Park</b></div></a>
-  <a class="staff" href="#portal">Sign in</a>
+  <nav><a href="#pay">How to pay</a><a href="#prices">Prices</a><a href="#attendants">Attendants</a><a class="staff" href="#portal">Sign in</a></nav>
 </header>
-<section class="hero">
-  <img class="scene" src="shared/img/art/hero-scene.webp" alt="">
-  <div class="eyebrow"><em>01 —</em> Easy parking</div>
-  <h1>Park smarter in Banjul</h1>
-  <p>Pay for parking from your phone, without cash or queues: in the SUNU Park app, by SMS or by USSD. Daily and monthly passes for every marked SUNU Park bay.</p>
-  <span class="dot"><i></i>Daily pass&nbsp;<b id="price">200 GMD</b>&nbsp;· valid till 7pm</span>
-  <div class="ctas">
-    <a class="cta" id="getDriverCta" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.driver">Get the SUNU Park app<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
-    <a class="cta2" href="#pay">Pay by SMS or USSD</a>
-  </div>
-</section>
+
+<div class="lead">
+  <section class="hero">
+    <img class="scene" src="shared/img/art/banjul-scene.svg" alt="">
+    <div class="eyebrow"><em>01 —</em> Easy parking</div>
+    <h1>Park smarter in Banjul</h1>
+    <p>Pay for parking from your phone, without cash or queues: in the SUNU Park app, by SMS or by USSD. Daily and monthly passes for every marked SUNU Park bay.</p>
+    <span class="dot"><i></i>Daily pass&nbsp;<b class="p-daily" id="price">200 GMD</b>&nbsp;· valid till 7pm</span>
+    <div class="ctas">
+      <a class="cta" id="getDriverCta" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.driver">Get the SUNU Park app<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+      <a class="cta2" href="#pay">Pay by SMS or USSD</a>
+    </div>
+    <div class="chips">
+      <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Paid 7am–7pm, Mon–Sat</span>
+      <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9l-5 4v-14Z"/></svg>Text your plate to <span data-sc>7275</span></span>
+    </div>
+  </section>
+
+  <section class="portal" id="portal">
+    <div class="step"><em>02 —</em> Portal</div>
+    <h2>Sign in to SUNU Park</h2>
+    <p class="lead-p">For three kinds of accounts. Drivers and parking attendants use the apps, SMS and USSD instead.</p>
+    <div class="doors">
+      <a class="door" href="/admin"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg></span>
+        <span><b>Administrator</b><span class="d">Attendants, roads, organisations, payments, tariffs, staff and reports.</span>
+          <span class="how"><span>Username and password</span><span class="demo" hidden>Demo: ask INNOVII for the password</span></span></span>
+        <em class="arr"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></em></a>
+      <a class="door" href="/org"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5l8-3 8 3v16M4 21h16M9 21v-5h6v5M8 8h2M14 8h2M8 12h2M14 12h2"/></svg></span>
+        <span><b>Organisation</b><span class="d">Fleet cover for your cars: invoices, statements and checks.</span>
+          <span class="how"><span>Phone number and SMS code</span><span class="demo" hidden>Demo: Demo Bank, phone <b>7101234</b></span></span></span>
+        <em class="arr"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></em></a>
+      <a class="door" href="/police"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.8 4.5 5.5V11c0 4.6 3.1 8.3 7.5 10.2 4.4-1.9 7.5-5.6 7.5-10.2V5.5Z"/><path d="m12 7.3 1.3 2.7 2.9.4-2.1 2 .5 2.9-2.6-1.4-2.6 1.4.5-2.9-2.1-2 2.9-.4Z"/></svg></span>
+        <span><b>Police</b><span class="d">Fines tracking: unpaid warnings and repeat offenders. Read-only.</span>
+          <span class="how"><span>Username and password</span><span class="demo" hidden>Demo: <b>police</b> / <b>police-demo</b></span></span></span>
+        <em class="arr"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></em></a>
+    </div>
+  </section>
+</div>
+
 <div class="note" id="note" hidden></div>
 
-<section id="portal">
-  <div class="sh"><div class="step"><em>02 —</em> Portal</div><h2>Sign in to SUNU Park</h2><p>Three kinds of accounts sign in here. Drivers and parking attendants don't need one: they use the apps, SMS and USSD.</p></div>
-</section>
-<div class="g">
-  <a class="door" href="/admin"><div class="top"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg></i><em class="arr"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></em></div>
-    <b>Administrator</b><span>Runs the service for the Council: attendants and roads, organisations, payments, tariffs, the terms, staff accounts and the revenue report.</span>
-    <small class="how"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 8.7-8.7M16 7l2.5 2.5M14 9l2 2"/></svg>Username and password</small>
-    <small class="demo" hidden>Demo: ask INNOVII for the password</small></a>
-  <a class="door" href="/org"><div class="top"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5l8-3 8 3v16M4 21h16M9 21v-5h6v5M8 8h2M14 8h2M8 12h2M14 12h2"/></svg></i><em class="arr"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></em></div>
-    <b>Organisation</b><span>Banks, ministries and companies cover their cars for a year, paid upfront: cars, invoices, statements and attendant checks.</span>
-    <small class="how"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9l-5 4v-14Z"/><path d="M8 9.5h8M8 12.5h5"/></svg>Phone number and SMS code</small>
-    <small class="demo" hidden>Demo: Demo Bank, phone <b>7101234</b></small></a>
-  <a class="door" href="/police"><div class="top"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.8 4.5 5.5V11c0 4.6 3.1 8.3 7.5 10.2 4.4-1.9 7.5-5.6 7.5-10.2V5.5Z"/><path d="m12 7.3 1.3 2.7 2.9.4-2.1 2 .5 2.9-2.6-1.4-2.6 1.4.5-2.9-2.1-2 2.9-.4Z"/></svg></i><em class="arr"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></em></div>
-    <b>Police</b><span>Fines tracking: unpaid warnings, overdue fines and repeat offenders, with the phone linked to each plate. Read-only.</span>
-    <small class="how"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 8.7-8.7M16 7l2.5 2.5M14 9l2 2"/></svg>Username and password</small>
-    <small class="demo" hidden>Demo: <b>police</b> / <b>police-demo</b></small></a>
-</div>
-
 <section class="pay" id="pay">
-  <div class="art"><img src="shared/img/art/onboarding-2.webp" alt="Paying for parking on a phone with Wave, Afrimoney, QMoney or APS Wallet" loading="lazy"></div>
-  <div class="txt">
+  <div class="intro">
     <div class="step"><em>03 —</em> For drivers</div>
     <h2>Pay the way you prefer</h2>
-    <p>No cash and no account to open: the pass follows your plate, so any phone can pay for any car.</p>
-    <div class="rows">
-      <a class="row hi" id="getDriver" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.driver"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg></i><span><b>The SUNU Park app</b><small>Daily and monthly passes, your plates and receipts, any warning to settle. For Android: sign in with your phone number.</small></span><em class="arr"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></em></a>
-      <div class="row"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9l-5 4v-14Z"/><path d="M8 9.5h8M8 12.5h5"/></svg></i><span><b>SMS to <span data-sc>7275</span></b><small>Text your plate, e.g. <span class="kbd">BJL1234</span>, then reply with how you pay. For a month: <span class="kbd">M BJL1234</span></small></span></div>
-      <div class="row"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 4 8 20M16 4l-1.5 16M4.5 9h15.5M4 15h15.5"/></svg></i><span><b>USSD <span data-sc="ussd">*7275#</span></b><small>On any phone, without internet: a daily or monthly pass, your plates, a warning to pay and the terms.</small></span></div>
-    </div>
-    <div class="pays"><b>Pay with</b><img src="shared/img/art/payments-strip.webp" alt="Wave, Afrimoney, QMoney, APS Wallet"></div>
+    <p class="lead-p">No cash and no account to open: the pass follows your plate, so any phone can pay for any car.</p>
+    <div class="logos"><small>Pay with</small>
+      <img src="shared/img/logos/wave.png" alt="Wave"><img src="shared/img/logos/afrimoney.png" alt="Afrimoney"><img src="shared/img/logos/qmoney.png" alt="QMoney"><img src="shared/img/logos/aps.png" alt="APS Wallet"></div>
+  </div>
+  <a class="way hi" id="getDriver" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.driver">
+    <span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg></span>
+    <h3>The SUNU Park app</h3>
+    <p>Daily and monthly passes, your plates and receipts, any warning to settle. For Android: sign in with your phone number.</p>
+    <span class="prev app"><span class="pass"><span><small>Today</small><b>BJL1234</b></span><span class="paid">PAID till 7pm</span></span>
+      <span class="getapp">Get the app<em class="arr"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></em></span></span>
+  </a>
+  <div class="way">
+    <span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9l-5 4v-14Z"/><path d="M8 9.5h8M8 12.5h5"/></svg></span>
+    <h3>SMS to <span data-sc>7275</span></h3>
+    <p>Text your plate, then reply with how you pay. For a month: <span class="kbd">M BJL1234</span></p>
+    <div class="prev sms"><span class="bub out">BJL1234</span><span class="bub in">Daily pass BJL1234: <span class="p-daily">200 GMD</span>, valid till 7pm today. 1 Wave 2 Afrimoney 3 APS 4 QMoney</span><span class="bub out">1</span></div>
+  </div>
+  <div class="way">
+    <span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 4 8 20M16 4l-1.5 16M4.5 9h15.5M4 15h15.5"/></svg></span>
+    <h3>USSD <span data-sc="ussd">*7275#</span></h3>
+    <p>On any phone, without internet: a pass, your plates, a warning to pay and the terms.</p>
+    <div class="prev ussd"><b>SUNU Park</b><span>1. Daily pass (<span class="p-daily">200 GMD</span>)</span><span>2. Monthly pass (<span class="p-monthly">4,000 GMD</span>)</span><span>3. Check a plate</span><span>4. Pay a warning</span><span>5. My plates</span>
+      <span class="reply"><span>1</span><em>Send</em></span></div>
   </div>
 </section>
 
-<section id="prices">
-  <div class="sh"><div class="step"><em>04 —</em> Prices</div><h2>One price for every plate</h2><p>Paid hours are 7am to 7pm, Monday to Saturday; parking is free at other times. A warning is paid before any new pass. The full rules are in the <a href="/terms.html">terms and conditions</a>.</p></div>
-</section>
-<div class="prices">
-  <div class="pr hi"><small>Daily pass</small><b id="pDaily">200 GMD</b><span>Valid till 7pm on the day you pay.</span></div>
-  <div class="pr"><small>Monthly pass</small><b id="pMonthly">4,000 GMD</b><span>A month of parking for the price of 20 days.</span></div>
-  <div class="pr"><small>Fine</small><b id="pFine">1,880 GMD</b><span>For an unpaid car, an attendant leaves a warning. Pay the daily fee within 24 hours, or the fine is added.</span></div>
-  <div class="pr"><small>Organisations</small><b id="pAnnual">48,000 GMD</b><span>Per car, per year, paid upfront on one invoice.</span></div>
-</div>
-
-<section class="att" id="attendants">
-  <i><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v6c0 4.5 3.2 7.8 7.5 9 4.3-1.2 7.5-4.5 7.5-9V6L12 3Z"/><path d="m8.8 12 2.2 2.2 4.2-4.4"/></svg></i>
-  <div>
+<div class="row2">
+  <section class="card prices" id="prices">
+    <div class="top"><div><div class="step"><em>04 —</em> Prices</div><h2 style="margin-top:8px;white-space:nowrap">One price for every plate</h2></div>
+      <p class="lead-p">Paid hours are 7am to 7pm, Monday to Saturday; parking is free at other times. A warning is paid before any new pass. The full rules are in the <a href="/terms.html">terms and conditions</a>.</p></div>
+    <div class="tiles">
+      <div class="pr hi"><small>Daily pass</small><b id="pDaily" class="p-daily">200 GMD</b><span>Valid till 7pm on the day you pay.</span></div>
+      <div class="pr"><small>Monthly pass</small><b id="pMonthly" class="p-monthly">4,000 GMD</b><span>A month of parking for the price of 20 days.</span></div>
+      <div class="pr"><small>Fine</small><b id="pFine">1,880 GMD</b><span>An unpaid car gets a warning: pay the daily fee within 24 hours, or the fine is added.</span></div>
+      <div class="pr"><small>Organisations</small><b id="pAnnual">48,000 GMD</b><span>Per car, per year, paid upfront on one invoice.</span></div>
+    </div>
+  </section>
+  <section class="att" id="attendants">
+    <span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v6c0 4.5 3.2 7.8 7.5 9 4.3-1.2 7.5-4.5 7.5-9V6L12 3Z"/><path d="m8.8 12 2.2 2.2 4.2-4.4"/></svg></span>
     <div class="step"><em>05 —</em> Parking attendants</div>
     <h3>The SUNU Park Officer app, or SMS</h3>
     <p>For attendants registered in the back office. From the registered number, text <span class="kbd">START</span> to begin a shift, a plate like <span class="kbd">BJL1234</span> to check it and <span class="kbd">END</span> to finish, or dial <span class="kbd" data-sc="ussd">*7275#</span>. Attendants never take money.</p>
-  </div>
-  <a class="out" id="getOfficer" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.officer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>Officer app</a>
-</section>
+    <a class="out" id="getOfficer" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.officer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>Get the Officer app</a>
+  </section>
+</div>
 
-<div class="addr" id="addrRow" hidden><span>Server address for the apps:</span><b id="addr"></b></div>
-<div class="secure">A secure service by Banjul City Council</div>
-<footer><img src="shared/img/innovii-navy.png" alt="INNOVII"><span>SUNU Park is run by INNOVII for Banjul City Council.</span><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy policy</a><span id="ver"></span></footer>
+<footer>
+  <span class="who"><img src="shared/img/innovii-navy.png" alt="INNOVII"><span>SUNU Park is run by INNOVII for Banjul City Council.</span></span>
+  <span class="secure">A secure service by Banjul City Council</span>
+  <span class="links"><span class="addr" id="addrRow" hidden>Server address for the apps:<b id="addr"></b></span><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy policy</a><span id="ver"></span></span>
+</footer>
 </div>
 <script>
 /* prices, short code and app links come from the server (/api/ping), so the page follows the tariff and the server's settings */
@@ -191,8 +290,8 @@ footer img{height:16px}
   fetch("/api/ping").then(function(r){ return r.json(); }).then(function(j){
     var sc = j.shortcode || "7275";
     each("[data-sc]", function(x){ x.textContent = x.getAttribute("data-sc") === "ussd" ? "*" + sc + "#" : sc; });
-    if(j.daily){ $("price").textContent = gmd(j.daily); $("pDaily").textContent = gmd(j.daily); }
-    if(j.monthly) $("pMonthly").textContent = gmd(j.monthly);
+    if(j.daily) each(".p-daily", function(x){ x.textContent = gmd(j.daily); });
+    if(j.monthly) each(".p-monthly", function(x){ x.textContent = gmd(j.monthly); });
     if(j.fine != null) $("pFine").textContent = gmd(j.fine);
     if(j.annual) $("pAnnual").textContent = gmd(j.annual);
     if(j.driverApp){ $("getDriverCta").href = j.driverApp; $("getDriver").href = j.driverApp; }
@@ -202,7 +301,7 @@ footer img{height:16px}
     if(j.demo){
       var n = $("note");
       n.hidden = false;
-      n.innerHTML = "<b>Demo server.</b> Sample data and pretend payments: no real money moves. The demo sign-ins are on the portal cards below." + (j.smsSimulator ? " Try every SMS and USSD flow in the <a href='/sms'>SMS &amp; USSD simulator</a>." : "");
+      n.innerHTML = "<b>Demo server.</b> Sample data and pretend payments: no real money moves. The demo sign-ins are on the portal cards above." + (j.smsSimulator ? " Try every SMS and USSD flow in the <a href='/sms'>SMS &amp; USSD simulator</a>." : "");
       each(".demo", function(x){ x.hidden = false; });
       $("addrRow").hidden = false;
     }

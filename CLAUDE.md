@@ -21,6 +21,9 @@ everything people see says SUNU Park.
   from `/api/ping`), back office (`admin.html`; `police.html` is the same page with the police sign-in), org portal,
   `/sms`, `/terms`.
 - `scripts/build-frontend.js` builds `frontend/dist` and copies shared files into the apps (never edit `apps/*/www/assets`).
+- Art: `scripts/art/scene.js` draws the Banjul scene as vector SVG (`banjul-scene.svg` for navy cards,
+  `banjul-scene-light.svg` for pale pages), sharp on every screen; use it rather than the small raster crops.
+  The home page is landscape on wide screens (hero beside the portal sign-ins) and stacks on phones.
 
 ## Checks (run before every push)
 - `scripts/qa.sh`: JS syntax, parity runs, all back-end tests with MariaDB (about 40 s).

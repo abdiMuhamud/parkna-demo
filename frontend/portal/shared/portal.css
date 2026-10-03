@@ -234,7 +234,7 @@ input,select{font:inherit}
 /* login */
 .elog{flex:1;display:grid;grid-template-columns:1fr 1fr;gap:12px;min-height:0}
 .elog .l{position:relative;overflow:hidden;background:#0D2F5D;border-radius:22px;color:#fff;padding:34px;display:flex;flex-direction:column;justify-content:space-between}
-.elog .l::after{content:"";position:absolute;right:-10px;bottom:-10px;width:calc(80% + 10px);height:calc(64% + 10px);background:url(img/art/hero-scene.webp) right bottom/cover no-repeat;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 40%),linear-gradient(180deg,transparent 0,#000 28%);-webkit-mask-composite:source-in;mask-image:linear-gradient(90deg,transparent 0,#000 40%),linear-gradient(180deg,transparent 0,#000 28%);mask-composite:intersect}
+.elog .l::after{content:"";position:absolute;right:-10px;bottom:-10px;width:calc(80% + 10px);height:calc(64% + 10px);background:url(img/art/banjul-scene.svg) right bottom/cover no-repeat;-webkit-mask-image:linear-gradient(90deg,transparent 0,#000 40%),linear-gradient(180deg,transparent 0,#000 28%);-webkit-mask-composite:source-in;mask-image:linear-gradient(90deg,transparent 0,#000 40%),linear-gradient(180deg,transparent 0,#000 28%);mask-composite:intersect}
 .elog .l>*{position:relative;z-index:1}
 .elog .l .elogo b,.elog .l .elogo .bc{color:#fff}
 .elog .l .elogo small{color:#D6DFEE}
