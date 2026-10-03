@@ -41,17 +41,14 @@ const icon = {
   foreground: (a, n) => svg(n, mark(a, .82)),
   play: (a, n) => svg(n, `<rect width="108" height="108" fill="${a.bg}"/>${mark(a, 1.08)}`)
 };
-/* the launch screen: the same mark, words and places as the apps' animated launch screen (#splash), so the hand-over
-   from Android's splash to the app is seamless */
+/* the launch screen: the first frame of the apps' animated launch screen (#splash): the P mark on navy, so the
+   hand-over from Android's splash to the app is seamless */
 function splash(a, w, h){
-  const u = Math.min(w, h) / 360, officer = a.bg === YELLOW;
-  return `<div style="width:${w}px;height:${h}px;background:radial-gradient(110% 75% at 50% 40%,#FFFFFF 0%,${BG} 45%,#E6F0FA 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:${10 * u}px">
-    <div style="width:${176 * u}px;height:${176 * u}px;display:grid;place-items:center;margin-bottom:${16 * u}px;border-radius:50%;background:radial-gradient(circle,rgba(254,219,70,.4) 0,transparent 66%)">
-      <div style="width:${104 * u}px;height:${104 * u}px;border-radius:${30 * u}px;background:${a.bg};display:grid;place-items:center;box-shadow:0 ${18 * u}px ${36 * u}px -${16 * u}px rgba(10,27,77,.55)">
-        <svg width="${98 * u}" height="${98 * u}" viewBox="0 0 108 108"><text x="52.5" y="73" text-anchor="middle" font-family="J" font-weight="800" font-size="56" fill="${a.fg}">P</text><rect x="38" y="78" width="29" height="4.5" rx="2.25" fill="${a.fg}"/></svg></div></div>
-    <div style="font-weight:700;font-size:${11 * u}px;color:${NAVY};letter-spacing:.3em">BANJUL CITY COUNCIL</div>
-    <div style="font-weight:800;font-size:${40 * u}px;letter-spacing:-.02em;line-height:1.05;color:${INK}">SUNU Park</div>
-    <div style="font-weight:500;font-size:${13.5 * u}px;color:${MUTED}">${officer ? "Attendant · Our park, our parking" : "Our park · Our parking"}</div></div>`;
+  const u = Math.min(w, h) / 360;
+  return `<div style="width:${w}px;height:${h}px;position:relative;background:radial-gradient(130% 38% at 50% 50%,#1B4C96 0%,${NAVY} 42%,#061B3F 100%);display:grid;place-items:center">
+    <div style="position:absolute;left:50%;top:50%;width:${300 * u}px;height:${300 * u}px;margin:-${150 * u}px 0 0 -${150 * u}px;border-radius:50%;background:radial-gradient(circle,rgba(254,219,70,.3) 0,rgba(254,219,70,.1) 36%,transparent 66%)"></div>
+    <div style="position:relative;width:${104 * u}px;height:${104 * u}px;border-radius:${30 * u}px;background:${a.bg};display:grid;place-items:center;box-shadow:inset 0 0 0 ${u}px rgba(255,255,255,.14),0 ${22 * u}px ${44 * u}px -${18 * u}px rgba(0,0,0,.7),0 0 ${40 * u}px -${6 * u}px rgba(254,219,70,.45)">
+      <svg width="${98 * u}" height="${98 * u}" viewBox="0 0 108 108"><text x="52.5" y="73" text-anchor="middle" font-family="J" font-weight="800" font-size="56" fill="${a.fg}">P</text><rect x="38" y="78" width="29" height="4.5" rx="2.25" fill="${a.fg}"/></svg></div></div>`;
 }
 /* the home screen's navy card: Banjul scene on the right, big white title, yellow call to action */
 function feature(a){

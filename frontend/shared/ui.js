@@ -356,39 +356,23 @@ var UI = (function(){
   })();
 
   /* ---------- launch screen ----------
-     #splash (in index.html) shows from the first frame: gold dust and the spinning mark (ui.css). splashDone() hands
-     over once the app has something real to show, but never before the mark has landed with its golden burst
-     (about 5 s). Then the screen closes in a circle around the mark and the first screen's parts rise into place. */
+     #splash (in index.html) shows from the first frame: the P mark on navy, then the name sweeps in (ui.css).
+     splashDone() hands over once the app has something real to show, but not before the name has settled (about
+     3.4 s). Then a yellow seam draws across, the screen splits into two halves that glide apart, and the first
+     screen's parts rise into place. */
   var T0 = Date.now(), splashGone = false;
-  (function(){
-    var reduce = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-    var dust = document.getElementById("spDust"), burst = document.getElementById("spBurst"), i, h = "";
-    if(dust && !reduce){
-      for(i = 0; i < 26; i++){
-        var s = 3 + Math.random() * 6;
-        h += '<i style="left:' + (Math.random() * 100).toFixed(1) + '%;--s:' + s.toFixed(1) + 'px;--d:' + (4 + Math.random() * 5).toFixed(2) + 's;--w:' + (-Math.random() * 6).toFixed(2) + 's;--x:' + ((Math.random() - .5) * 120).toFixed(0) + 'px;--o:' + (.35 + Math.random() * .6).toFixed(2) + '"></i>';
-      }
-      dust.innerHTML = h;
-    }
-    if(burst && !reduce){
-      h = "";
-      for(i = 0; i < 16; i++) h += '<i style="--a:' + (i * 22.5) + 'deg"></i>';
-      for(i = 0; i < 14; i++) h += '<b style="--a:' + (i * 25.7 + Math.random() * 12).toFixed(1) + 'deg;--r:-' + (95 + Math.random() * 60).toFixed(0) + 'px"></b>';
-      burst.innerHTML = h;
-    }
-  })();
   function splashDone(){
     if(splashGone) return;
     var el = document.getElementById("splash");
     if(!el){ splashGone = true; return; }
-    var wait = Math.max(0, 5200 - (Date.now() - T0));
+    var wait = Math.max(0, 3400 - (Date.now() - T0));
     splashGone = true;
     setTimeout(function(){
       var html = document.documentElement;
-      html.classList.add("reveal");
       el.classList.add("out");
-      setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 1500);
-      setTimeout(function(){ html.classList.remove("reveal"); }, 3000);
+      setTimeout(function(){ html.classList.add("reveal"); }, 450);
+      setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 1700);
+      setTimeout(function(){ html.classList.remove("reveal"); }, 3400);
     }, wait);
   }
 
