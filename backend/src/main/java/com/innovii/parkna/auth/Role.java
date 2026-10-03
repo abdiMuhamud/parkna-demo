@@ -38,4 +38,14 @@ public enum Role {
         try { Role r = Role.valueOf(String.valueOf(s).trim().toUpperCase()); return r.staff ? r : null; }
         catch (IllegalArgumentException e) { return null; }
     }
+
+    /**
+     * The role a new or changed back-office account may get. Three kinds of people sign in to the web portal:
+     * administrators and the police (username and password) and organisations (an SMS code, not a staff account).
+     * Supervisor, Finance and Council accounts made before keep working, but no new ones are made.
+     */
+    public static Role portalStaffRole(String s) {
+        Role r = staffRole(s);
+        return r == ADMIN || r == POLICE ? r : null;
+    }
 }

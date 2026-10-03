@@ -244,4 +244,25 @@ class ViewsTest {
         assertEquals("7", mode.get("termsV").asText());
         assertTrue(mode.get("smsSimulator").asBoolean(), "on by default on a demo server");
     }
+
+    @Test
+    void modeTellsTheHomePageThePricesAndWhereTheAppsAre() throws Exception {
+        JsonNode demo = M.readTree(Json.write(new Views(config("demo")).mode(ParkingEngine.seeded())));
+        assertEquals(200, demo.get("daily").asInt());
+        assertEquals(4000, demo.get("monthly").asInt());
+        assertEquals(1880, demo.get("fine").asInt());
+        assertEquals(48000, demo.get("annual").asInt());
+        assertTrue(demo.get("driverApp").asText().endsWith("/releases/latest/download/SUNU-Park-Driver.apk"), "a demo server offers the newest build");
+        assertTrue(demo.get("officerApp").asText().endsWith("/releases/latest/download/SUNU-Park-Officer.apk"));
+        JsonNode prod = M.readTree(Json.write(new Views(config("production")).mode(ParkingEngine.empty(java.time.LocalDate.of(2026, 9, 28), 600))));
+        assertTrue(prod.get("driverApp").asText().startsWith("https://play.google.com/"), "a production server sends drivers to Google Play");
+        Properties db = new Properties();
+        db.setProperty("db.url", "jdbc:mariadb://127.0.0.1/none");
+        db.setProperty("db.username", "x");
+        Properties cfg = new Properties();
+        cfg.setProperty("app.mode", "production");
+        cfg.setProperty("apps.officer.url", "https://example.org/officer.apk");
+        JsonNode set = M.readTree(Json.write(new Views(AppConfig.of(db, cfg)).mode(ParkingEngine.seeded())));
+        assertEquals("https://example.org/officer.apk", set.get("officerApp").asText(), "config.properties decides");
+    }
 }

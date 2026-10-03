@@ -8,13 +8,18 @@
 app.mode=production
 
 # ---------------------------------------------------------------- server
-# The address people type into the apps (shown on the landing page and returned by /api/ping)
+# The address people type into the apps (shown on the home page and returned by /api/ping)
 server.publicUrl=https://parkna.example.gm
 
-# How drivers, organisations and attendants reach SUNU Park: shown in the apps' help, on the landing page
+# How drivers, organisations and attendants reach SUNU Park: shown in the apps' help, on the home page
 # and in the privacy policy (/privacy.html). Set both before publishing the apps on Google Play.
 support.phone=
 support.email=
+
+# Where the home page's "Get the app" buttons go. Default: Google Play in production; on a demo server the newest
+# Android apps of the GitHub releases (.../releases/latest/download/SUNU-Park-Driver.apk and SUNU-Park-Officer.apk).
+#apps.driver.url=https://play.google.com/store/apps/details?id=com.innovii.parkna.driver
+#apps.officer.url=https://play.google.com/store/apps/details?id=com.innovii.parkna.officer
 
 # Which web pages may call the API from a browser. The APKs load from http://localhost.
 # * allows any; for production list them, e.g. https://parkna.example.gm,http://localhost

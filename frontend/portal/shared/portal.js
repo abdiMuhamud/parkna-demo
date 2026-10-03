@@ -128,35 +128,41 @@ function helpSheet(text){
 
 /* ================= account: sign-in, password, user menu ================= */
 const brand = sub => `<div class="elogo" style="padding:0"><i><img src="shared/img/crest.png" alt=""></i><span><span class="bc">BANJUL CITY COUNCIL</span><b>SUNU Park</b><small>${sub}</small></span></div>`;
-const testBanner = () => PN.info && PN.info.otpInApp ? `<div class="etest">${ic("info", 15, 2.2)}<span>Test server: sign-in codes are shown here instead of being sent by SMS.</span></div>` : "";
+const testBanner = () => PN.info && PN.info.otpInApp ? `<div class="etest">${ic("info", 15, 2.2)}<span>${PN.info.demo ? "Demo server: try Demo Bank, phone <b>7101234</b>. Sign-in codes" : "Test server: sign-in codes"} are shown here instead of being sent by SMS.</span></div>` : "";
+/* the portal's three doors: administrators (/admin), organisations (/org), the police (/police, the same page as /admin) */
+const policeDoor = () => document.body.dataset.door === "police" || /[?&]police\b/.test(location.search);
+const doors = here => `<div class="edoors"><span>Other sign-ins</span>${[["admin", "/admin", "Administrator"], ["org", "/org", "Organisation"], ["police", "/police", "Police"]]
+  .filter(d => d[0] !== here).map(d => `<a href="${d[1]}">${d[2]}</a>`).join("")}<a href="/">Home</a></div>`;
 function signInFrame(left, box){
   return `<div class="elog"><div class="l">${left}</div><div class="r"><div class="box">${box}</div></div></div>`;
 }
 function staffSignIn(){
   const F = AUTH;
-  /* /admin?police: the same sign-in, worded for police officers (their account opens Fines tracking) */
-  if(/[?&]police\b/.test(location.search)) return signInFrame(`<div><span class="tag">${spark(11)}SUNU Park · Police</span>
+  /* /police (and the older /admin?police): the same sign-in, worded for police officers (their account opens Fines tracking) */
+  if(policeDoor()) return signInFrame(`<div><span class="tag">${spark(11)}SUNU Park · Police</span>
       <h2>Follow up unpaid parking fines.</h2><p>Drivers with unpaid warnings, overdue fines and repeat offenders, with the phone linked to each plate. Read-only; every sign-in is recorded in the audit log.</p></div>
     <div class="chips"><span>${ic("shield", 16, 2.2)}Overdue fines</span><span>${ic("car", 16, 2.2)}First-time and repeat offenders</span><span>${ic("users", 16, 2.2)}Driver contacts</span></div>`,
     `${brand("Police · Fines tracking")}
     <div><h1>Police sign-in</h1><p>With the username and password your SUNU Park administrator created for you (role Police).${PN.info && PN.info.demo ? " Demo server: <b>police</b> / <b>police-demo</b>." : ""}</p></div>
     ${F.note ? `<div class="eban vio">${esc(F.note)}</div>` : ""}
-    <label class="ef">Username${inp("auUser", "AU.user", F.user, "e.g. police.banjul", "text", 'autocapitalize="none" spellcheck="false" autocomplete="username"')}</label>
+    <label class="ef">Username${inp("auUser", "AU.user", F.user, "Your username", "text", 'autocapitalize="none" spellcheck="false" autocomplete="username"')}</label>
     <label class="ef">Password${inp("auPass", "AU.pass", F.pass, "", "password", 'autocomplete="current-password"')}</label>
     ${F.err ? `<div class="eerr">${esc(F.err)}</div>` : ""}
     <button class="eb pri full" style="height:46px" ${A("staffin")} ${F.busy ? "disabled" : ""}>${F.busy ? "Signing in…" : "Sign in"}</button>
-    <p style="font-size:11.5px">No account yet? Ask a SUNU Park administrator: Staff &amp; audit → new account, role Police.</p>`);
-  return signInFrame(`<div><span class="tag">${spark(11)}SUNU Park back office</span>
-      <h2>Parking for Banjul, run from one place.</h2><p>For SUNU Park and Banjul City Council staff. Sign in with your own account: everything you do is recorded in the audit log.</p></div>
+    <p style="font-size:11.5px">No account yet? Ask a SUNU Park administrator: Staff &amp; audit → new account, role Police.</p>
+    ${doors("police")}`);
+  return signInFrame(`<div><span class="tag">${spark(11)}SUNU Park · Administrator</span>
+      <h2>Parking for Banjul, run from one place.</h2><p>For the administrators of SUNU Park and Banjul City Council. Sign in with your own account: everything you do is recorded in the audit log.</p></div>
     <div class="chips"><span>${ic("users", 16, 2.2)}Attendants and roads, live</span><span>${ic("building", 16, 2.2)}Organisations and invoices</span><span>${ic("chart", 16, 2.2)}Revenue for the Council</span></div>`,
     `${brand("Back office · Banjul City Council")}
-    <div><h1>Sign in</h1><p>With the username and password your SUNU Park administrator gave you.</p></div>
+    <div><h1>Administrator sign-in</h1><p>With the username and password you were given. The first password is temporary: you choose your own when you sign in.</p></div>
     ${F.note ? `<div class="eban vio">${esc(F.note)}</div>` : ""}
-    <label class="ef">Username${inp("auUser", "AU.user", F.user, "e.g. fatou.jallow", "text", 'autocapitalize="none" spellcheck="false" autocomplete="username"')}</label>
+    <label class="ef">Username${inp("auUser", "AU.user", F.user, "Your username", "text", 'autocapitalize="none" spellcheck="false" autocomplete="username"')}</label>
     <label class="ef">Password${inp("auPass", "AU.pass", F.pass, "", "password", 'autocomplete="current-password"')}</label>
     ${F.err ? `<div class="eerr">${esc(F.err)}</div>` : ""}
     <button class="eb pri full" style="height:46px" ${A("staffin")} ${F.busy ? "disabled" : ""}>${F.busy ? "Signing in…" : "Sign in"}</button>
-    <p style="font-size:11.5px">Forgot your password? Ask a SUNU Park administrator to reset it. After 5 wrong tries the account waits 15 minutes.</p>`);
+    <p style="font-size:11.5px">Forgot your password? Ask another SUNU Park administrator to reset it. After 5 wrong tries the account waits 15 minutes.</p>
+    ${doors("admin")}`);
 }
 function orgSignIn(){
   const F = AUTH;
@@ -172,7 +178,8 @@ function orgSignIn(){
     ${F.err ? `<div class="eerr">${esc(F.err)}</div>` : ""}
     <button class="eb pri full" style="height:46px" ${A(F.sent ? "verify" : "sendcode")} ${F.busy ? "disabled" : ""}>${F.busy ? "One moment…" : F.sent ? "Sign in" : "Send code"}</button>
     ${F.sent ? `<div class="elinks"><button ${A("resend")}>Send the code again</button><button ${A("otherphone")}>Use another number</button></div>` : ""}
-    <p style="font-size:11.5px">New organisations are set up by the SUNU Park account manager after the agreement is signed. There is no self sign-up.</p>`);
+    <p style="font-size:11.5px">New organisations are set up by the SUNU Park account manager after the agreement is signed. There is no self sign-up.</p>
+    ${doors("org")}`);
 }
 const pwFields = () => `<label class="ef">${ME().mustChangePassword ? "Temporary password" : "Current password"}${inp("pwCur", "PW.cur", PW.cur, "", "password", 'autocomplete="current-password"')}</label>
     <label class="ef">New password (10 characters or more)${inp("pwNext", "PW.next", PW.next, "", "password", 'autocomplete="new-password"')}</label>
@@ -476,7 +483,7 @@ function renderBack(){
   const nd = police ? [] : needs().filter(x => x.a === "cover" ? can("officers") : canSee(x.v));
   const top = topbar("Search plate, e.g. BJL1234", BS.q, nd.length > 0, m.name || m.username || "", STAFF_ROLES[m.role] || "", initialsOf(m.name || m.username), council ? "Council view" : police ? "Police · fines" : "Back office");
   const [main, right] = { dash: backDash, attendants: backAtt, register: backReg, orgs: backOrgs, neworg: backNewOrg, payments: () => backPay(proofs), fines: backFines, tariff: backTariff, ann: backAnn, council: backCouncil, staff: backStaff, police: backPolice, terms: backTerms }[V]();
-  const ov = BS.user ? userSheet() : BS.pw ? pwSheet() : BS.sheet ? plateSheet(BS.sheet, "back") : BS.bell ? bellSheet(nd) : BS.help ? helpSheet("The SUNU Park back office. <b>Administrators</b> register attendants and set their fixed road, create organisation accounts, apply the tariff adopted by the Council, publish announcements and manage staff accounts. <b>Supervisors</b> look after attendants and roads. <b>Finance</b> matches organisation bank transfers, records warnings paid at the Council office and handles payment exceptions. The <b>Police</b> see Fines tracking: drivers with unpaid warnings, overdue fines and repeat offenders, read-only. Administrators publish the <b>Terms &amp; conditions</b>; every new version is shown in the apps to be accepted again. The <b>Revenue report</b> is the Council’s read-only view. Every change is recorded in the audit log with the name of the person who made it." + (isDemo() ? " On this demo server, roads and attendants other than 07 and 12 run simulated background activity." : "")) : "";
+  const ov = BS.user ? userSheet() : BS.pw ? pwSheet() : BS.sheet ? plateSheet(BS.sheet, "back") : BS.bell ? bellSheet(nd) : BS.help ? helpSheet("The SUNU Park back office. Three kinds of people sign in to the portal: <b>administrators</b> (here), the <b>police</b> (at /police) and <b>organisations</b> (at /org, with an SMS code). Drivers and parking attendants use the apps, SMS and USSD. <b>Administrators</b> register attendants and set their fixed road, create organisation accounts, match bank transfers, record warnings paid at the Council office, handle payment exceptions, apply the tariff adopted by the Council, publish announcements and manage staff accounts. The <b>Police</b> see Fines tracking: drivers with unpaid warnings, overdue fines and repeat offenders, read-only. Administrators publish the <b>Terms &amp; conditions</b>; every new version is shown in the apps to be accepted again. The <b>Revenue report</b> is the Council’s read-only view. Every change is recorded in the audit log with the name of the person who made it." + (isDemo() ? " On this demo server, roads and attendants other than 07 and 12 run simulated background activity." : "")) : "";
   paint(el, frame(top, side, main, right, ov));
 }
 function backDash(){
@@ -774,7 +781,7 @@ function backStaff(){
   const audit = (S.audit || []).filter(e => S.auditAll || !/^(driver|officer|org)$/.test(e.role || "")).map(e => row({ lead: whenOf(e.at).split(" ").pop(), title: esc(AUDIT_WHAT[e.action] || e.action) + (e.target ? " · " + esc(e.target) : ""),
       sub: whenOf(e.at).split(" ").slice(0, 2).join(" ") + " · " + esc(e.actor || "—") + (e.role ? " · " + esc(STAFF_ROLES[e.role] || e.role) : ""), mid: esc(auditDetail(e)), dur: "",
       chip: e.result === "ok" ? eChip("ok", "Done", "check") : eChip("bad", e.result === "refused" ? "Refused" : e.result || "Failed") })).join("");
-  const main = `<div class="ep"><div class="eh"><div><h1>Staff & audit</h1><p>Everyone who can sign in to the back office, with their role. Temporary passwords are shown once, when they are set, and must be changed at the first sign-in.</p></div><div class="btns">${eBtn("Add staff", "staffnew", null, "", "plus")}</div></div>${stats}</div>
+  const main = `<div class="ep"><div class="eh"><div><h1>Staff & audit</h1><p>Administrators and police officers, who sign in with a username and password. Organisations sign in with an SMS code and are set up under Organisations. Temporary passwords are shown once, when they are set, and must be changed at the first sign-in.</p></div><div class="btns">${eBtn("Add staff", "staffnew", null, "", "plus")}</div></div>${stats}</div>
    <div class="ep"><div class="eh"><h2>Accounts</h2></div><div class="erows">${rows}</div></div>
    <div class="ep"><div class="eh"><div><h2>Audit log</h2><p style="margin-top:2px">Sign-ins and every change made in the back office, newest first. It cannot be edited.</p></div>${seg("auditall", S.auditAll ? "all" : "staff", [["staff", "Staff"], ["all", "Everyone"]])}</div><div class="erows">${audit || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No entries yet.</small></div>`}</div>
      ${(S.audit || []).length >= (S.limit || 60) ? `<div style="margin-top:10px">${eBtn("Show older entries", "auditmore", null, "gh sm")}</div>` : ""}</div>`;
@@ -782,17 +789,17 @@ function backStaff(){
   if(S.shown) right = insight({ tag: S.shown.fresh ? "Account created" : "Password reset", title: esc(S.shown.name), body: `<div class="wx">Give this temporary password to ${esc(firstName(S.shown.name))} in person or by phone, never by email or chat. They must choose their own password when they first sign in.</div>
       <div class="kvw"><span>Username</span><b>${esc(S.shown.username)}</b></div><div class="epw" title="Temporary password">${esc(S.shown.password)}</div>`, btn: { l: "Done, I have given it", a: "shownx", pri: 1 } });
   else if(u) right = insight({ tag: "Manage account", title: esc(u.name), body: `<div class="kvw"><span>Username</span><b>${esc(u.username)}</b><span>Created</span><b>${esc(whenOf(u.created))}</b><span>Status</span><b>${u.active ? "Active" : "Switched off"}</b></div>
-      <label class="fld2">Role${sel("stRole", "ST.role", S.role, Object.keys(STAFF_ROLES).map(k => [k, STAFF_ROLES[k]]))}</label>
+      <label class="fld2">Role${sel("stRole", "ST.role", S.role, roleOpts(u.role))}</label>
       ${S.role !== u.role ? `<button class="eb lm full" ${A("staffrole")}>Save role · signs them out</button>` : ""}
       <div class="opt3"><button ${A("staffreset")} ${u.active ? "" : "disabled"}><b>Reset password</b><small>new temporary one</small></button><button ${A(u.active ? "staffoff" : "staffon")} ${u.username === S.me ? "disabled" : ""}><b>${u.active ? "Switch off" : "Switch on"}</b><small>${u.active ? "signs them out now" : "they can sign in again"}</small></button></div>
       ${S.err ? `<div class="err">${esc(S.err)}</div>` : ""}` });
   else { const F = S.add;
-    right = insight({ tag: "Add staff", title: "New back-office account", body: `<label class="fld2">Full name${inp("stName", "ST.add.name", F.name, "e.g. Fatou Jallow")}</label>
+    right = insight({ tag: "Add staff", title: "New administrator or police account", body: `<label class="fld2">Full name${inp("stName", "ST.add.name", F.name, "e.g. Fatou Jallow")}</label>
       <label class="fld2">Username${inp("stUser", "ST.add.username", F.username, "e.g. fatou.jallow", "text", 'autocapitalize="none" spellcheck="false"')}</label>
-      <label class="fld2">Role${sel("stNewRole", "ST.add.role", F.role, Object.keys(STAFF_ROLES).map(k => [k, STAFF_ROLES[k]]))}</label>
+      <label class="fld2">Role${sel("stNewRole", "ST.add.role", F.role, roleOpts())}</label>
       ${F.err ? `<div class="err">${esc(F.err)}</div>` : ""}`, btn: { l: "Create account", a: "staffadd", pri: 1 } }); }
-  right += queue({ title: "Roles", items: [{ t: "Administrator", s: "Everything, including staff accounts and tariffs", v: "All" }, { t: "Supervisor", s: "Attendants, roads and the dashboard", v: "Ops" },
-    { t: "Finance", s: "Organisations, transfers and exceptions", v: "Money" }, { t: "Council", s: "The revenue report, read-only", v: "Read" }] });
+  right += queue({ title: "Who signs in to the portal", items: [{ t: "Administrator · /admin", s: "Everything, including staff accounts, tariffs and the terms", v: "All" },
+    { t: "Police · /police", s: "Fines tracking, read-only", v: "Read" }, { t: "Organisation · /org", s: "Its own fleet, with an SMS code (Organisations)", v: "Fleet" }] });
   return [main, right];
 }
 /* screen-only back-office actions (the ones that change data are in portal-app.js) */

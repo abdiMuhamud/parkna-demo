@@ -1,6 +1,7 @@
 /* SUNU Park portals: sign-in, live data from the SUNU Park server, and the actions that change it.
-   admin.html (data-role="back"): SUNU Park and Council staff sign in with a username and password. The pages each person
-     sees follow their role (PAGES below); the server checks every action again.
+   admin.html and police.html (data-role="back"): administrators and the police sign in with a username and password
+     (police.html is the same page with the police sign-in). The pages each person sees follow their role (PAGES below);
+     the server checks every action again.
    org.html (data-role="org"): an organisation's billing contact signs in with a code sent to their phone by SMS. */
 const $ = id => document.getElementById(id);
 const IC = { checkD: '<svg width="14" height="14" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="#0B2E63" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>' };
@@ -16,6 +17,10 @@ const ME = () => PN.me || {};
 const myRole = () => ME().role || "";
 const isDemo = () => !!(PN.mode && PN.mode.demo);
 const STAFF_ROLES = { admin: "Administrator", supervisor: "Supervisor", finance: "Finance", police: "Police · fines tracking", council: "Council · read-only" };
+/* new accounts are administrators or police (organisations sign in with an SMS code); Supervisor, Finance and Council
+   accounts made before keep working and keep their role until an administrator changes it */
+const NEW_ROLES = ["admin", "police"];
+const roleOpts = cur => NEW_ROLES.concat(cur && !NEW_ROLES.includes(cur) ? [cur] : []).map(k => [k, NEW_ROLES.includes(k) ? STAFF_ROLES[k] : (STAFF_ROLES[k] || k) + " (old role)"]);
 const PAGES = { admin: ["dash", "attendants", "orgs", "fines", "police", "payments", "tariff", "ann", "terms", "council", "staff"], supervisor: ["dash", "attendants", "fines", "police", "terms", "council"],
   finance: ["dash", "orgs", "fines", "police", "payments", "terms", "council"], police: ["police"], council: ["council", "police", "terms"] };
 const pageOf = v => v === "register" ? "attendants" : v === "neworg" ? "orgs" : v;
@@ -27,7 +32,7 @@ const firstName = s => String(s || "").trim().split(/\s+/)[0];
 /* ---------- sign-in and password forms (their inputs use data-f="AU.x" / "PW.x", see setF in portal.js) ---------- */
 const freshAuth = () => ({ phone: "", code: "", sent: false, user: "", pass: "", err: "", note: "", busy: false, test: null });
 const freshPW = () => ({ cur: "", next: "", again: "", err: "", busy: false });
-const freshStaff = () => ({ list: null, audit: null, me: "", sel: null, add: { name: "", username: "", role: "supervisor", err: "" }, role: "", shown: null, err: "", busy: false });
+const freshStaff = () => ({ list: null, audit: null, me: "", sel: null, add: { name: "", username: "", role: "police", err: "" }, role: "", shown: null, err: "", busy: false });
 const freshTerms = () => ({ cur: null, hist: null, title: "", body: "", note: "", notify: true, err: "", busy: false });
 let AUTH = freshAuth(), PW = freshPW(), STAFF = freshStaff(), TERMS = freshTerms();
 

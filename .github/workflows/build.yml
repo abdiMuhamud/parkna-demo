@@ -236,6 +236,17 @@ jobs:
           path: out
           merge-multiple: true
 
+      # the same apps under fixed names, so ".../releases/latest/download/SUNU-Park-Driver.apk" is always the newest
+      # (the home page's download buttons on a demo server; config apps.driver.url / apps.officer.url)
+      - name: Latest-app names
+        run: |
+          for app in Driver Officer; do
+            f=$(ls out/SUNU-Park-$app-*.apk | grep -v -- '-test\.apk$' | head -1 || true)
+            [ -n "$f" ] || f=$(ls out/SUNU-Park-$app-*-test.apk | head -1)
+            cp "$f" "out/SUNU-Park-$app.apk"
+          done
+          ls -l out
+
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.PARKNA_VERSION }}
@@ -247,6 +258,7 @@ jobs:
             - **parkna-${{ env.PARKNA_VERSION }}.tar.gz**: the server package (Tomcat WAR, Nginx front end, config templates, deploy scripts, SQL). Install it with deploy/scripts/deploy.sh; see docs/DEPLOYMENT.md.
             - **SUNU-Park-Driver-${{ env.PARKNA_VERSION }}**: the driver app. The `.aab` is for Google Play (docs/PLAY_STORE.md); the `.apk` installs directly on a phone.
             - **SUNU-Park-Officer-${{ env.PARKNA_VERSION }}**: the parking attendant app, the same way.
+            - **SUNU-Park-Driver.apk** and **SUNU-Park-Officer.apk**: the same two apps under fixed names, for the home page's download buttons.
 
             Files ending in `-test.apk` are test builds (no Play upload key in the repository secrets yet). Apps built without PARKNA_SERVER_URL ask for the server address when first opened.
           files: out/*

@@ -1,5 +1,6 @@
 /* The apps and the back office together: the launch screen, the terms gate, first-time and repeat offenders,
-   fines first, the police page, and new terms published by an administrator that the driver must accept again. */
+   fines first, the police page, new terms published by an administrator that the driver must accept again, and the
+   staff accounts (administrators and police). */
 const { run, check, phone, signIn, openApp, adminSignIn, api, BASE } = require("../lib");
 run("apps", async ({ b, watch, shot }) => {
   const actx = await b.newContext({ viewport: { width: 1440, height: 900 } }), adm = watch(await actx.newPage(), "admin");
@@ -45,7 +46,7 @@ run("apps", async ({ b, watch, shot }) => {
   /* the police page lists the overdue fine (more than 24 hours after the warning) */
   await api(adm, "POST", "/api/sim/clock", { what: "hour" });
   const pol = watch(await b.newPage({ viewport: { width: 1440, height: 900 } }), "police");
-  await pol.goto(BASE + "/admin?police"); await pol.waitForSelector("#auUser");
+  await pol.goto(BASE + "/police"); await pol.waitForSelector("#auUser");
   await pol.fill("#auUser", "police"); await pol.fill("#auPass", "police-demo"); await pol.keyboard.press("Enter");
   await pol.waitForSelector(".eside", { timeout: 15000 }); await pol.waitForTimeout(800);
   check((await pol.textContent(".emain")).includes("BJL2211"), "the police see the overdue plate");
@@ -65,4 +66,13 @@ run("apps", async ({ b, watch, shot }) => {
   const web = watch(await b.newPage(), "web");
   await web.goto(BASE + "/terms"); await web.waitForSelector("#body h3", { timeout: 15000 });
   check((await web.textContent("#body")).includes("Test section"), "/terms shows the new version");
+
+  /* staff accounts: the portal's staff are administrators and police (organisations sign in with an SMS code) */
+  await adm.click('[data-a="nav"][data-v="staff"]'); await adm.waitForSelector("#stNewRole");
+  const roles = await adm.$$eval("#stNewRole option", x => x.map(y => y.value).join(" "));
+  check(roles === "admin police", "new staff accounts are Administrator or Police", roles);
+  await adm.fill("#stName", "Awa Ceesay"); await adm.fill("#stUser", "awa.ceesay"); await adm.click('[data-a="staffadd"]');
+  await adm.waitForSelector(".epw", { timeout: 15000 });
+  check((await adm.textContent(".emain")).includes("Police · fines tracking"), "a police account is created, with a temporary password shown once");
+  await shot(adm, "staff");
 });

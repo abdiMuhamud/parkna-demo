@@ -65,6 +65,11 @@ final class Views {
         m.put("otpInApp", cfg.auth.otpInApp());
         m.put("shortcode", cfg.sms.shortCode());
         m.put("daily", e.state().tariff.daily);
+        m.put("monthly", e.state().tariff.monthly);
+        m.put("fine", e.state().tariff.fine);
+        m.put("annual", e.state().tariff.annual);
+        m.put("driverApp", cfg.driverAppUrl);
+        m.put("officerApp", cfg.officerAppUrl);
         m.put("termsV", termsV.get());
         m.put("smsSimulator", cfg.smsSimulator);
         // a production server still holding the demo story (e.g. upgraded from a demo install): the back office warns
