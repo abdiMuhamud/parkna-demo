@@ -2,6 +2,8 @@
 #   Back end   Maven WAR for Tomcat, tested against the JS engine (parity) and a real MariaDB
 #   Front end  the Nginx document root
 #   Apps       driver and officer apps for Android
+#   Browser    the real server (Tomcat + MariaDB, demo mode) with the browser tests in scripts/e2e (simulator use cases,
+#              apps, back office, police, terms); a failure blocks the release
 # On main, a GitHub Release gets the server package (parkna-<version>.tar.gz) and both apps.
 # Every build has one release number, <VERSION file>.<build number> (e.g. 1.1.23): the release tag, the server package,
 # /api/health, the Android version name and the version shown in the apps and on the web all use it. Raise the
@@ -69,6 +71,59 @@ jobs:
           name: parkna-server
           path: dist/*.tar.gz
           if-no-files-found: error
+
+  e2e:
+    name: Browser tests (the real server, the apps, the SMS & USSD simulator)
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          MARIADB_ROOT_PASSWORD: root-pass
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+          cache: maven
+
+      - name: Tomcat and Playwright cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/sunu-park
+            ~/.cache/ms-playwright
+          key: e2e-${{ runner.os }}-${{ hashFiles('scripts/e2e/run.sh') }}-pw1.55
+
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --prefix scripts/e2e --no-save --no-package-lock playwright@1.55
+          scripts/e2e/node_modules/.bin/playwright install --with-deps chromium
+
+      - name: Run the browser tests
+        env:
+          MYSQL_ADMIN: mysql -h127.0.0.1 -uroot -proot-pass
+        run: scripts/e2e/run.sh
+
+      - name: Screenshots and server logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-tests
+          path: |
+            backend/target/e2e/shots
+            backend/target/e2e/logs
+          if-no-files-found: ignore
 
   apk:
     name: ${{ matrix.label }} app
@@ -167,7 +222,7 @@ jobs:
 
   release:
     name: Publish release
-    needs: [backend, apk]
+    needs: [backend, apk, e2e]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

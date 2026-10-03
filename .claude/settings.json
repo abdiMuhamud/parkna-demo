@@ -1,0 +1,30 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(scripts/qa.sh:*)",
+      "Bash(scripts/e2e/run.sh:*)",
+      "Bash(SKIP_BUILD=1 scripts/e2e/run.sh:*)",
+      "Bash(node scripts/build-frontend.js:*)",
+      "Bash(node scripts/parity/generate.js:*)",
+      "Bash(node --check:*)",
+      "Bash(mvn:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git fetch:*)",
+      "Bash(mysqladmin ping:*)"
+    ]
+  }
+}
