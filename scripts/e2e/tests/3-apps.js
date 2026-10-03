@@ -70,7 +70,7 @@ run("apps", async ({ b, watch, shot }) => {
   /* staff accounts: the portal's staff are administrators and police (organisations sign in with an SMS code) */
   await adm.click('[data-a="nav"][data-v="staff"]'); await adm.waitForSelector("#stNewRole");
   const roles = await adm.$$eval("#stNewRole option", x => x.map(y => y.value).join(" "));
-  check(roles === "admin police", "new staff accounts are Administrator or Police", roles);
+  check(roles === "admin police council", "new staff accounts are Administrator, Police or Council", roles);
   await adm.fill("#stName", "Awa Ceesay"); await adm.fill("#stUser", "awa.ceesay"); await adm.click('[data-a="staffadd"]');
   await adm.waitForSelector(".epw", { timeout: 15000 });
   check((await adm.textContent(".emain")).includes("Police · fines tracking"), "a police account is created, with a temporary password shown once");

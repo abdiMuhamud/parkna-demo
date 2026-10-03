@@ -11,20 +11,23 @@ SUNU Park, the road-side parking service for Banjul City Council, built by INNOV
 | **Back office** | Administrators: attendants, roads, organisations, payments, tariffs, announcements, terms, staff accounts and the audit log | Browser: `https://<server>/admin` |
 | **Organisation portal** | Fleet plates, invoices, attendant checks for a business | Browser: `https://<server>/org` |
 | **Police** | Fines tracking: unpaid warnings, overdue fines, repeat offenders (read-only) | Browser: `https://<server>/police` |
+| **Council** | Banjul City Council: the revenue report, fines tracking and the terms (read-only) | Browser: `https://<server>/council` |
 
 An attendant's check, an organisation's new plate or a Council announcement reaches every screen straight away.
 
-**Sign-in.** Three kinds of people sign in to the web portal:
+**Sign-in.** Four kinds of people sign in to the web portal:
 
 | Who | Where | How |
 |---|---|---|
 | Administrator | `/admin` | Username and password: everything, including staff accounts, tariffs, the terms, announcements and organisations |
 | Organisation | `/org` | The billing contact's phone number and a 6-digit code sent by SMS: its own fleet only |
 | Police | `/police` | Username and password: Fines tracking, read-only |
+| Council | `/council` | Username and password: the revenue report and fines tracking, read-only |
 
 Drivers and parking attendants don't use the web: they sign in to the apps with their phone number and an SMS code, or
-use SMS and USSD. Administrators make the administrator and police accounts in **Staff & audit**. (Supervisor, Finance
-and Council accounts made before 1.3 keep working with their old pages; no new ones are made.)
+use SMS and USSD. Administrators make the administrator, police and Council accounts in **Staff & audit**. (Supervisor and Finance
+accounts made earlier keep working with their old pages; no new ones are made.) Demo servers have `police` /
+`police-demo` and `council` / `council-demo`.
 
 Every sign-in and every change in the back office is written to the audit log with the person's name. Phones only ever
 receive their own data: a driver sees their plates and receipts, an attendant their shift and checks, an organisation its fleet.

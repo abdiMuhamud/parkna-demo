@@ -1,6 +1,6 @@
 /* SUNU Park portals: sign-in, live data from the SUNU Park server, and the actions that change it.
-   admin.html and police.html (data-role="back"): administrators and the police sign in with a username and password
-     (police.html is the same page with the police sign-in). The pages each person sees follow their role (PAGES below);
+   admin.html, police.html and council.html (data-role="back"): administrators, the police and the Council sign in with
+     a username and password (police.html and council.html are the same page with their own sign-in). The pages each person sees follow their role (PAGES below);
      the server checks every action again.
    org.html (data-role="org"): an organisation's billing contact signs in with a code sent to their phone by SMS. */
 const $ = id => document.getElementById(id);
@@ -17,9 +17,9 @@ const ME = () => PN.me || {};
 const myRole = () => ME().role || "";
 const isDemo = () => !!(PN.mode && PN.mode.demo);
 const STAFF_ROLES = { admin: "Administrator", supervisor: "Supervisor", finance: "Finance", police: "Police · fines tracking", council: "Council · read-only" };
-/* new accounts are administrators or police (organisations sign in with an SMS code); Supervisor, Finance and Council
+/* new accounts are administrators, police or Council (organisations sign in with an SMS code); Supervisor and Finance
    accounts made before keep working and keep their role until an administrator changes it */
-const NEW_ROLES = ["admin", "police"];
+const NEW_ROLES = ["admin", "police", "council"];
 const roleOpts = cur => NEW_ROLES.concat(cur && !NEW_ROLES.includes(cur) ? [cur] : []).map(k => [k, NEW_ROLES.includes(k) ? STAFF_ROLES[k] : (STAFF_ROLES[k] || k) + " (old role)"]);
 const PAGES = { admin: ["dash", "attendants", "orgs", "fines", "police", "payments", "tariff", "ann", "terms", "council", "staff"], supervisor: ["dash", "attendants", "fines", "police", "terms", "council"],
   finance: ["dash", "orgs", "fines", "police", "payments", "terms", "council"], police: ["police"], council: ["council", "police", "terms"] };

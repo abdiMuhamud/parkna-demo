@@ -208,7 +208,7 @@ grep -A2 "First start" /opt/tomcat/logs/parkna.log
 #  Password: xxxxxxxxxxxxxx   (shown only this once)
 ```
 Sign in at `https://<your-domain>/admin` with `admin` and that password; SUNU Park asks you to choose your own password
-straight away. Then, in **Staff & audit**, add an account for each person (Administrator or Police) and give each
+straight away. Then, in **Staff & audit**, add an account for each person (Administrator, Police or Council) and give each
 their temporary password in person. Nobody should share the `admin` account. Organisations are not staff accounts:
 create them under **Organisations**; their billing contact signs in at `/org` with an SMS code.
 
@@ -331,6 +331,10 @@ Administrator or Police; Supervisor, Finance and Council accounts made before ke
 changes their role or switches them off. The home page's download buttons go to Google Play on a production server and
 to the newest APKs of the GitHub releases on a demo server; `apps.driver.url` and `apps.officer.url` in
 `config.properties` change them. No database change.
+
+**The Council's sign-in** (releases after 1.2.46): the Council signs in at `/council` and sees the revenue report,
+fines tracking and the terms, read-only. New staff accounts can again have the role Council. Demo servers also get
+`council` / `council-demo`. No database change.
 - Internal names stay as they were: the database `parkna`, the WAR `parkna.war`, `/home/sdf/parkna`, the
   `tomcat-parkna` service, the Android app IDs. Only what people see is called SUNU Park.
 

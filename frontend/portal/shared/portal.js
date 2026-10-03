@@ -129,9 +129,11 @@ function helpSheet(text){
 /* ================= account: sign-in, password, user menu ================= */
 const brand = sub => `<div class="elogo" style="padding:0"><i><img src="shared/img/crest.png" alt=""></i><span><span class="bc">BANJUL CITY COUNCIL</span><b>SUNU Park</b><small>${sub}</small></span></div>`;
 const testBanner = () => PN.info && PN.info.otpInApp ? `<div class="etest">${ic("info", 15, 2.2)}<span>${PN.info.demo ? "Demo server: try Demo Bank, phone <b>7101234</b>. Sign-in codes" : "Test server: sign-in codes"} are shown here instead of being sent by SMS.</span></div>` : "";
-/* the portal's three doors: administrators (/admin), organisations (/org), the police (/police, the same page as /admin) */
+/* the portal's four doors: administrators (/admin), organisations (/org), the police (/police) and the Council (/council);
+   /police and /council are the same page as /admin */
 const policeDoor = () => document.body.dataset.door === "police" || /[?&]police\b/.test(location.search);
-const doors = here => `<div class="edoors"><span>Other sign-ins</span>${[["admin", "/admin", "Administrator"], ["org", "/org", "Organisation"], ["police", "/police", "Police"]]
+const councilDoor = () => document.body.dataset.door === "council" || /[?&]council\b/.test(location.search);
+const doors = here => `<div class="edoors"><span>Other sign-ins</span>${[["admin", "/admin", "Administrator"], ["org", "/org", "Organisation"], ["police", "/police", "Police"], ["council", "/council", "Council"]]
   .filter(d => d[0] !== here).map(d => `<a href="${d[1]}">${d[2]}</a>`).join("")}<a href="/">Home</a></div>`;
 function signInFrame(left, box){
   return `<div class="elog"><div class="l">${left}</div><div class="r"><div class="box">${box}</div></div></div>`;
@@ -151,6 +153,19 @@ function staffSignIn(){
     <button class="eb pri full" style="height:46px" ${A("staffin")} ${F.busy ? "disabled" : ""}>${F.busy ? "Signing in…" : "Sign in"}</button>
     <p style="font-size:11.5px">No account yet? Ask a SUNU Park administrator: Staff &amp; audit → new account, role Police.</p>
     ${doors("police")}`);
+  /* /council: the same sign-in, worded for Banjul City Council (their account opens the revenue report) */
+  if(councilDoor()) return signInFrame(`<div><span class="tag">${spark(11)}SUNU Park · Council</span>
+      <h2>Parking revenue for Banjul, at a glance.</h2><p>The revenue report for Banjul City Council, the Council's share, fines tracking and the terms in force. Read-only; every sign-in is recorded in the audit log.</p></div>
+    <div class="chips"><span>${ic("chart", 16, 2.2)}Revenue report and the Council's share</span><span>${ic("shield", 16, 2.2)}Fines tracking</span><span>${ic("file", 16, 2.2)}Terms in force</span></div>`,
+    `${brand("Council · Revenue report")}
+    <div><h1>Council sign-in</h1><p>With the username and password your SUNU Park administrator created for you (role Council).${PN.info && PN.info.demo ? " Demo server: <b>council</b> / <b>council-demo</b>." : ""}</p></div>
+    ${F.note ? `<div class="eban vio">${esc(F.note)}</div>` : ""}
+    <label class="ef">Username${inp("auUser", "AU.user", F.user, "Your username", "text", 'autocapitalize="none" spellcheck="false" autocomplete="username"')}</label>
+    <label class="ef">Password${inp("auPass", "AU.pass", F.pass, "", "password", 'autocomplete="current-password"')}</label>
+    ${F.err ? `<div class="eerr">${esc(F.err)}</div>` : ""}
+    <button class="eb pri full" style="height:46px" ${A("staffin")} ${F.busy ? "disabled" : ""}>${F.busy ? "Signing in…" : "Sign in"}</button>
+    <p style="font-size:11.5px">No account yet? Ask a SUNU Park administrator: Staff &amp; audit → new account, role Council.</p>
+    ${doors("council")}`);
   return signInFrame(`<div><span class="tag">${spark(11)}SUNU Park · Administrator</span>
       <h2>Parking for Banjul, run from one place.</h2><p>For the administrators of SUNU Park and Banjul City Council. Sign in with your own account: everything you do is recorded in the audit log.</p></div>
     <div class="chips"><span>${ic("users", 16, 2.2)}Attendants and roads, live</span><span>${ic("building", 16, 2.2)}Organisations and invoices</span><span>${ic("chart", 16, 2.2)}Revenue for the Council</span></div>`,
@@ -483,7 +498,7 @@ function renderBack(){
   const nd = police ? [] : needs().filter(x => x.a === "cover" ? can("officers") : canSee(x.v));
   const top = topbar("Search plate, e.g. BJL1234", BS.q, nd.length > 0, m.name || m.username || "", STAFF_ROLES[m.role] || "", initialsOf(m.name || m.username), council ? "Council view" : police ? "Police · fines" : "Back office");
   const [main, right] = { dash: backDash, attendants: backAtt, register: backReg, orgs: backOrgs, neworg: backNewOrg, payments: () => backPay(proofs), fines: backFines, tariff: backTariff, ann: backAnn, council: backCouncil, staff: backStaff, police: backPolice, terms: backTerms }[V]();
-  const ov = BS.user ? userSheet() : BS.pw ? pwSheet() : BS.sheet ? plateSheet(BS.sheet, "back") : BS.bell ? bellSheet(nd) : BS.help ? helpSheet("The SUNU Park back office. Three kinds of people sign in to the portal: <b>administrators</b> (here), the <b>police</b> (at /police) and <b>organisations</b> (at /org, with an SMS code). Drivers and parking attendants use the apps, SMS and USSD. <b>Administrators</b> register attendants and set their fixed road, create organisation accounts, match bank transfers, record warnings paid at the Council office, handle payment exceptions, apply the tariff adopted by the Council, publish announcements and manage staff accounts. The <b>Police</b> see Fines tracking: drivers with unpaid warnings, overdue fines and repeat offenders, read-only. Administrators publish the <b>Terms &amp; conditions</b>; every new version is shown in the apps to be accepted again. The <b>Revenue report</b> is the Council’s read-only view. Every change is recorded in the audit log with the name of the person who made it." + (isDemo() ? " On this demo server, roads and attendants other than 07 and 12 run simulated background activity." : "")) : "";
+  const ov = BS.user ? userSheet() : BS.pw ? pwSheet() : BS.sheet ? plateSheet(BS.sheet, "back") : BS.bell ? bellSheet(nd) : BS.help ? helpSheet("The SUNU Park back office. Four kinds of people sign in to the portal: <b>administrators</b> (here), the <b>police</b> (at /police), the <b>Council</b> (at /council) and <b>organisations</b> (at /org, with an SMS code). Drivers and parking attendants use the apps, SMS and USSD. <b>Administrators</b> register attendants and set their fixed road, create organisation accounts, match bank transfers, record warnings paid at the Council office, handle payment exceptions, apply the tariff adopted by the Council, publish announcements and manage staff accounts. The <b>Police</b> see Fines tracking: drivers with unpaid warnings, overdue fines and repeat offenders, read-only. Administrators publish the <b>Terms &amp; conditions</b>; every new version is shown in the apps to be accepted again. The <b>Revenue report</b> is the Council’s read-only view. Every change is recorded in the audit log with the name of the person who made it." + (isDemo() ? " On this demo server, roads and attendants other than 07 and 12 run simulated background activity." : "")) : "";
   paint(el, frame(top, side, main, right, ov));
 }
 function backDash(){
@@ -781,7 +796,7 @@ function backStaff(){
   const audit = (S.audit || []).filter(e => S.auditAll || !/^(driver|officer|org)$/.test(e.role || "")).map(e => row({ lead: whenOf(e.at).split(" ").pop(), title: esc(AUDIT_WHAT[e.action] || e.action) + (e.target ? " · " + esc(e.target) : ""),
       sub: whenOf(e.at).split(" ").slice(0, 2).join(" ") + " · " + esc(e.actor || "—") + (e.role ? " · " + esc(STAFF_ROLES[e.role] || e.role) : ""), mid: esc(auditDetail(e)), dur: "",
       chip: e.result === "ok" ? eChip("ok", "Done", "check") : eChip("bad", e.result === "refused" ? "Refused" : e.result || "Failed") })).join("");
-  const main = `<div class="ep"><div class="eh"><div><h1>Staff & audit</h1><p>Administrators and police officers, who sign in with a username and password. Organisations sign in with an SMS code and are set up under Organisations. Temporary passwords are shown once, when they are set, and must be changed at the first sign-in.</p></div><div class="btns">${eBtn("Add staff", "staffnew", null, "", "plus")}</div></div>${stats}</div>
+  const main = `<div class="ep"><div class="eh"><div><h1>Staff & audit</h1><p>Administrators, police officers and Council staff, who sign in with a username and password. Organisations sign in with an SMS code and are set up under Organisations. Temporary passwords are shown once, when they are set, and must be changed at the first sign-in.</p></div><div class="btns">${eBtn("Add staff", "staffnew", null, "", "plus")}</div></div>${stats}</div>
    <div class="ep"><div class="eh"><h2>Accounts</h2></div><div class="erows">${rows}</div></div>
    <div class="ep"><div class="eh"><div><h2>Audit log</h2><p style="margin-top:2px">Sign-ins and every change made in the back office, newest first. It cannot be edited.</p></div>${seg("auditall", S.auditAll ? "all" : "staff", [["staff", "Staff"], ["all", "Everyone"]])}</div><div class="erows">${audit || `<div class="erow" style="grid-template-columns:1fr"><small style="color:var(--em)">No entries yet.</small></div>`}</div>
      ${(S.audit || []).length >= (S.limit || 60) ? `<div style="margin-top:10px">${eBtn("Show older entries", "auditmore", null, "gh sm")}</div>` : ""}</div>`;
@@ -794,12 +809,12 @@ function backStaff(){
       <div class="opt3"><button ${A("staffreset")} ${u.active ? "" : "disabled"}><b>Reset password</b><small>new temporary one</small></button><button ${A(u.active ? "staffoff" : "staffon")} ${u.username === S.me ? "disabled" : ""}><b>${u.active ? "Switch off" : "Switch on"}</b><small>${u.active ? "signs them out now" : "they can sign in again"}</small></button></div>
       ${S.err ? `<div class="err">${esc(S.err)}</div>` : ""}` });
   else { const F = S.add;
-    right = insight({ tag: "Add staff", title: "New administrator or police account", body: `<label class="fld2">Full name${inp("stName", "ST.add.name", F.name, "e.g. Fatou Jallow")}</label>
+    right = insight({ tag: "Add staff", title: "New staff account", body: `<label class="fld2">Full name${inp("stName", "ST.add.name", F.name, "e.g. Fatou Jallow")}</label>
       <label class="fld2">Username${inp("stUser", "ST.add.username", F.username, "e.g. fatou.jallow", "text", 'autocapitalize="none" spellcheck="false"')}</label>
       <label class="fld2">Role${sel("stNewRole", "ST.add.role", F.role, roleOpts())}</label>
       ${F.err ? `<div class="err">${esc(F.err)}</div>` : ""}`, btn: { l: "Create account", a: "staffadd", pri: 1 } }); }
   right += queue({ title: "Who signs in to the portal", items: [{ t: "Administrator · /admin", s: "Everything, including staff accounts, tariffs and the terms", v: "All" },
-    { t: "Police · /police", s: "Fines tracking, read-only", v: "Read" }, { t: "Organisation · /org", s: "Its own fleet, with an SMS code (Organisations)", v: "Fleet" }] });
+    { t: "Police · /police", s: "Fines tracking, read-only", v: "Read" }, { t: "Council · /council", s: "The revenue report and fines, read-only", v: "Read" }, { t: "Organisation · /org", s: "Its own fleet, with an SMS code (Organisations)", v: "Fleet" }] });
   return [main, right];
 }
 /* screen-only back-office actions (the ones that change data are in portal-app.js) */

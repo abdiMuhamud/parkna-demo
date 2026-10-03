@@ -33,7 +33,7 @@ run("simulator", async ({ b, watch, shot }) => {
   const w = watch(await b.newPage({ viewport: { width: 1280, height: 900 } }), "web");
   await w.goto(BASE + "/"); await w.waitForSelector(".door .demo:not([hidden])", { timeout: 15000 });
   const doors = await w.$$eval("a.door", x => x.map(y => y.getAttribute("href")).join(" "));
-  check(doors === "/admin /org /police", "the home page has the three portal doors", doors);
+  check(doors === "/admin /org /police /council", "the home page has the four portal doors", doors);
   check(!(await w.$('a[href^="/driver"], a[href^="/officer"]')), "no browser copies of the driver and attendant apps");
   check((await w.textContent("#pMonthly")).includes("4,000") && (await w.textContent("#pFine")).includes("1,880") && (await w.textContent("#pAnnual")).includes("48,000"), "prices come from the tariff");
   check((await w.getAttribute("#getDriver", "href")).endsWith("/SUNU-Park-Driver.apk") && (await w.getAttribute("#getOfficer", "href")).endsWith("/SUNU-Park-Officer.apk"), "a demo server offers the newest Android apps");
@@ -50,6 +50,15 @@ run("simulator", async ({ b, watch, shot }) => {
   check((await w.textContent(".etest")).includes("7101234"), "the organisation sign-in names the demo organisation");
   await w.goto(BASE + "/"); await w.click('a.door[href="/admin"]'); await w.waitForSelector("#auUser");
   check((await w.textContent("h1")).includes("Administrator sign-in"), "the Administrator card opens the administrator sign-in");
+  /* the Council: its own sign-in, and the demo account opens the read-only revenue report */
+  const wc = watch(await (await b.newContext({ viewport: { width: 1280, height: 900 } })).newPage(), "council");
+  await wc.goto(BASE + "/council"); await wc.waitForSelector("#auUser");
+  check((await wc.textContent("h1")).includes("Council sign-in"), "the Council has its own sign-in (/council)");
+  await wc.fill("#auUser", "council"); await wc.fill("#auPass", "council-demo"); await wc.keyboard.press("Enter");
+  await wc.waitForSelector(".eside", { timeout: 15000 });
+  const cnav = await wc.textContent(".eside");
+  check(/Revenue report/.test(cnav) && !/Staff & audit|Tariffs/.test(cnav), "the demo Council account opens the read-only revenue report", cnav);
+  await shot(wc, "council");
   await w.click('.edoors a[href="/police"]'); await w.waitForURL(/\/police$/); await w.waitForSelector("#auUser");
   check((await w.textContent("h1")).includes("Police sign-in"), "the police sign-in is one click away (/police)");
   await shot(w, "police-signin");

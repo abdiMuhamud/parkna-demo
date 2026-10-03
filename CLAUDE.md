@@ -2,10 +2,11 @@
 
 Street parking for Banjul City Council, run by INNOVII: a driver app and an attendant (officer) app for Android
 (Capacitor), an SMS line and a USSD menu (short code 7275), a web portal, a Java back end on Tomcat 10.1 with MariaDB.
-The portal has exactly three kinds of users: Administrator (`/admin`), Organisation (`/org`, SMS code) and Police
-(`/police`, read-only fines tracking). Drivers and parking attendants use the apps, SMS and USSD only (the browser
-copies in `frontend/dist/driver|officer` are for the tests and are not shipped). New staff accounts are Administrator or
-Police (`Role.portalStaffRole`); older Supervisor/Finance/Council accounts still work. Called ParkNa before 1.2: internal names (`parkna`
+The portal has exactly four kinds of users: Administrator (`/admin`), Organisation (`/org`, SMS code), Police
+(`/police`, read-only fines tracking) and Council (`/council`, read-only revenue report). Drivers and parking attendants use the apps, SMS and USSD only (the browser
+copies in `frontend/dist/driver|officer` are for the tests and are not shipped). New staff accounts are Administrator, Police or
+Council (`Role.portalStaffRole`); older Supervisor/Finance accounts still work. Demo servers have `police` / `police-demo`
+and `council` / `council-demo`. Called ParkNa before 1.2: internal names (`parkna`
 database, `parkna.war`, `/home/sdf/parkna`, the `tomcat-parkna` service, the Android app IDs) stay as they are;
 everything people see says SUNU Park.
 
@@ -18,7 +19,7 @@ everything people see says SUNU Park.
   never edit an applied migration, add `V<n+1>__...sql`.
 - `frontend/shared/ui.js|ui.css|client.js`: the apps' UI kit (sign-in, terms gate, launch screen, `UI.morph`).
 - `apps/driver|officer/www/app.js`: the two apps. `frontend/portal/`: home page (`index.html`, prices and app links
-  from `/api/ping`), back office (`admin.html`; `police.html` is the same page with the police sign-in), org portal,
+  from `/api/ping`), back office (`admin.html`; `police.html` and `council.html` are the same page with their own sign-in), org portal,
   `/sms`, `/terms`.
 - `scripts/build-frontend.js` builds `frontend/dist` and copies shared files into the apps (never edit `apps/*/www/assets`).
 - Art: `scripts/art/scene.js` draws the Banjul scene as vector SVG (`banjul-scene.svg` for navy cards,
