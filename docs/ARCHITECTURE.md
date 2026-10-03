@@ -58,9 +58,10 @@ starts with `ME` (who is signed in) and `MODE` (production or demo, payments on 
 
 **Who may do what** (`ParknaService.ALLOWED`). The server fills in the phone number or organisation from the session, so
 a person can only act as themselves: drivers `driver.*`, attendants the SMS line, organisations `org.*` on their own
-account; staff actions follow the role. The portal has three kinds of users: administrators (`/admin`), the police
-(`/police`, read-only) and organisations (`/org`, an SMS code); new staff accounts are administrators or police
-(`Role.portalStaffRole`). Supervisor, Finance and Council accounts made earlier keep their old pages and rights.
+account; staff actions follow the role. The portal has four kinds of users: administrators (`/admin`), the police
+(`/police`, read-only), the Council (`/council`, read-only revenue report) and organisations (`/org`, an SMS code); new
+staff accounts are administrators, police or Council (`Role.portalStaffRole`). Supervisor and Finance accounts made
+earlier keep their old pages and rights.
 
 For `POST /api/act`, `ParknaService`:
 1. checks the session and the role, then takes the lock (one action at a time, like the v0.1 server),

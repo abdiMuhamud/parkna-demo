@@ -374,16 +374,26 @@ public final class AuthService {
     // ================================================================== staff accounts
 
     /** On the very first start, creates the "admin" account with a random password written once to the log. */
-    /** On a demo server: a police account anyone can try (username police, password police-demo). Never in production. */
+    /** On a demo server: police and Council accounts anyone can try (police / police-demo, council / council-demo). Never in production. */
     public static final String DEMO_POLICE_USER = "police", DEMO_POLICE_PASSWORD = "police-demo";
+    public static final String DEMO_COUNCIL_USER = "council", DEMO_COUNCIL_PASSWORD = "council-demo";
 
     private void demoPolice(Connection c) throws SQLException {
-        if (cfg.mode != AppConfig.Mode.DEMO || count(c, "SELECT COUNT(*) FROM staff_user WHERE username = '" + DEMO_POLICE_USER + "'") > 0) return;
-        try (PreparedStatement ps = c.prepareStatement("INSERT INTO staff_user (username, display_name, role, password_hash, must_change_password) VALUES (?, 'Demo police officer', 'POLICE', ?, FALSE)")) {
-            ps.setString(1, DEMO_POLICE_USER); ps.setString(2, Passwords.hash(DEMO_POLICE_PASSWORD));
+        demoAccount(c, DEMO_POLICE_USER, DEMO_POLICE_PASSWORD, "Demo police officer", "POLICE");
+        demoAccount(c, DEMO_COUNCIL_USER, DEMO_COUNCIL_PASSWORD, "Demo Council officer", "COUNCIL");
+    }
+
+    private void demoAccount(Connection c, String user, String password, String name, String role) throws SQLException {
+        if (cfg.mode != AppConfig.Mode.DEMO) return;
+        try (PreparedStatement q = c.prepareStatement("SELECT COUNT(*) FROM staff_user WHERE username = ?")) {
+            q.setString(1, user);
+            try (ResultSet rs = q.executeQuery()) { if (rs.next() && rs.getInt(1) > 0) return; }
+        }
+        try (PreparedStatement ps = c.prepareStatement("INSERT INTO staff_user (username, display_name, role, password_hash, must_change_password) VALUES (?, ?, ?, ?, FALSE)")) {
+            ps.setString(1, user); ps.setString(2, name); ps.setString(3, role); ps.setString(4, Passwords.hash(password));
             ps.executeUpdate();
         }
-        log.info("Demo server: created the police account '{}' (password {})", DEMO_POLICE_USER, DEMO_POLICE_PASSWORD);
+        log.info("Demo server: created the {} account '{}' (password {})", role.toLowerCase(), user, password);
     }
 
     public void bootstrap() {
@@ -433,7 +443,7 @@ public final class AuthService {
         if (!USERNAME.matcher(username).matches()) throw AuthException.bad("Username: 3 to 40 lowercase letters, digits, dots, dashes or underscores.");
         if (name == null || name.isBlank() || name.trim().length() > 120) throw AuthException.bad("Enter the person's full name.");
         Role role = Role.portalStaffRole(roleRaw);
-        if (role == null) throw AuthException.bad("Choose a role: Administrator or Police.");
+        if (role == null) throw AuthException.bad("Choose a role: Administrator, Police or Council.");
         String password = Passwords.readable(12);
         try (Connection c = ds.getConnection()) {
             if (count(c, "SELECT COUNT(*) FROM staff_user WHERE username = ?", username) > 0) throw AuthException.bad("That username is taken.");
@@ -461,7 +471,7 @@ public final class AuthService {
         try (Connection c = ds.getConnection()) {
             if (count(c, "SELECT COUNT(*) FROM staff_user WHERE username = ?", username) == 0) throw AuthException.bad("No such account.");
             Role role = roleRaw == null ? null : Role.portalStaffRole(roleRaw);
-            if (roleRaw != null && role == null) throw AuthException.bad("Choose a role: Administrator or Police.");
+            if (roleRaw != null && role == null) throw AuthException.bad("Choose a role: Administrator, Police or Council.");
             boolean removesAdmin = (role != null && role != Role.ADMIN) || Boolean.FALSE.equals(active);
             if (removesAdmin && count(c, "SELECT COUNT(*) FROM staff_user WHERE role = 'ADMIN' AND active = TRUE AND username <> ?", username) == 0
                     && count(c, "SELECT COUNT(*) FROM staff_user WHERE role = 'ADMIN' AND active = TRUE AND username = ?", username) > 0)

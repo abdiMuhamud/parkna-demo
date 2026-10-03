@@ -168,20 +168,21 @@ class SecurityTest {
     }
 
     @Test
-    void newStaffAccountsAreAdministratorsOrPolice() throws Exception {
+    void newStaffAccountsAreAdministratorsPoliceOrCouncil() throws Exception {
         Session admin = staff("admin4", "ADMIN", false);
         Map<String, Object> police = auth.createStaff(admin, "police.kanifing", "Awa Police", "police");
         assertEquals(Boolean.TRUE, police.get("ok"));
         assertNotNull(police.get("password"), "a temporary password, shown once");
-        for (String old : List.of("supervisor", "finance", "council", "driver", "org"))
+        for (String old : List.of("supervisor", "finance", "driver", "org"))
             assertEquals(400, assertThrows(AuthException.class, () -> auth.createStaff(admin, "new." + old, "New Person", old)).status, old + " is not offered any more");
         assertEquals(400, assertThrows(AuthException.class, () -> auth.updateStaff(admin, "police.kanifing", "finance", null, false)).status);
         auth.updateStaff(admin, "police.kanifing", "admin", null, false);
+        assertEquals(Boolean.TRUE, auth.createStaff(admin, "council.reports", "Council Reader", "council").get("ok"), "the Council signs in to the portal too");
         Session council = staff("council2", "COUNCIL", false);
-        assertNotNull(council, "an account made before keeps signing in with its old role");
+        assertNotNull(council, "a Council account signs in");
         auth.updateStaff(admin, "council2", "police", null, false);
         String token = (String) auth.staffLogin("council2", "correct horse battery", "10.0.0.2", "t").get("token");
-        assertEquals(Role.POLICE, auth.authenticate(token).role(), "an old account can be moved to Police");
+        assertEquals(Role.POLICE, auth.authenticate(token).role(), "an account can be moved to another role");
     }
 
     @Test

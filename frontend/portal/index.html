@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SUNU Park · Banjul City Council parking</title>
-<meta name="description" content="SUNU Park is Banjul City Council's street parking: pay in the app, by SMS or by USSD. Administrators, organisations and the police sign in to the portal.">
+<meta name="description" content="SUNU Park is Banjul City Council's street parking: pay in the app, by SMS or by USSD. Administrators, organisations, the police and the Council sign in to the portal.">
 <meta name="theme-color" content="#F6FBFE">
 <link rel="icon" href="shared/img/crest.png">
 <link rel="preload" href="shared/img/art/banjul-scene.svg" as="image">
@@ -73,13 +73,13 @@ nav .staff:hover{background:var(--navy);color:#fff}
 
 .portal{background:#fff;border:1px solid var(--line);border-radius:28px;padding:28px 24px 22px;display:flex;flex-direction:column;gap:12px;box-shadow:var(--shadow)}
 .portal h2{font-size:30px}
-.doors{display:flex;flex-direction:column;gap:9px;margin-top:auto}
-.door{display:grid;grid-template-columns:48px minmax(0,1fr) 38px;gap:14px;align-items:center;border:1px solid var(--line);border-radius:18px;padding:13px 14px 13px 15px;color:var(--ink);background:#fff;transition:border-color .2s,background .2s,transform .2s}
+.doors{display:flex;flex-direction:column;gap:8px;margin-top:auto}
+.door{display:grid;grid-template-columns:48px minmax(0,1fr) 38px;gap:14px;align-items:center;border:1px solid var(--line);border-radius:18px;padding:10px 14px 10px 14px;color:var(--ink);background:#fff;transition:border-color .2s,background .2s,transform .2s}
 .door:hover{border-color:#BFD9F5;background:#FAFDFF;transform:translateY(-1px)}
 .door:hover .arr{transform:translateX(3px)}
 .door b{display:block;font-size:17px;font-weight:800;letter-spacing:-.01em}
 .door .d{display:block;font-size:13px;color:var(--mute);line-height:1.45;margin-top:2px}
-.door .how{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:7px;font-size:12px;font-weight:700;color:var(--navy)}
+.door .how{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:5px;font-size:12px;font-weight:700;color:var(--navy)}
 .door .how>span:first-child{display:inline-flex;align-items:center;gap:6px}
 .door .demo{display:inline-block;background:#FFF3D6;color:#6B4E00;border-radius:8px;padding:3px 8px;font-weight:600;line-height:1.5}
 .door .demo b{display:inline;font-size:12px;font-weight:800;letter-spacing:0;white-space:nowrap}
@@ -152,7 +152,7 @@ footer a{font-weight:600}
 /* smaller screens */
 @media (max-width:1180px){
   .lead{grid-template-columns:1fr}
-  .doors{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .doors{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
   .door{grid-template-columns:1fr;align-content:start}
   .door .arr{display:none}
   .pay{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -205,7 +205,7 @@ footer a{font-weight:600}
   <section class="portal" id="portal">
     <div class="step"><em>02 —</em> Portal</div>
     <h2>Sign in to SUNU Park</h2>
-    <p class="lead-p">For three kinds of accounts. Drivers and parking attendants use the apps, SMS and USSD instead.</p>
+    <p class="lead-p">For four kinds of accounts. Drivers and parking attendants use the apps, SMS and USSD instead.</p>
     <div class="doors">
       <a class="door" href="/admin"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg></span>
         <span><b>Administrator</b><span class="d">Attendants, roads, organisations, payments, tariffs, staff and reports.</span>
@@ -218,6 +218,10 @@ footer a{font-weight:600}
       <a class="door" href="/police"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.8 4.5 5.5V11c0 4.6 3.1 8.3 7.5 10.2 4.4-1.9 7.5-5.6 7.5-10.2V5.5Z"/><path d="m12 7.3 1.3 2.7 2.9.4-2.1 2 .5 2.9-2.6-1.4-2.6 1.4.5-2.9-2.1-2 2.9-.4Z"/></svg></span>
         <span><b>Police</b><span class="d">Fines tracking: unpaid warnings and repeat offenders. Read-only.</span>
           <span class="how"><span>Username and password</span><span class="demo" hidden>Demo: <b>police</b> / <b>police-demo</b></span></span></span>
+        <em class="arr"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></em></a>
+      <a class="door" href="/council"><span class="ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M4 10h16M12 3 4 7.5V10h16V7.5L12 3ZM6 10v8M10 10v8M14 10v8M18 10v8"/></svg></span>
+        <span><b>Council</b><span class="d">Banjul City Council: the revenue report and fines. Read-only.</span>
+          <span class="how"><span>Username and password</span><span class="demo" hidden>Demo: <b>council</b> / <b>council-demo</b></span></span></span>
         <em class="arr"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></em></a>
     </div>
   </section>
