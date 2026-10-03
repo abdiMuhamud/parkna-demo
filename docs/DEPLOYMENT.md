@@ -9,7 +9,7 @@ when its verification passes. Commands run as root unless a step says otherwise.
                                         │  443 (80 redirects)
 ┌───────────────────────────────────────┼──────────────────────────────────────────┐
 │ Rocky 9 server                        ▼                                          │
-│   Nginx ── /, /admin, /org, /driver/, /officer/ ──► /usr/share/nginx/html/parkna-web│
+│   Nginx ── /, /admin, /org, /police, /sms ────────► /usr/share/nginx/html/parkna-web│
 │     │                                               (front end, static files)    │
 │     └── /api/* ──► 127.0.0.1:8080 Tomcat 10.1 (JDK 17), context /parkna          │
 │                      parkna.war  (/home/sdf/applications/parkna.war)             │
@@ -208,13 +208,15 @@ grep -A2 "First start" /opt/tomcat/logs/parkna.log
 #  Password: xxxxxxxxxxxxxx   (shown only this once)
 ```
 Sign in at `https://<your-domain>/admin` with `admin` and that password; SUNU Park asks you to choose your own password
-straight away. Then, in **Staff & audit**, add an account for each person (administrator, supervisor, finance or Council)
-and give each their temporary password in person. Nobody should share the `admin` account.
+straight away. Then, in **Staff & audit**, add an account for each person (Administrator or Police) and give each
+their temporary password in person. Nobody should share the `admin` account. Organisations are not staff accounts:
+create them under **Organisations**; their billing contact signs in at `/org` with an SMS code.
 
 **Verification (post-deployment checklist, manual 2.5.3):**
 - `grep SUNU Park /opt/tomcat/logs/catalina.out | tail` ends with `SUNU Park is running`, and no stack traces.
 - `curl -s https://<your-domain>/api/health` → `{"ok":true,"database":"up",...}` (through Nginx, not only on 8080).
-- `https://<your-domain>/admin` shows the back office, and `/org` the organisation portal.
+- `https://<your-domain>/` shows the home page with the three portal sign-ins: `/admin` (administrators), `/org`
+  (organisations) and `/police` (the police).
 - Register a test attendant in the back office, sign in to the SUNU Park Officer app with that number and send START: the
   attendant shows as on shift in the back office within a second or two (proves SMS codes and live updates work
   through Nginx). Switch the test attendant off afterwards.
@@ -321,6 +323,14 @@ After the upgrade:
 - **USSD gateway**: the operator's USSD gateway calls `POST /parkna/api/ussd` (sessionId, phoneNumber, text; the
   answer is `CON ...` or `END ...`), from an address in `sms.mo.allowedIps`.
 - **Demo servers** also get a police account to try: `police` / `police-demo` (never on a production server).
+
+**The portal's three users** (releases after 1.2.29): the home page leads to three sign-ins: Administrator (`/admin`),
+Organisation (`/org`) and Police (`/police`). Drivers and parking attendants use the apps, SMS and USSD only, so the
+server package no longer carries browser copies of the two apps (`/driver/`, `/officer/`). New staff accounts are
+Administrator or Police; Supervisor, Finance and Council accounts made before keep working until an administrator
+changes their role or switches them off. The home page's download buttons go to Google Play on a production server and
+to the newest APKs of the GitHub releases on a demo server; `apps.driver.url` and `apps.officer.url` in
+`config.properties` change them. No database change.
 - Internal names stay as they were: the database `parkna`, the WAR `parkna.war`, `/home/sdf/parkna`, the
   `tomcat-parkna` service, the Android app IDs. Only what people see is called SUNU Park.
 
@@ -356,11 +366,11 @@ systemctl start tomcat          # creates the tables and the first 'admin' accou
 - Your own administrator password chosen; a named account for everyone in Staff & audit.
 - Tariff confirmed in Tariffs & rules, with the Council's authority reference: the daily price, the organisation
   price per car per year (paid upfront) and the fine added when a warning is not paid within 24 hours.
-- Supervisors and Finance know the **Warnings** page: Finance records a warning paid at the Council office (with the
-  receipt number); administrators and supervisors cancel one issued by mistake.
+- Administrators know the **Warnings** page: they record a warning paid at the Council office (with the receipt
+  number) and cancel one issued by mistake. The police follow up the overdue ones at `/police`.
 - Attendants registered with their real numbers, roads and shifts; organisations created with their billing contacts.
 - Mobile-money payments stay off (`payments.mode=off`, the default): the apps say "opens soon" and organisations pay
-  invoices by bank transfer, which Finance matches in Payments. Wave, Afrimoney, APS and QMoney are connected in a
+  invoices by bank transfer, which an administrator matches in Payments. Wave, Afrimoney, APS and QMoney are connected in a
   later release, when the provider agreements and API access are in place.
 
 ## 12. Beside another Tomcat on a shared server

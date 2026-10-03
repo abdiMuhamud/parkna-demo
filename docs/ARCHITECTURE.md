@@ -15,7 +15,7 @@
 
 | Folder | What it is | Runs on |
 |---|---|---|
-| `frontend/portal/` | Landing page, back office (`admin.html`), organisation portal (`org.html`) and their JS/CSS | Nginx |
+| `frontend/portal/` | Home page, back office (`admin.html`), police sign-in (`police.html`, the same page), organisation portal (`org.html`), SMS & USSD simulator (`sms.html`), terms, and their JS/CSS | Nginx |
 | `frontend/shared/` | `client.js` (server connection and sign-in), `engine.js` (read-side rules the screens use), `ui.css` / `ui.js` (the apps' design system), fonts, images | Nginx and inside the apps |
 | `apps/driver`, `apps/officer` | Capacitor apps: `www/` is the app, `res/` the icons and splash | Android |
 | `backend/` | Java 17 Maven project, packaged as `parkna.war` | Tomcat 10.1 |
@@ -58,7 +58,9 @@ starts with `ME` (who is signed in) and `MODE` (production or demo, payments on 
 
 **Who may do what** (`ParknaService.ALLOWED`). The server fills in the phone number or organisation from the session, so
 a person can only act as themselves: drivers `driver.*`, attendants the SMS line, organisations `org.*` on their own
-account; staff actions follow the role (administrator, supervisor, finance; the Council role is read-only).
+account; staff actions follow the role. The portal has three kinds of users: administrators (`/admin`), the police
+(`/police`, read-only) and organisations (`/org`, an SMS code); new staff accounts are administrators or police
+(`Role.portalStaffRole`). Supervisor, Finance and Council accounts made earlier keep their old pages and rights.
 
 For `POST /api/act`, `ParknaService`:
 1. checks the session and the role, then takes the lock (one action at a time, like the v0.1 server),
@@ -115,7 +117,7 @@ contact, bank details, and later the payment providers). See `config/*.example` 
 - **Clock.** Real time in `clock.timezone` (production): the end-of-day rules (pass reminders, invoices, grace periods)
   run at midnight. The demo clock starts on 2 Nov 2026 and administrators can move it from the back office.
 - **Payments.** `payments.mode=off` (production default): the apps say mobile money opens soon; organisations pay invoices
-  by bank transfer, which Finance matches. `simulated`: pretend wallets, for demo and test servers.
+  by bank transfer, which an administrator matches. `simulated`: pretend wallets, for demo and test servers.
 - **SMS.** `sms.gateway=simulated` shows SMS only on screens; `kannel` also sends them through Kannel's `sendsms` and takes
   incoming SMS on `/api/sms/mo`. New gateways implement `SmsGateway`.
 

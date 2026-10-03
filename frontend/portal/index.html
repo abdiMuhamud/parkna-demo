@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SUNU Park · Banjul City Council parking</title>
-<meta name="description" content="SUNU Park is Banjul City Council's parking service: daily and monthly passes on your phone, fleet cover for organisations.">
+<meta name="description" content="SUNU Park is Banjul City Council's street parking: pay in the app, by SMS or by USSD. Administrators, organisations and the police sign in to the portal.">
 <meta name="theme-color" content="#F6FBFE">
 <link rel="icon" href="shared/img/crest.png">
 <style>
@@ -16,9 +16,11 @@
 :root{--bg:#F6FBFE;--ink:#0A1B4D;--navy:#0B2E63;--hero:#0D2F5D;--yellow:#FEDB46;--yellow2:#FEE166;--blue:#035BF0;--bluesoft:#DFF1FC;--mute:#63709E;--line:#E8EEF5;--green:#5FD98A}
 *{box-sizing:border-box;margin:0}
 [hidden]{display:none!important}
+html{scroll-behavior:smooth}
 body{min-height:100vh;font-family:Jakarta,system-ui,sans-serif;word-spacing:.07em;color:var(--ink);background:var(--bg);padding:24px 16px 40px}
 a{color:var(--blue);text-decoration:none}
 .w{max-width:1000px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+section{scroll-margin-top:18px}
 header{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .brand{display:flex;align-items:center;gap:12px;color:var(--ink)}
 .brand span{width:56px;height:56px;border-radius:15px;background:#fff;display:grid;place-items:center;box-shadow:0 6px 18px -8px rgba(10,27,77,.25)}
@@ -35,20 +37,64 @@ header{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .hero p{color:#E6ECF6;line-height:1.55;font-size:16.5px;max-width:440px}
 .dot{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500}
 .dot i{width:10px;height:10px;border-radius:50%;background:var(--green)}
-.cta{align-self:flex-start;display:inline-flex;align-items:center;gap:18px;height:48px;padding:0 20px 0 24px;border-radius:999px;background:var(--yellow);color:var(--ink);font-size:15.5px;font-weight:700;margin-top:6px}
-.g{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
-@media (max-width:1000px){.g{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.ctas{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.cta{display:inline-flex;align-items:center;gap:18px;height:48px;padding:0 20px 0 24px;border-radius:999px;background:var(--yellow);color:var(--ink);font-size:15.5px;font-weight:700}
+.cta2{display:inline-flex;align-items:center;height:48px;padding:0 22px;border-radius:999px;border:1.5px solid rgba(255,255,255,.55);color:#fff;font-size:15px;font-weight:700}
+/* a section's heading: the step line, title and text of the app's onboarding screens */
+.sh{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.step{font-size:11px;font-weight:700;letter-spacing:.26em;text-transform:uppercase;color:var(--ink)}
+.step em{font-style:normal;color:var(--blue)}
+h2{font-size:32px;font-weight:800;letter-spacing:-.035em;line-height:1.1}
+.sh p,.pay .txt>p{color:var(--mute);font-size:15.5px;line-height:1.55;max-width:640px}
+.kbd{font-family:ui-monospace,Consolas,monospace;font-size:.92em;font-weight:700;background:var(--bluesoft);color:var(--navy);border-radius:7px;padding:1px 6px;white-space:nowrap}
+.g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .g a{background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:8px;min-height:170px;transition:transform .15s}
 .g a:hover{transform:translateY(-2px)}
 .g a i{width:48px;height:48px;border-radius:50%;background:var(--bluesoft);color:var(--navy);display:grid;place-items:center}
-.g a.hi{background:var(--yellow2);border-color:var(--yellow2)}
-.g a.hi i{background:#fff}
 .g a b{font-size:17px;font-weight:800;letter-spacing:-.01em;margin-top:auto}
 .g a span{font-size:13.5px;color:var(--mute);line-height:1.45}
-.g a.hi span{color:#4D5A80}
-.pays{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px 18px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.arr{flex:none;width:38px;height:38px;border-radius:50%;background:var(--yellow);color:var(--ink);display:grid;place-items:center;transition:transform .15s}
+/* the three portal doors */
+.g a.door{padding:20px;gap:10px}
+.door .top{display:flex;align-items:center;justify-content:space-between}
+.g a.door:hover .arr{transform:translateX(3px)}
+.g a.door b{font-size:19px;margin-top:4px}
+.door .how{margin-top:auto;padding-top:12px;border-top:1px solid var(--line);display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:var(--navy)}
+.door .demo{background:#FFF3D6;color:#6B4E00;border-radius:10px;padding:8px 10px;font-size:12.5px;line-height:1.45}
+.g a.door .demo b{font-size:12.5px;margin:0;letter-spacing:0}
+/* drivers: the onboarding art next to the three ways to pay */
+.pay{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:28px;align-items:center;margin-top:10px}
+.pay .art{background:#fff;border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 20px 40px -30px rgba(11,46,99,.6)}
+.pay .art img{display:block;width:100%;height:auto}
+.pay .txt{display:flex;flex-direction:column;gap:8px}
+.rows{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.row{display:flex;align-items:center;gap:14px;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+.row i{flex:none;width:48px;height:48px;border-radius:50%;background:var(--bluesoft);color:var(--navy);display:grid;place-items:center}
+.row b{display:block;font-size:16px;font-weight:800;letter-spacing:-.01em}
+.row small{display:block;font-size:13.5px;color:var(--mute);line-height:1.45;margin-top:2px}
+.row.hi{background:var(--yellow2);border-color:var(--yellow2);transition:transform .15s}
+.row.hi:hover{transform:translateY(-2px)}
+.row.hi i{background:#fff}
+.row.hi small{color:#4D5A80}
+.row.hi .arr{margin-left:auto;background:var(--navy);color:var(--yellow)}
+.pays{background:#fff;border:1px solid var(--line);border-radius:18px;padding:12px 16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
 .pays b{font-size:15px;font-weight:700}
-.pays img{height:52px;max-width:100%;object-fit:contain}
+.pays img{height:46px;max-width:100%;object-fit:contain}
+/* prices from the tariff on the server */
+.prices{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.pr{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;display:flex;flex-direction:column;gap:6px}
+.pr small{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--navy)}
+.pr b{font-size:26px;font-weight:800;letter-spacing:-.03em;line-height:1.15}
+.pr span{font-size:13.5px;color:var(--mute);line-height:1.45}
+.pr.hi{background:var(--yellow2);border-color:var(--yellow2)}
+.pr.hi span{color:#4D5A80}
+/* parking attendants */
+.att{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;display:flex;align-items:center;gap:18px}
+.att>i{flex:none;width:56px;height:56px;border-radius:50%;background:var(--bluesoft);color:var(--navy);display:grid;place-items:center}
+.att>div{display:flex;flex-direction:column;gap:6px;flex:1}
+.att h3{font-size:19px;font-weight:800;letter-spacing:-.02em}
+.att p{font-size:14px;color:var(--mute);line-height:1.6}
+.out{flex:none;display:inline-flex;align-items:center;gap:10px;color:var(--ink);font-weight:700;font-size:14px;background:#fff;border:1.5px solid var(--navy);border-radius:999px;padding:11px 18px;white-space:nowrap}
 .note{background:#FFF3D6;color:#6B4E00;border-radius:16px;padding:14px 16px;font-size:14px;line-height:1.5}
 .note a{font-weight:700}
 .addr{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font-size:13.5px;color:var(--mute)}
@@ -57,48 +103,110 @@ footer{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-cont
 footer a{font-weight:600}
 footer img{height:16px}
 .secure{align-self:center;background:#EBF0F6;border-radius:12px;padding:9px 22px;font-size:12.5px;color:var(--mute)}
-@media (max-width:860px){.g{grid-template-columns:1fr 1fr}}
-@media (max-width:640px){.hero{padding:26px 20px;min-height:0}.hero h1{font-size:34px}.hero .scene{width:100%;opacity:.2}.brand b{font-size:22px}.brand small{letter-spacing:.14em;white-space:nowrap}.brand span{width:48px;height:48px}.brand img{width:38px}.staff{padding:9px 14px;font-size:13px}.g{grid-template-columns:1fr}.g a{min-height:0}}
+@media (max-width:860px){.g{grid-template-columns:1fr}.g a{min-height:0}.pay{grid-template-columns:1fr;gap:18px}.pay .art{max-width:520px}.prices{grid-template-columns:1fr 1fr}.att{flex-direction:column;align-items:flex-start}}
+@media (max-width:640px){.hero{padding:26px 20px;min-height:0}.hero h1{font-size:34px}.hero .scene{width:100%;opacity:.2}h2{font-size:26px}.brand b{font-size:22px}.brand small{letter-spacing:.14em;white-space:nowrap}.brand span{width:48px;height:48px}.brand img{width:38px}.staff{padding:9px 14px;font-size:13px}.prices{grid-template-columns:1fr}}
 </style>
 </head>
 <body><div class="w">
 <header>
   <a class="brand" href="/"><span><img src="shared/img/crest.png" alt="Banjul City Council crest"></span><div><small>Banjul City Council</small><b>SUNU Park</b></div></a>
-  <a class="staff" href="/admin">Staff sign-in</a>
+  <a class="staff" href="#portal">Sign in</a>
 </header>
 <section class="hero">
   <img class="scene" src="shared/img/art/hero-scene.webp" alt="">
   <div class="eyebrow"><em>01 —</em> Easy parking</div>
   <h1>Park smarter in Banjul</h1>
-  <p>Find, pay and manage parking from your phone—without cash or queues. Daily and monthly passes for every marked SUNU Park bay, in the SUNU Park app or by SMS.</p>
+  <p>Pay for parking from your phone, without cash or queues: in the SUNU Park app, by SMS or by USSD. Daily and monthly passes for every marked SUNU Park bay.</p>
   <span class="dot"><i></i>Daily pass&nbsp;<b id="price">200 GMD</b>&nbsp;· valid till 7pm</span>
-  <a class="cta" id="getDriverCta" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.driver">Get the SUNU Park app<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+  <div class="ctas">
+    <a class="cta" id="getDriverCta" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.driver">Get the SUNU Park app<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+    <a class="cta2" href="#pay">Pay by SMS or USSD</a>
+  </div>
 </section>
 <div class="note" id="note" hidden></div>
+
+<section id="portal">
+  <div class="sh"><div class="step"><em>02 —</em> Portal</div><h2>Sign in to SUNU Park</h2><p>Three kinds of accounts sign in here. Drivers and parking attendants don't need one: they use the apps, SMS and USSD.</p></div>
+</section>
 <div class="g">
-  <a class="hi" id="getDriver" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.driver"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14M5 17v-5l2-5h10l2 5v5M5 17v2M19 17v2M4 12h16"/><circle cx="8" cy="14.5" r=".6"/><circle cx="16" cy="14.5" r=".6"/></svg></i><b>SUNU Park for drivers</b><span>Get the app on Google Play. Sign in with your phone number.</span></a>
-  <a href="/org"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5l8-3 8 3v16M4 21h16M9 21v-5h6v5M8 8h2M14 8h2M8 12h2M14 12h2"/></svg></i><b>Organisations</b><span>Fleet cover paid upfront for a year per car. The billing contact signs in with an SMS code.</span></a>
-  <a id="getOfficer" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.officer"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v6c0 4.5 3.2 7.8 7.5 9 4.3-1.2 7.5-4.5 7.5-9V6L12 3Z"/><path d="m8.8 12 2.2 2.2 4.2-4.4"/></svg></i><b>Parking attendants</b><span>The SUNU Park Officer app, for attendants registered by their supervisor.</span></a>
-  <a href="/admin"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg></i><b>Back office</b><span>For SUNU Park and Council staff.</span></a>
-  <a href="/admin?police"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.8 4.5 5.5V11c0 4.6 3.1 8.3 7.5 10.2 4.4-1.9 7.5-5.6 7.5-10.2V5.5Z"/><path d="m12 7.3 1.3 2.7 2.9.4-2.1 2 .5 2.9-2.6-1.4-2.6 1.4.5-2.9-2.1-2 2.9-.4Z"/></svg></i><b>Police</b><span>Fines tracking: drivers with unpaid warnings and repeat offenders. Sign in with your police account.</span></a>
+  <a class="door" href="/admin"><div class="top"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg></i><em class="arr"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></em></div>
+    <b>Administrator</b><span>Runs the service for the Council: attendants and roads, organisations, payments, tariffs, the terms, staff accounts and the revenue report.</span>
+    <small class="how"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 8.7-8.7M16 7l2.5 2.5M14 9l2 2"/></svg>Username and password</small>
+    <small class="demo" hidden>Demo: ask INNOVII for the password</small></a>
+  <a class="door" href="/org"><div class="top"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21V5l8-3 8 3v16M4 21h16M9 21v-5h6v5M8 8h2M14 8h2M8 12h2M14 12h2"/></svg></i><em class="arr"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></em></div>
+    <b>Organisation</b><span>Banks, ministries and companies cover their cars for a year, paid upfront: cars, invoices, statements and attendant checks.</span>
+    <small class="how"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9l-5 4v-14Z"/><path d="M8 9.5h8M8 12.5h5"/></svg>Phone number and SMS code</small>
+    <small class="demo" hidden>Demo: Demo Bank, phone <b>7101234</b></small></a>
+  <a class="door" href="/police"><div class="top"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.8 4.5 5.5V11c0 4.6 3.1 8.3 7.5 10.2 4.4-1.9 7.5-5.6 7.5-10.2V5.5Z"/><path d="m12 7.3 1.3 2.7 2.9.4-2.1 2 .5 2.9-2.6-1.4-2.6 1.4.5-2.9-2.1-2 2.9-.4Z"/></svg></i><em class="arr"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></em></div>
+    <b>Police</b><span>Fines tracking: unpaid warnings, overdue fines and repeat offenders, with the phone linked to each plate. Read-only.</span>
+    <small class="how"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m10.8 12.2 8.7-8.7M16 7l2.5 2.5M14 9l2 2"/></svg>Username and password</small>
+    <small class="demo" hidden>Demo: <b>police</b> / <b>police-demo</b></small></a>
 </div>
-<div class="pays"><b>Payments supported</b><img src="shared/img/art/payments-strip.webp" alt="Wave, Afrimoney, QMoney, APS Wallet"></div>
+
+<section class="pay" id="pay">
+  <div class="art"><img src="shared/img/art/onboarding-2.webp" alt="Paying for parking on a phone with Wave, Afrimoney, QMoney or APS Wallet" loading="lazy"></div>
+  <div class="txt">
+    <div class="step"><em>03 —</em> For drivers</div>
+    <h2>Pay the way you prefer</h2>
+    <p>No cash and no account to open: the pass follows your plate, so any phone can pay for any car.</p>
+    <div class="rows">
+      <a class="row hi" id="getDriver" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.driver"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M10.5 18.5h3"/></svg></i><span><b>The SUNU Park app</b><small>Daily and monthly passes, your plates and receipts, any warning to settle. For Android: sign in with your phone number.</small></span><em class="arr"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></em></a>
+      <div class="row"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9l-5 4v-14Z"/><path d="M8 9.5h8M8 12.5h5"/></svg></i><span><b>SMS to <span data-sc>7275</span></b><small>Text your plate, e.g. <span class="kbd">BJL1234</span>, then reply with how you pay. For a month: <span class="kbd">M BJL1234</span></small></span></div>
+      <div class="row"><i><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 4 8 20M16 4l-1.5 16M4.5 9h15.5M4 15h15.5"/></svg></i><span><b>USSD <span data-sc="ussd">*7275#</span></b><small>On any phone, without internet: a daily or monthly pass, your plates, a warning to pay and the terms.</small></span></div>
+    </div>
+    <div class="pays"><b>Pay with</b><img src="shared/img/art/payments-strip.webp" alt="Wave, Afrimoney, QMoney, APS Wallet"></div>
+  </div>
+</section>
+
+<section id="prices">
+  <div class="sh"><div class="step"><em>04 —</em> Prices</div><h2>One price for every plate</h2><p>Paid hours are 7am to 7pm, Monday to Saturday; parking is free at other times. A warning is paid before any new pass. The full rules are in the <a href="/terms.html">terms and conditions</a>.</p></div>
+</section>
+<div class="prices">
+  <div class="pr hi"><small>Daily pass</small><b id="pDaily">200 GMD</b><span>Valid till 7pm on the day you pay.</span></div>
+  <div class="pr"><small>Monthly pass</small><b id="pMonthly">4,000 GMD</b><span>A month of parking for the price of 20 days.</span></div>
+  <div class="pr"><small>Fine</small><b id="pFine">1,880 GMD</b><span>For an unpaid car, an attendant leaves a warning. Pay the daily fee within 24 hours, or the fine is added.</span></div>
+  <div class="pr"><small>Organisations</small><b id="pAnnual">48,000 GMD</b><span>Per car, per year, paid upfront on one invoice.</span></div>
+</div>
+
+<section class="att" id="attendants">
+  <i><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4.5 6v6c0 4.5 3.2 7.8 7.5 9 4.3-1.2 7.5-4.5 7.5-9V6L12 3Z"/><path d="m8.8 12 2.2 2.2 4.2-4.4"/></svg></i>
+  <div>
+    <div class="step"><em>05 —</em> Parking attendants</div>
+    <h3>The SUNU Park Officer app, or SMS</h3>
+    <p>For attendants registered in the back office. From the registered number, text <span class="kbd">START</span> to begin a shift, a plate like <span class="kbd">BJL1234</span> to check it and <span class="kbd">END</span> to finish, or dial <span class="kbd" data-sc="ussd">*7275#</span>. Attendants never take money.</p>
+  </div>
+  <a class="out" id="getOfficer" href="https://play.google.com/store/apps/details?id=com.innovii.parkna.officer"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>Officer app</a>
+</section>
+
 <div class="addr" id="addrRow" hidden><span>Server address for the apps:</span><b id="addr"></b></div>
 <div class="secure">A secure service by Banjul City Council</div>
 <footer><img src="shared/img/innovii-navy.png" alt="INNOVII"><span>SUNU Park is run by INNOVII for Banjul City Council.</span><a href="/terms.html">Terms</a><a href="/privacy.html">Privacy policy</a><span id="ver"></span></footer>
 </div>
 <script>
-fetch("/api/ping").then(function(r){ return r.json(); }).then(function(j){
-  var addr = (j.addresses && j.addresses[0]) || location.origin;
-  document.getElementById("addr").textContent = addr;
-  document.getElementById("ver").textContent = j.version ? "Version " + j.version : "";
-  if(j.daily) document.getElementById("price").textContent = j.daily + " GMD";
-  if(j.demo){
-    var n = document.getElementById("note");
-    n.hidden = false;
-    n.innerHTML = "<b>Demo server.</b> Sample data and pretend payments: no real money moves. Organisation portal: sign in as Demo Bank with phone 7101234. The driver and attendant apps also run in the browser: <a href='/driver/'>driver</a> · <a href='/officer/'>attendant</a>. Police: sign in as <b>police</b> / <b>police-demo</b>." + (j.smsSimulator ? " Try every SMS and USSD flow in the <a href='/sms'>SMS &amp; USSD simulator</a>." : "");
-    document.getElementById("addrRow").hidden = false;
-  }
-}).catch(function(){});
+/* prices, short code and app links come from the server (/api/ping), so the page follows the tariff and the server's settings */
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  var gmd = function(v){ return Math.round(v).toLocaleString("en-GB") + " GMD"; };
+  var each = function(sel, fn){ Array.prototype.forEach.call(document.querySelectorAll(sel), fn); };
+  fetch("/api/ping").then(function(r){ return r.json(); }).then(function(j){
+    var sc = j.shortcode || "7275";
+    each("[data-sc]", function(x){ x.textContent = x.getAttribute("data-sc") === "ussd" ? "*" + sc + "#" : sc; });
+    if(j.daily){ $("price").textContent = gmd(j.daily); $("pDaily").textContent = gmd(j.daily); }
+    if(j.monthly) $("pMonthly").textContent = gmd(j.monthly);
+    if(j.fine != null) $("pFine").textContent = gmd(j.fine);
+    if(j.annual) $("pAnnual").textContent = gmd(j.annual);
+    if(j.driverApp){ $("getDriverCta").href = j.driverApp; $("getDriver").href = j.driverApp; }
+    if(j.officerApp) $("getOfficer").href = j.officerApp;
+    $("ver").textContent = j.version ? "Version " + j.version : "";
+    $("addr").textContent = (j.addresses && j.addresses[0]) || location.origin;
+    if(j.demo){
+      var n = $("note");
+      n.hidden = false;
+      n.innerHTML = "<b>Demo server.</b> Sample data and pretend payments: no real money moves. The demo sign-ins are on the portal cards below." + (j.smsSimulator ? " Try every SMS and USSD flow in the <a href='/sms'>SMS &amp; USSD simulator</a>." : "");
+      each(".demo", function(x){ x.hidden = false; });
+      $("addrRow").hidden = false;
+    }
+  }).catch(function(){});
+})();
 </script>
 </body></html>

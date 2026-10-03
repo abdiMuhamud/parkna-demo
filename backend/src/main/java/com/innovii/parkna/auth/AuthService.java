@@ -432,8 +432,8 @@ public final class AuthService {
         String username = usernameRaw == null ? "" : usernameRaw.trim().toLowerCase();
         if (!USERNAME.matcher(username).matches()) throw AuthException.bad("Username: 3 to 40 lowercase letters, digits, dots, dashes or underscores.");
         if (name == null || name.isBlank() || name.trim().length() > 120) throw AuthException.bad("Enter the person's full name.");
-        Role role = Role.staffRole(roleRaw);
-        if (role == null) throw AuthException.bad("Choose a role: admin, supervisor, finance or council.");
+        Role role = Role.portalStaffRole(roleRaw);
+        if (role == null) throw AuthException.bad("Choose a role: Administrator or Police.");
         String password = Passwords.readable(12);
         try (Connection c = ds.getConnection()) {
             if (count(c, "SELECT COUNT(*) FROM staff_user WHERE username = ?", username) > 0) throw AuthException.bad("That username is taken.");
@@ -460,8 +460,8 @@ public final class AuthService {
         r.put("ok", true);
         try (Connection c = ds.getConnection()) {
             if (count(c, "SELECT COUNT(*) FROM staff_user WHERE username = ?", username) == 0) throw AuthException.bad("No such account.");
-            Role role = roleRaw == null ? null : Role.staffRole(roleRaw);
-            if (roleRaw != null && role == null) throw AuthException.bad("Choose a role: admin, supervisor, finance or council.");
+            Role role = roleRaw == null ? null : Role.portalStaffRole(roleRaw);
+            if (roleRaw != null && role == null) throw AuthException.bad("Choose a role: Administrator or Police.");
             boolean removesAdmin = (role != null && role != Role.ADMIN) || Boolean.FALSE.equals(active);
             if (removesAdmin && count(c, "SELECT COUNT(*) FROM staff_user WHERE role = 'ADMIN' AND active = TRUE AND username <> ?", username) == 0
                     && count(c, "SELECT COUNT(*) FROM staff_user WHERE role = 'ADMIN' AND active = TRUE AND username = ?", username) > 0)

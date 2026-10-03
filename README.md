@@ -6,20 +6,25 @@ SUNU Park, the road-side parking service for Banjul City Council, built by INNOV
 |---|---|---|
 | **SUNU Park** (driver app) | Sign in with a phone number, add plates, see if a plate is covered, receipts, Council announcements. Paying by mobile money opens when the providers are connected | Android, Google Play (`com.innovii.parkna.driver`) |
 | **SUNU Park Officer** | The parking attendant's app: start and end a shift, check a plate (PAID / NOT PAID), messages | Android, Google Play (`com.innovii.parkna.officer`) |
-| **Organisation portal** | Fleet plates, monthly invoices, attendant checks for a business | Browser: `https://<server>/org` |
-| **Back office** | Attendants, roads, organisations, payments, tariffs, announcements, staff accounts and the audit log | Browser: `https://<server>/admin` |
+| **SMS and USSD** | Drivers text their plate to the short code or dial `*7275#`; attendants text START, a plate, END | Any phone |
+| **Home page** | How to pay (app, SMS, USSD), prices from the tariff, and the three portal sign-ins | Browser: `https://<server>/` |
+| **Back office** | Administrators: attendants, roads, organisations, payments, tariffs, announcements, terms, staff accounts and the audit log | Browser: `https://<server>/admin` |
+| **Organisation portal** | Fleet plates, invoices, attendant checks for a business | Browser: `https://<server>/org` |
+| **Police** | Fines tracking: unpaid warnings, overdue fines, repeat offenders (read-only) | Browser: `https://<server>/police` |
 
 An attendant's check, an organisation's new plate or a Council announcement reaches every screen straight away.
 
-**Sign-in.** Drivers, attendants and organisation contacts sign in with their mobile number and a 6-digit code sent by
-SMS. SUNU Park and Council staff have their own username and password, and see what their role allows:
+**Sign-in.** Three kinds of people sign in to the web portal:
 
-| Role | Sees and does |
-|---|---|
-| Administrator | Everything, including staff accounts, tariffs, announcements and organisations |
-| Supervisor | Dashboard, attendants and roads (register, reassign), revenue report |
-| Finance | Dashboard, organisations, payments (match bank transfers, refer exceptions), revenue report |
-| Council | The revenue report, read-only |
+| Who | Where | How |
+|---|---|---|
+| Administrator | `/admin` | Username and password: everything, including staff accounts, tariffs, the terms, announcements and organisations |
+| Organisation | `/org` | The billing contact's phone number and a 6-digit code sent by SMS: its own fleet only |
+| Police | `/police` | Username and password: Fines tracking, read-only |
+
+Drivers and parking attendants don't use the web: they sign in to the apps with their phone number and an SMS code, or
+use SMS and USSD. Administrators make the administrator and police accounts in **Staff & audit**. (Supervisor, Finance
+and Council accounts made before 1.3 keep working with their old pages; no new ones are made.)
 
 Every sign-in and every change in the back office is written to the audit log with the person's name. Phones only ever
 receive their own data: a driver sees their plates and receipts, an attendant their shift and checks, an organisation its fleet.
@@ -32,7 +37,7 @@ Phones and browsers ──HTTPS──► Nginx ── front end (static files)
                                                                   └──► Kannel (SMS, optional)
 ```
 
-- **Front end on Nginx**: the landing page, back office and organisation portal (`frontend/`).
+- **Front end on Nginx**: the home page, back office, police sign-in and organisation portal (`frontend/`).
 - **Back end on Tomcat**: `parkna.war`, which holds the business rules and writes to Tomcat's logs (`catalina.out`, `parkna.log`, `parkna-sms.log`).
 - **MariaDB** stores everything. The back end creates and upgrades its tables itself.
 - **Two property files** outside the WAR: `database.properties` (MariaDB connection) and `config.properties`
@@ -45,12 +50,15 @@ Details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Server installation on Ro
 
 Every push builds and tests everything on GitHub (**Actions → Build SUNU Park**). Each push to `main` also publishes a
 release (**Releases**) with its own, always higher, release number: the `VERSION` file plus the build number, e.g.
-`1.1.23`. The apps (sign-in screen and Profile), the landing page, the back office and `/api/health` show that number.
+`1.1.23`. The apps (sign-in screen and Profile), the home page, the back office and `/api/health` show that number.
 
 - `parkna-1.1.<build>.tar.gz`: the server package (WAR, front end, config templates, deploy scripts, SQL)
 - `SUNU-Park-Driver-1.1.<build>.aab` and `SUNU-Park-Officer-1.1.<build>.aab`: for Google Play, and `.apk` files of the same builds to
   install directly on a phone. Until the Play upload key is added to the repository secrets, the build makes
   `...-test.apk` files instead (signed with the shared test key; they install over each other).
+- `SUNU-Park-Driver.apk` and `SUNU-Park-Officer.apk`: the same apps under fixed names, so
+  `.../releases/latest/download/SUNU-Park-Driver.apk` is always the newest (a demo server's home page links there;
+  `apps.driver.url` / `apps.officer.url` in `config.properties` change it, a production server links to Google Play).
 
 ## Installing on a server
 
@@ -132,7 +140,7 @@ SUNU Park ("our park / our parking", the platform name confirmed by BCC; called 
   The driver gets an SMS and an in-app notice and pays the GMD 200 daily fee within 24 hours; after that it is
   GMD 2,080 (the GMD 1,880 fine for rule breakers is added). A warning is paid before any new pass, in the app or by
   texting the plate, and a driver with an unpaid warning on any of their plates settles it before paying for another.
-  Finance can record one paid at the Council office. No clamping. Attendants and the police see whether a plate is a
+  An administrator can record one paid at the Council office. No clamping. Attendants and the police see whether a plate is a
   first-time or repeat offender.
 - Everyone accepts the terms and conditions (`/terms.html`, and in the apps, which must be read to the end before
   signing in). They list all fee models: hourly (not offered yet), daily and monthly.
@@ -144,14 +152,14 @@ SUNU Park ("our park / our parking", the platform name confirmed by BCC; called 
 - SMS & USSD simulator at `/sms` (no sign-in; demo and test servers): text the short code or dial `*7275#` as any
   driver, attendant or organisation contact, with 18 ready-made use cases (`sms.simulator.enabled`). Real USSD
   gateways call `POST /api/ussd`.
-- Police sign in from the landing page (Police card, `/admin?police`); on a demo server as `police` / `police-demo`.
+- Police sign in at `/police` (the Police card on the home page); on a demo server as `police` / `police-demo`.
 - Revenue share: 60% Council, 40% operator.
 - SMS shortcode: `sms.shortcode` in `config.properties` (7275 until the operator confirms the number).
 
 ## Repository layout
 
 ```
-frontend/portal/      landing page, back office (admin.html), organisation portal (org.html)
+frontend/portal/      home page, back office (admin.html), police sign-in (police.html), organisation portal (org.html)
 frontend/shared/      engine.js (read-side rules the screens use), client.js, fonts, images
 frontend/shared/      also ui.css / ui.js: the apps' design system (Plus Jakarta Sans, pale blue, SUNU Park navy, sun yellow; Banjul art in img/art)
 apps/driver/          driver app (Capacitor): www/ is the app, res/ the icon and splash

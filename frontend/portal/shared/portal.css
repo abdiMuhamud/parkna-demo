@@ -282,6 +282,9 @@ input,select{font:inherit}
 .etest b{font-family:RMono,monospace;font-size:15px;letter-spacing:.12em;color:var(--ei)}
 .elinks{display:flex;justify-content:space-between;gap:10px}
 .elinks button{border:none;background:none;padding:0;color:var(--ei);font:600 12.3px Jakarta,sans-serif;text-decoration:underline;text-underline-offset:3px}
+.edoors{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;border-top:1px solid var(--el);padding-top:12px;font-size:11.5px;color:var(--em)}
+.edoors a{color:var(--ei);font-weight:700;text-decoration:none}
+.edoors a:hover{text-decoration:underline;text-underline-offset:3px}
 .euh{display:flex;gap:11px;align-items:center;min-width:0}
 .euh .av{width:42px;height:42px;border-radius:50%;background:var(--elm);display:grid;place-items:center;font:700 14px Jakarta,sans-serif;color:var(--ei);flex:none}
 .euh b{display:block;font-size:15px;font-weight:700}

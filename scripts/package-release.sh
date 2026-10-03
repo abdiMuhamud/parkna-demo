@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds the release a server installs: dist/parkna-<version>.tar.gz containing
 #   parkna.war          the back end, for Tomcat
-#   frontend/           the Nginx document root
+#   frontend/           the Nginx document root (home page, admin, org, police, terms, privacy, SMS simulator)
 #   config/             database.properties.example, config.properties.example
 #   deploy/             Nginx, Tomcat, Kannel files and the deploy/rollback/backup scripts
 #   db/                 the SQL migrations (for a DBA who applies them by hand)
@@ -23,6 +23,9 @@ OUT="$ROOT/dist/$NAME"
 rm -rf "$OUT" && mkdir -p "$OUT/config" "$OUT/db"
 cp backend/target/parkna.war "$OUT/"
 cp -a frontend/dist "$OUT/frontend"
+# drivers and parking attendants use the Android apps and SMS/USSD only: the browser copies of the two apps
+# (frontend/dist/driver, /officer) are for the automated tests, not for the server
+rm -rf "$OUT/frontend/driver" "$OUT/frontend/officer"
 cp config/*.example "$OUT/config/"
 cp -a deploy "$OUT/deploy"
 cp -a docs "$OUT/docs"

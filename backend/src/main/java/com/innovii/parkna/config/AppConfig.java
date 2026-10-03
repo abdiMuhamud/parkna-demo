@@ -49,6 +49,9 @@ public final class AppConfig {
     public final String supportPhone, supportEmail;
     /** The SMS simulator page (/sms.html): administrators and supervisors send texts as any phone. */
     public final boolean smsSimulator;
+    /** Where the home page's download buttons go: Google Play, or the latest Android app of the GitHub releases on a demo server. */
+    public final String driverAppUrl, officerAppUrl;
+    static final String RELEASES = "https://github.com/abdiMuhamud/parkna-demo/releases/latest/download/";
 
     /** Where organisations pay their invoices by bank transfer (printed on the invoice screen). Empty until set. */
     public record Billing(String bankName, String accountName, String accountNumber) {
@@ -124,6 +127,8 @@ public final class AppConfig {
         this.supportPhone = cfg.getProperty("support.phone", "").trim();
         this.supportEmail = cfg.getProperty("support.email", "").trim();
         this.smsSimulator = bool(cfg, "sms.simulator.enabled", demo || sms.mode() == SmsMode.SIMULATED);
+        this.driverAppUrl = cfg.getProperty("apps.driver.url", demo ? RELEASES + "SUNU-Park-Driver.apk" : "https://play.google.com/store/apps/details?id=com.innovii.parkna.driver").trim();
+        this.officerAppUrl = cfg.getProperty("apps.officer.url", demo ? RELEASES + "SUNU-Park-Officer.apk" : "https://play.google.com/store/apps/details?id=com.innovii.parkna.officer").trim();
     }
 
     public static AppConfig load() {

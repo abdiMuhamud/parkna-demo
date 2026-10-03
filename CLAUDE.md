@@ -1,8 +1,11 @@
 # SUNU Park (repo: parkna-demo)
 
 Street parking for Banjul City Council, run by INNOVII: a driver app and an attendant (officer) app for Android
-(Capacitor), an SMS line and a USSD menu (short code 7275), an organisation portal, a back office (with police and
-Council views), a Java back end on Tomcat 10.1 with MariaDB. Called ParkNa before 1.2: internal names (`parkna`
+(Capacitor), an SMS line and a USSD menu (short code 7275), a web portal, a Java back end on Tomcat 10.1 with MariaDB.
+The portal has exactly three kinds of users: Administrator (`/admin`), Organisation (`/org`, SMS code) and Police
+(`/police`, read-only fines tracking). Drivers and parking attendants use the apps, SMS and USSD only (the browser
+copies in `frontend/dist/driver|officer` are for the tests and are not shipped). New staff accounts are Administrator or
+Police (`Role.portalStaffRole`); older Supervisor/Finance/Council accounts still work. Called ParkNa before 1.2: internal names (`parkna`
 database, `parkna.war`, `/home/sdf/parkna`, the `tomcat-parkna` service, the Android app IDs) stay as they are;
 everything people see says SUNU Park.
 
@@ -14,7 +17,9 @@ everything people see says SUNU Park.
   see: privacy), `UssdMenu`, `TermsService`. Migrations: `backend/src/main/resources/db/migration` (+ `index.txt`);
   never edit an applied migration, add `V<n+1>__...sql`.
 - `frontend/shared/ui.js|ui.css|client.js`: the apps' UI kit (sign-in, terms gate, launch screen, `UI.morph`).
-- `apps/driver|officer/www/app.js`: the two apps. `frontend/portal/`: landing, back office, org portal, `/sms`, `/terms`.
+- `apps/driver|officer/www/app.js`: the two apps. `frontend/portal/`: home page (`index.html`, prices and app links
+  from `/api/ping`), back office (`admin.html`; `police.html` is the same page with the police sign-in), org portal,
+  `/sms`, `/terms`.
 - `scripts/build-frontend.js` builds `frontend/dist` and copies shared files into the apps (never edit `apps/*/www/assets`).
 
 ## Checks (run before every push)
