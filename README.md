@@ -171,6 +171,22 @@ build/                the shared test signing key (test builds only; Play builds
 
 Needs Node.js 22, Java 17 and Maven. For the database tests, a MariaDB with an empty test database.
 
+The quick way (the same checks as GitHub; a MariaDB user `parkna_test` / `test-pass` with rights on `parkna_%`):
+
+```bash
+scripts/qa.sh             # JavaScript syntax, parity runs, every back-end test (about 40 s)
+scripts/e2e/run.sh        # the real server + the browser tests in scripts/e2e/tests (about 3 min, Playwright needed)
+```
+
+Automations:
+- **GitHub, every push**: back end and parity tests, both apps, and the browser tests (simulator use cases, apps,
+  back office, police, terms; screenshots kept as the `browser-tests` artifact). A failure blocks the release; every
+  merge to `main` publishes a release.
+- **CodeQL** security scanning (Java and JavaScript) on pull requests, on `main` and every Monday; **Dependabot**
+  opens weekly update PRs for Maven, Capacitor and the GitHub actions.
+- **Claude Code on the web**: `.claude/hooks/session-start.sh` installs and starts MariaDB, caches Maven and Tomcat;
+  `CLAUDE.md` has the project rules and `/release` ships work (checks, PR, merge, release, upgrade commands).
+
 ```bash
 node scripts/build-frontend.js                         # frontend/dist and the apps' shared files
 cd backend && mvn package                              # parkna.war (unit tests only)

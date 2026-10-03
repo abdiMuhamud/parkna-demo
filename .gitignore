@@ -13,3 +13,5 @@ backend/logs/
 config/*.properties
 !config/*.properties.example
 dist/
+# Playwright installed for the browser tests (CI)
+scripts/e2e/node_modules/
