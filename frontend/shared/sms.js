@@ -23,10 +23,10 @@
 
   /* ---------------- the use cases: one click runs the whole flow on the right phone ---------------- */
   var SC = [
-    { id: "01", t: "Pay today by SMS", s: "Lamin texts his plate, then 1 for Wave. Receipt by SMS, plate PAID till 7pm.", num: "7023456", steps: [["sms", "BJL1234"], ["sms", "1"]] },
-    { id: "02", t: "Monthly pass by SMS", s: "Isatou texts M and her plate, pays with Afrimoney: 4,000 GMD, 30 days.", num: "3034567", steps: [["sms", "M BJL5678"], ["sms", "2"]] },
+    { id: "01", t: "Pay today by SMS", s: "Lamin texts his plate, 1 for a daily pass, 1 for Wave. Receipt by SMS, plate PAID till 7pm.", num: "7023456", steps: [["sms", "BJL1234"], ["sms", "1"], ["sms", "1"]] },
+    { id: "02", t: "Monthly pass by SMS", s: "Isatou texts her plate, 2 for a monthly pass, pays with Afrimoney: 4,000 GMD, 30 days.", num: "3034567", steps: [["sms", "BJL5678"], ["sms", "2"], ["sms", "2"]] },
     { id: "03", t: "Pay today by USSD", s: "Fatou dials *7275#, Daily pass, types a plate, pays with APS.", num: "7012345", steps: [["ussd", ["1", "BJL6006", "3"]]] },
-    { id: "04", t: "Not enough balance", s: "Ebrima tries Wave (100 GMD left): nothing charged; then pays with QMoney.", num: "7045678", steps: [["sms", "BJL3030"], ["sms", "1"], ["sms", "BJL3030"], ["sms", "4"]] },
+    { id: "04", t: "Not enough balance", s: "Ebrima tries Wave (100 GMD left): nothing charged; then pays with QMoney.", num: "7045678", steps: [["sms", "BJL3030"], ["sms", "1"], ["sms", "1"], ["sms", "BJL3030"], ["sms", "1"], ["sms", "4"]] },
     { id: "05", t: "Already covered", s: "Omar’s monthly pass and Kebba’s organisation car: nothing to pay.", num: "3078901", steps: [["sms", "BJL7777"], ["sms", "BJL7001"]] },
     { id: "06", t: "Wrong input", s: "Fatou texts hello, a bad plate, then a wrong menu digit.", num: "7012345", steps: [["sms", "hello"], ["sms", "BJL123456"], ["sms", "9"]] },
     { id: "07", t: "Attendant shift by SMS", s: "Modou texts START, checks a paid and an unpaid plate.", num: "7300007", steps: [["sms", "START"], ["sms", "BJL7777"], ["sms", "BJL8080"]] },
@@ -39,7 +39,7 @@
     { id: "14", t: "My plates and status by USSD", s: "Isatou dials *7275# → My plates, then checks a plate.", num: "3034567", steps: [["ussd", ["5"]], ["ussd", ["3", "1"]]] },
     { id: "15", t: "Terms and help", s: "TERMS and HELP by SMS; Terms & conditions by USSD.", num: "7012345", steps: [["sms", "TERMS"], ["sms", "HELP"], ["ussd", ["6"]]] },
     { id: "16", t: "Free hours", s: "After 7pm a plate texted is free. Demo clock.", num: "7023456", demo: true, steps: [["clock", "evening"], ["sms", "BJL1234"], ["clock", "morning"]] },
-    { id: "17", t: "A new number", s: "A first-time phone says hi (welcome with the terms link), then pays.", num: "7444444", steps: [["sms", "Hi"], ["sms", "BJL4545"], ["sms", "BJL2468"], ["sms", "1"]] },
+    { id: "17", t: "A new number", s: "A first-time phone says hi (welcome with the terms link), then pays.", num: "7444444", steps: [["sms", "Hi"], ["sms", "BJL4545"], ["sms", "BJL2468"], ["sms", "1"], ["sms", "1"]] },
     { id: "18", t: "Organisation contact", s: "Mariama (Demo Bank) checks a fleet car by SMS: covered.", num: "7101234", steps: [["sms", "BJL7002"]] }
   ];
 

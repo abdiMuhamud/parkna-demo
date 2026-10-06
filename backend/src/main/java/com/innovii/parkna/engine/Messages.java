@@ -16,12 +16,13 @@ final class Messages {
     Messages(Supplier<Tariff> tariff) { this.tariff = tariff; }
 
     String welcome() { return "Welcome to SUNU Park, Banjul City parking. Text your plate number to pay, e.g. BJL1234. " + tariff.get().daily + " GMD a day, 7am-7pm Mon-Sat. Paying means you accept the terms: " + ParkingEngine.TERMS_URL; }
-    String help() { return "SUNU Park: text your plate to pay for today, M for a monthly pass. 7am-7pm Mon-Sat. Pay by Wave, Afrimoney, APS or QMoney. Park in any marked SUNU Park bay. Text TERMS for the terms."; }
+    String help() { return "SUNU Park: text your plate, then 1 for a daily pass or 2 for a monthly pass. 7am-7pm Mon-Sat. Pay by Wave, Afrimoney, APS or QMoney. Park in any marked SUNU Park bay. Text TERMS for the terms."; }
     String terms() { return "SUNU Park terms and conditions: " + ParkingEngine.TERMS_URL + " (also in the app and at the Council office). Daily " + tariff.get().daily + " GMD, monthly " + tariff.get().monthly + " GMD; hourly parking is not offered yet. Using SUNU Park means you accept them."; }
     String termsNew(String v) { return "SUNU Park terms and conditions are updated (version " + v + "). Read them at " + ParkingEngine.TERMS_URL + " or in the app. Using SUNU Park means you accept them."; }
     String free() { return "Parking is free now. Paid hours 7am-7pm Mon-Sat."; }
     String bad() { return "Enter your plate e.g. BJL1234"; }
     String officerOnly(String w) { return w + " is for registered SUNU Park attendants. To pay for parking, text your plate e.g. BJL1234"; }
+    String choose(String p, LocalDate to) { return p + " is not paid today.\n1 Daily pass " + tariff.get().daily + " GMD, till 7pm\n2 Monthly pass " + tariff.get().monthly + " GMD, to " + fmtD(to); }
     String offer(String p) { return "Daily pass " + p + ": " + tariff.get().daily + " GMD, valid till 7pm today.\n1 Wave 2 Afrimoney 3 APS 4 QMoney"; }
     String org(String p, String orgName, String orgId) { return p + " is covered by " + orgName + " fleet (" + orgId + "). Nothing to pay."; }
     String mcov(String p, LocalDate to) { return p + " has a monthly pass to " + fmtD(to) + ". Nothing to pay today."; }

@@ -42,6 +42,8 @@ everything people see says SUNU Park.
   GitHub release (server package + both APKs). Raise `VERSION` for a bigger change.
 - Write for the people using it: plain words in the UI, SMS texts under 160 characters where possible, prices from
   the tariff (`T.daily`, `T.monthly`, `T.fine`), never hard-coded.
+- Documents (Word, PDF, decks): the INNOVII logo always at the top right (cover and every page header);
+  SUNU Park / Banjul City Council branding on the left; soft brand colours, no loud colours. Copies in `docs/`.
 - Keep the look: pale blue `#F6FBFE`, navy `#0B2E63`, SUNU yellow `#FEDB46`, Plus Jakarta Sans.
 - Privacy: a new field on a model is sent to drivers/attendants/organisations/police only through `Views`; add a
   `ViewsTest` when a role starts seeing something new.

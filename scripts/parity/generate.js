@@ -74,11 +74,14 @@ function story(){
   for(const t of ["M", "1", "BJL1234", "9", "4"]) A({ type: "sms", num: "3034567", text: t });
   A({ type: "sms", num: "7099999", text: "Hi" });
   A({ type: "sms", num: "7099999", text: "BJL9191" });
-  A({ type: "sms", num: "7099999", text: "2" });
+  /* a plate texted: 1 daily pass or 2 monthly pass, then the provider */
+  for(const t of ["5", "1", "2"]) A({ type: "sms", num: "7099999", text: t });
+  for(const t of ["BJL3232", "2", "9", "3", "BJL3232", "BJL3131", "x", "3"]) A({ type: "sms", num: "7099999", text: t });
   A({ type: "officer.login", num: "7300007" });
   A({ type: "officer.login", num: "7012345" });
   for(const t of ["BJL9191", "hello", "12", "START", "START", "BJL9191", "BJL8080", "BJL7001", "BJL7777", "BJL4545", "junk1", "BJL9191"]) A({ type: "sms", num: "7300007", text: t });
   A({ type: "sms", num: "7012345", text: "BJL9191" });
+  A({ type: "sms", num: "7012345", text: "1" });
   A({ type: "sms", num: "7012345", text: "1" });
   A({ type: "sms", num: "7300007", text: "BJL9191" });
   /* warnings: issue, repeat, paid plate, no plate, not on shift; the driver pays within 24 hours */
