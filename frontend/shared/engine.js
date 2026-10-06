@@ -167,12 +167,13 @@ function plateNums(p){
 /* ---------------- messages ---------------- */
 var MSG = {
   welcome: function(){ return "Welcome to SUNU Park, Banjul City parking. Text your plate number to pay, e.g. BJL1234. "+T.daily+" GMD a day, 7am-7pm Mon-Sat. Paying means you accept the terms: "+TERMS_URL; },
-  help: function(){ return "SUNU Park: text your plate to pay for today, M for a monthly pass. 7am-7pm Mon-Sat. Pay by Wave, Afrimoney, APS or QMoney. Park in any marked SUNU Park bay. Text TERMS for the terms."; },
+  help: function(){ return "SUNU Park: text your plate, then 1 for a daily pass or 2 for a monthly pass. 7am-7pm Mon-Sat. Pay by Wave, Afrimoney, APS or QMoney. Park in any marked SUNU Park bay. Text TERMS for the terms."; },
   terms: function(){ return "SUNU Park terms and conditions: "+TERMS_URL+" (also in the app and at the Council office). Daily "+T.daily+" GMD, monthly "+T.monthly+" GMD; hourly parking is not offered yet. Using SUNU Park means you accept them."; },
   termsNew: function(v){ return "SUNU Park terms and conditions are updated (version "+v+"). Read them at "+TERMS_URL+" or in the app. Using SUNU Park means you accept them."; },
   free: function(){ return "Parking is free now. Paid hours 7am-7pm Mon-Sat."; },
   bad: function(){ return "Enter your plate e.g. BJL1234"; },
   officerOnly: function(w){ return w+" is for registered SUNU Park attendants. To pay for parking, text your plate e.g. BJL1234"; },
+  choose: function(p, to){ return p+" is not paid today.\n1 Daily pass "+T.daily+" GMD, till 7pm\n2 Monthly pass "+T.monthly+" GMD, to "+fmtD(to); },
   offer: function(p){ return "Daily pass "+p+": "+T.daily+" GMD, valid till 7pm today.\n1 Wave 2 Afrimoney 3 APS 4 QMoney"; },
   org: function(p){ var o = orgOf(p); return p+" is covered by "+o.name+" fleet ("+o.id+"). Nothing to pay."; },
   mcov: function(p, to){ return p+" has a monthly pass to "+fmtD(to)+". Nothing to pay today."; },
@@ -274,8 +275,8 @@ function smsIn(num, raw){
   link(num, p); u.welcomed = true;
   if(st === "MONTHLY") return mt(num, MSG.mcov(p, PLATES[p].monthly.to));
   if(st === "DAILY") return mt(num, MSG.dcov(p, PLATES[p].daily.ticket));
-  u.pending = { plate: p, kind: "daily" };
-  return mt(num, MSG.offer(p));
+  u.pending = { plate: p, kind: "choose" };
+  return mt(num, MSG.choose(p, quote(num, p, "monthly").to));
 }
 /* asked about one plate while another of the phone's plates has an unpaid warning: the warning is offered first */
 function fineFirstOffer(num, first, p){
@@ -285,6 +286,15 @@ function fineFirstOffer(num, first, p){
 }
 function answer(num, U){
   var u = N(num), pe = u.pending, i = parseInt(U, 10);
+  if(pe.kind === "choose"){
+    /* a plate was texted: 1 daily pass, 2 monthly pass, then the provider */
+    if(i === 1){ u.pending = { plate: pe.plate, kind: "daily" }; return mt(num, MSG.offer(pe.plate)); }
+    if(i !== 2) return mt(num, "Reply 1 for a daily pass or 2 for a monthly pass.");
+    var qm = quote(num, pe.plate, "monthly");
+    if(qm.err){ u.pending = null; return mt(num, qm.err); }
+    u.pending = { plate: qm.plate, kind: qm.kind };
+    return mt(num, MSG.moffer(qm.plate, qm.to));
+  }
   if(!(i >= 1 && i <= 4)) return mt(num, "Reply 1 Wave, 2 Afrimoney, 3 APS or 4 QMoney.");
   u.pending = null;
   return pay(num, pe.plate, pe.kind, PROVIDERS[i-1]);

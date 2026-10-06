@@ -638,8 +638,8 @@ public class ParkingEngine {
         if (st.equals("MONTHLY")) return mt(num, msg.mcov(p, S.plates.get(p).monthly.to), null);
         if (st.equals("DAILY")) return mt(num, msg.dcov(p, S.plates.get(p).daily.ticket), null);
         if (!paymentsEnabled) return mt(num, p + " is not paid today (" + S.tariff.daily + " GMD till 7pm). " + PAYMENTS_OFF, null);
-        u.pending = new Pending(p, "daily");
-        return mt(num, msg.offer(p), null);
+        u.pending = new Pending(p, "choose");
+        return mt(num, msg.choose(p, quote(num, p, "monthly").to), null);
     }
 
     /** Asked about one plate while another of the phone's plates has an unpaid warning: the warning is offered first. */
@@ -661,6 +661,15 @@ public class ParkingEngine {
         Subscriber u = N(num);
         Pending pe = u.pending;
         int i = Integer.parseInt(U);
+        if (pe.kind.equals("choose")) {
+            /* a plate was texted: 1 daily pass, 2 monthly pass, then the provider */
+            if (i == 1) { u.pending = new Pending(pe.plate, "daily"); return mt(num, msg.offer(pe.plate), null); }
+            if (i != 2) return mt(num, "Reply 1 for a daily pass or 2 for a monthly pass.", null);
+            Quote qm = quote(num, pe.plate, "monthly");
+            if (qm.err != null) { u.pending = null; return mt(num, qm.err, null); }
+            u.pending = new Pending(qm.plate, qm.kind);
+            return mt(num, msg.moffer(qm.plate, qm.to), null);
+        }
         if (!(i >= 1 && i <= 4)) return mt(num, "Reply 1 Wave, 2 Afrimoney, 3 APS or 4 QMoney.", null);
         u.pending = null;
         return pay(num, pe.plate, pe.kind, PROVIDERS.get(i - 1));
