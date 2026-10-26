@@ -16,7 +16,7 @@
     <parkna.version>${project.version}</parkna.version>
     <maven.compiler.release>17</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <jackson.version>2.22.3</jackson.version>
+    <jackson.version>2.22.4</jackson.version>
     <log4j.version>2.26.1</log4j.version>
     <!-- parity tests: folder written by scripts/parity/generate.js; empty = those tests are skipped -->
     <parity.dir></parity.dir>
@@ -104,7 +104,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>3.6.0</version>
+        <version>3.6.1</version>
         <configuration>
           <systemPropertyVariables>
             <parity.dir>${parity.dir}</parity.dir>
